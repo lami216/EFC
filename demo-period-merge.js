@@ -26,7 +26,7 @@ periodPatchStyle.textContent=`
 document.head.appendChild(periodPatchStyle);
 
 renderPeriod=function(){
-  const defaultFrom='2026-08-01';
+  const defaultFrom=deviceTodayV3().slice(0,7)+'-01';
   shell(`${pageTitle('بحث موحد','آلية البحث','ابحث بالطالب والفترة والفرع والتخصص والوضعية، ثم تنقّل بين التسجيلات والدفعات والمستحقات ونهايات الدورات.')}
     <div class="card period-search-card">
       <input class="input" id="periodSearch" placeholder="ابحث بالاسم أو الهاتف أو رقم السجل">
@@ -118,7 +118,7 @@ renderPeriod=function(){
 
 // Old bookmarked #payments URLs now land on the unified search screen.
 const renderCurrentMerged=function(){
-  currentPage=location.hash.replace('#','')||'register';
+  currentPage=location.hash.replace('#','')||(specialties.length?'register':'specialties');
   if(currentPage==='payments'){
     history.replaceState(null,'','#period');
     currentPage='period';
