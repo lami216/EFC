@@ -1,0 +1,95 @@
+name: Build EFC Windows Setup
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout new EFC repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Import approved GitHub Pages demo exactly once
+        shell: pwsh
+        run: |
+          if (-not (Test-Path ".demo-imported")) {
+            git clone --depth 1 --branch gh-pages https://github.com/lami216/EFC-OFFLINE.git .approved-demo
+
+            $files = @(
+              "index.html",
+              "demo.css",
+              "demo-app.js",
+              "demo-period-merge.js",
+              "demo-monthly-finance-v3.js",
+              "demo-receipts-v4.js",
+              "demo-v5-runtime-guard.js",
+              "demo-brand-receipt-v5.js",
+              "demo-repair-v6.js",
+              "demo-receipt-layout-v7.js",
+              "demo-fix-v8.js",
+              "demo-receipt-logo-v9.js",
+              "demo-receipt-compact-v10.js",
+              "demo-receipt-paper-v11.js",
+              "demo-receipt-clean-v12.js",
+              "efc-logo.svg"
+            )
+
+            foreach ($file in $files) {
+              Copy-Item ".approved-demo/$file" $file -Force
+            }
+
+            if (Test-Path "assets") {
+              Remove-Item "assets" -Recurse -Force
+            }
+            Copy-Item ".approved-demo/assets" "assets" -Recurse -Force
+            Remove-Item ".approved-demo" -Recurse -Force
+
+            "Approved source: lami216/EFC-OFFLINE gh-pages @ 39eece2139cadd23dc513b05506b5a493c1bb895" | Set-Content -Encoding utf8 ".demo-imported"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add index.html demo.css demo-*.js efc-logo.svg assets .demo-imported
+            git diff --cached --quiet
+            if ($LASTEXITCODE -ne 0) {
+              git commit -m "Import approved GitHub Pages demo [skip ci]"
+              git push origin HEAD:main
+            }
+          }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install desktop build tools
+        run: npm install --no-audit --no-fund
+
+      - name: Verify exact demo bundle
+        run: npm run build
+
+      - name: Build Windows installer
+        run: npm run tauri build -- --bundles nsis
+
+      - name: Upload Windows Setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: EFC-Windows-Setup
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
