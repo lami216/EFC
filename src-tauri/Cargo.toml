@@ -5,6 +5,8 @@ edition = "2021"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+png = "0.17"
+ico = "0.5"
 
 [dependencies]
 tauri = { version = "2", features = [] }
