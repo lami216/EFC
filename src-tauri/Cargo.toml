@@ -10,3 +10,4 @@ ico = "0.5"
 
 [dependencies]
 tauri = { version = "2", features = [] }
+rusqlite = { version = "0.32.1", features = ["bundled"] }

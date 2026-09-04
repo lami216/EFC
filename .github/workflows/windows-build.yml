@@ -13,62 +13,28 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout new EFC repository
+      - name: Checkout EFC
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Import approved GitHub Pages demo exactly once
-        shell: pwsh
-        run: |
-          if (-not (Test-Path ".demo-imported")) {
-            git clone --depth 1 --branch gh-pages https://github.com/lami216/EFC-OFFLINE.git .approved-demo
-
-            $files = @(
-              "index.html",
-              "demo.css",
-              "demo-app.js",
-              "demo-period-merge.js",
-              "demo-monthly-finance-v3.js",
-              "demo-receipts-v4.js",
-              "demo-v5-runtime-guard.js",
-              "demo-brand-receipt-v5.js",
-              "demo-repair-v6.js",
-              "demo-receipt-layout-v7.js",
-              "demo-fix-v8.js",
-              "demo-receipt-logo-v9.js",
-              "demo-receipt-compact-v10.js",
-              "demo-receipt-paper-v11.js",
-              "demo-receipt-clean-v12.js",
-              "efc-logo.svg"
-            )
-
-            foreach ($file in $files) {
-              Copy-Item ".approved-demo/$file" $file -Force
-            }
-
-            if (Test-Path "assets") {
-              Remove-Item "assets" -Recurse -Force
-            }
-            Copy-Item ".approved-demo/assets" "assets" -Recurse -Force
-            Remove-Item ".approved-demo" -Recurse -Force
-
-            "Approved source: lami216/EFC-OFFLINE gh-pages @ 39eece2139cadd23dc513b05506b5a493c1bb895" | Set-Content -Encoding utf8 ".demo-imported"
-
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add index.html demo.css demo-*.js efc-logo.svg assets .demo-imported
-            git diff --cached --quiet
-            if ($LASTEXITCODE -ne 0) {
-              git commit -m "Import approved GitHub Pages demo [skip ci]"
-              git push origin HEAD:main
-            }
-          }
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Remove demo seed data and harden runtime
+        shell: pwsh
+        run: |
+          npm run harden
+          $changes = git status --porcelain -- demo-app.js demo-period-merge.js demo-fix-v8.js
+          if ($changes) {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add demo-app.js demo-period-merge.js demo-fix-v8.js
+            git commit -m "Remove demo seed data [skip ci]"
+            git push origin HEAD:main
+          }
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -79,13 +45,33 @@ jobs:
           workspaces: src-tauri
 
       - name: Install desktop build tools
-        run: npm install --no-audit --no-fund
+        run: npm install --no-audit --no-fund --package-lock=false
 
-      - name: Verify exact demo bundle
+      - name: Verify production source
+        run: npm run check
+
+      - name: Build frontend
         run: npm run build
 
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
+
+      - name: Smoke-test release startup
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "src-tauri/target/release/*.exe" |
+            Where-Object { $_.Name -notlike "*-setup.exe" } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $exe) { throw "Release executable was not found." }
+          $process = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            throw "Centre EFC exited during startup smoke test with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
+          Write-Host "Centre EFC stayed alive during the startup smoke test."
 
       - name: Upload Windows Setup
         uses: actions/upload-artifact@v4

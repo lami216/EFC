@@ -1,9 +1,11 @@
 {
-  "name": "efc-approved-demo-desktop",
+  "name": "efc-desktop",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "harden": "node scripts/harden-production.mjs",
+    "check": "node scripts/verify-production.mjs",
     "build": "node scripts/build-demo.mjs",
     "tauri": "tauri"
   },
