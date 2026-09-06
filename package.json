@@ -10,6 +10,10 @@
     "icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg",
     "tauri": "tauri"
   },
+  "dependencies": {
+    "html2canvas": "1.4.1",
+    "jspdf": "2.5.2"
+  },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4"
   }
