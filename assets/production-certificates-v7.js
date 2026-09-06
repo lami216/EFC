@@ -91,9 +91,7 @@
     try{return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'));}catch{return normalizeState({});}
   }
 
-  function writeLocal(){
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(certificateState));
-  }
+  function writeLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(certificateState));}
 
   async function persist(){
     writeLocal();
@@ -117,19 +115,17 @@
     }
   }
 
-  function nextReceiptNo(){
-    return Math.max(0,...certificateState.certificateReceipts.map(item=>Number(item.receiptNo||0)))+1;
-  }
-
+  function nextReceiptNo(){return Math.max(0,...certificateState.certificateReceipts.map(item=>Number(item.receiptNo||0)))+1;}
   function nowTime(){const d=new Date();return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;}
 
   function certificatePayment(receipt){
+    const specialtyValue=spec(receipt.specialtyId)?receipt.specialtyId:(receipt.specialtyName||receipt.specialtyId);
     const studentLike={
       id:`certificate:${receipt.id}`,
       name:receipt.studentName,
       phone:receipt.phone||'',
       branch:receipt.branchType==='internal'?receipt.branchId:receipt.branchName,
-      specialty:receipt.specialtyId,
+      specialty:specialtyValue,
       reg:receipt.reg||''
     };
     return {
@@ -166,7 +162,7 @@
 
   function certificateDocument(receipt,actions=true,autoPrint=false){
     const data=JSON.stringify(receipt).replace(/</g,'\\u003c');
-    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>روسي شهادة ${padReceipt(receipt.receiptNo)}</title><style>${certificateReceiptCss()}</style></head><body><div class="cert-paper">${certificateReceiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="parent.EFC_SAVE_CERTIFICATE_PDF(CERT)">حفظ PDF</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
+    return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>روسي شهادة ${padReceipt(receipt.receiptNo)}</title><style>${certificateReceiptCss()}</style></head><body><div class="cert-paper">${certificateReceiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="(opener||parent).EFC_SAVE_CERTIFICATE_PDF(CERT)">حفظ PDF</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
   }
 
   function openCertificateReceipt(receipt,autoPrint=false){
@@ -232,16 +228,22 @@
     return [...certificateState.certificateReceipts].sort((a,b)=>b.date.localeCompare(a.date)||Number(b.timestamp)-Number(a.timestamp)).map(receipt=>`<tr class="cert-history-row-v7" data-certificate="${esc(receipt.id)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${receipt.studentType==='internal'?'مسجل':'خارجي'}</td><td>${esc(receipt.branchName)}</td><td>${esc(receipt.specialtyName)}</td><td>${cash(receipt.amount)}</td><td>${esc(receipt.method)}</td><td>${showDate(receipt.date)}</td></tr>`).join('');
   }
 
-  function switchMode(mode){certificateMode=mode==='external'?'external':'internal';document.querySelectorAll('.cert-mode-v7 button').forEach(button=>button.classList.toggle('active',button.dataset.mode===certificateMode));document.getElementById('certInternalPane').hidden=certificateMode!=='internal';document.getElementById('certExternalPane').hidden=certificateMode!=='external';}
+  function switchMode(mode){
+    certificateMode=mode==='external'?'external':'internal';
+    document.querySelectorAll('.cert-mode-v7 button').forEach(button=>button.classList.toggle('active',button.dataset.mode===certificateMode));
+    const internalPane=document.getElementById('certInternalPane'),externalPane=document.getElementById('certExternalPane');
+    if(internalPane) internalPane.hidden=certificateMode!=='internal';
+    if(externalPane) externalPane.hidden=certificateMode!=='external';
+  }
 
   function renderCertificates(){
     currentPage='certificates';
     const branchOptions=certificateState.certificateBranches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
     shell(`${pageTitle('إدارة الشهادات','روسي الشهادة','أصدر روسي شهادة لطالب مسجل أو لطالب خارجي. دخل الشهادة يدخل المالية واليومية ولا يغيّر رصيد الدورة.')}<div class="cert-layout-v7"><div class="card cert-form-v7"><div class="cert-mode-v7"><button type="button" data-mode="internal">طالب مسجل</button><button type="button" data-mode="external">طالب خارجي</button></div><div id="certInternalPane"><label>ابحث عن الطالب<input class="input" id="certStudentSearch" placeholder="الاسم أو الهاتف أو رقم السجل"></label><div id="certStudentResults" class="cert-results-v7"></div><div id="certSelectedStudent"></div></div><div id="certExternalPane"><div class="grid two"><label>اسم الطالب<input class="input" id="certExternalName" placeholder="اسم الطالب الكامل"></label><label>رقم الهاتف<input class="input" id="certExternalPhone" placeholder="يحفظ في السجل ولا يطبع على الروسي"></label><label>الدورة<select id="certExternalSpec"><option value="">اختر الدورة</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>فرع الشهادة<select id="certExternalBranch"><option value="">اختر فرع الشهادة</option>${branchOptions}</select></label></div><button type="button" class="mini cert-add-branch-v7" id="certAddBranch">＋ إضافة فرع شهادة</button><small class="cert-private-note-v7">فروع الشهادات هنا مستقلة ولا تظهر في تسجيل الطلاب أو فلاتر الفروع العادية.</small></div><div class="grid two cert-payment-v7"><label>المبلغ<input class="input" id="certAmount" type="number" min="1" placeholder="المبلغ المدفوع" required></label><label>وسيلة الدفع<select id="certMethod">${methods.map(item=>`<option>${esc(item)}</option>`).join('')}</select></label></div><button class="button" type="button" id="certIssue">إصدار روسي الشهادة</button></div><div class="card cert-help-v7"><h3>ما الذي يحفظه النظام؟</h3><p>يحفظ الاسم والهاتف والدورة والفرع والمبلغ ووسيلة الدفع وتاريخ العملية. الهاتف يبقى في السجل فقط ولا يظهر في الروسي.</p><p>للطالب المسجل، رقم السجل والفرع والدورة تُسحب تلقائيًا من تسجيله الحالي.</p><p>رسوم الشهادة عملية مالية مستقلة، لذلك لا تزيد المدفوع للدورة ولا تقلل متبقيها.</p></div></div><div class="card cert-history-v7"><div class="section-head"><h2>سجل روسيات الشهادات</h2><span>${certificateState.certificateReceipts.length} عملية</span></div>${table(['رقم الروسي','الطالب','النوع','الفرع','الدورة','المبلغ','وسيلة الدفع','التاريخ'],historyRows())}</div>`);
     document.querySelectorAll('.cert-mode-v7 button').forEach(button=>button.onclick=()=>switchMode(button.dataset.mode));
-    document.getElementById('certStudentSearch').oninput=drawStudentResults;
-    document.getElementById('certAddBranch').onclick=addCertificateBranch;
-    document.getElementById('certIssue').onclick=issueCertificateReceipt;
+    const search=document.getElementById('certStudentSearch');if(search)search.oninput=drawStudentResults;
+    const addBranch=document.getElementById('certAddBranch');if(addBranch)addBranch.onclick=addCertificateBranch;
+    const issue=document.getElementById('certIssue');if(issue)issue.onclick=issueCertificateReceipt;
     document.querySelectorAll('.cert-history-row-v7').forEach(row=>row.onclick=()=>{const receipt=certificateState.certificateReceipts.find(item=>item.id===row.dataset.certificate);if(receipt)openCertificateReceipt(receipt);});
     switchMode(certificateMode);renderInternalSelection();
   }
@@ -258,11 +260,26 @@
     }else{
       const name=String(document.getElementById('certExternalName')?.value||'').trim(),phone=String(document.getElementById('certExternalPhone')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpec')?.value||''),branchId=String(document.getElementById('certExternalBranch')?.value||'');
       const specialty=spec(specialtyId),branch=certificateState.certificateBranches.find(item=>item.id===branchId);
-      if(!name){alert('أدخل اسم الطالب.');return;}if(!specialty){alert('اختر الدورة.');return;}if(!branch){alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');return;}
+      if(!name){alert('أدخل اسم الطالب.');return;}
+      if(!specialty){alert('اختر الدورة.');return;}
+      if(!branch){alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');return;}
       data={studentType:'external',studentId:null,studentName:name,phone,reg:null,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:branch.id,branchName:branch.name};
     }
     const receipt=normalizeReceipt({...data,id:uid('certificate'),recordCode:uid('certificate-record'),transactionCode:uid('certificate-tx'),receiptNo:nextReceiptNo(),amount,method,date:today(),time:nowTime(),timestamp:Date.now(),createdAt:Date.now()});
-    certificateState.certificateReceipts.unshift(receipt);await persist();renderCertificates();openCertificateReceipt(receipt);
+    certificateState.certificateReceipts.unshift(receipt);
+    await persist();
+    renderCertificates();
+    openCertificateReceipt(receipt);
+  }
+
+  function ensureSidebarLink(icon){
+    const nav=document.querySelector('.shell nav');
+    if(!nav||nav.querySelector('a[href="#certificates"]')) return;
+    const link=document.createElement('a');
+    link.href='#certificates';
+    link.innerHTML=`<i>${icon}</i><span>الشهادات</span>`;
+    const finance=nav.querySelector('a[href="#finance"]');
+    nav.insertBefore(link,finance||null);
   }
 
   async function boot(){
@@ -271,14 +288,18 @@
     window[FLAG]=true;
     await loadState();
 
-    const style=document.createElement('style');style.textContent=`
+    const style=document.createElement('style');
+    style.textContent=`
       .cert-layout-v7{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr);gap:16px;margin-bottom:16px}.cert-form-v7{display:grid;gap:16px}.cert-mode-v7{display:flex;gap:5px;background:#edf1ef;border:1px solid var(--border);border-radius:9px;padding:5px;width:max-content}.cert-mode-v7 button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:6px;font-size:9px;cursor:pointer}.cert-mode-v7 button.active{background:#fff;color:var(--primary);box-shadow:0 2px 7px #0000000c}.cert-results-v7{display:grid;gap:5px;margin-top:6px}.cert-student-option-v7{border:1px solid var(--border);background:#fff;border-radius:8px;padding:9px 11px;text-align:right;cursor:pointer;color:var(--text)}.cert-student-option-v7:hover{background:var(--soft)}.cert-student-option-v7 b{display:block;font-size:10px}.cert-student-option-v7 span{display:block;color:var(--muted);font-size:8px;margin-top:3px}.cert-search-empty-v7,.cert-empty-v7{padding:12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:9px}.cert-selected-v7{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:10px}.cert-selected-v7 div{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px}.cert-selected-v7 small{display:block;color:var(--muted);font-size:8px;margin-bottom:5px}.cert-selected-v7 b{font-size:9px}.cert-add-branch-v7{margin-top:9px}.cert-private-note-v7{display:block;color:var(--muted);font-size:8px;margin-top:7px}.cert-payment-v7{padding-top:14px;border-top:1px solid var(--border)}.cert-help-v7{height:max-content}.cert-help-v7 h3{margin:0 0 12px;font-size:14px}.cert-help-v7 p{color:var(--muted);font-size:9px;line-height:1.9;margin:8px 0}.cert-history-v7{padding:18px}.cert-history-v7 .table-wrap{margin-top:12px}.cert-history-row-v7{cursor:pointer}.cert-history-row-v7:hover{background:#f1f8f5}.cert-history-row-v7 td:nth-child(2) b{display:block}.cert-history-row-v7 td:nth-child(2) small{display:block;color:var(--muted);font-size:8px;margin-top:3px}@media(max-width:1250px){.cert-layout-v7{grid-template-columns:1fr}.cert-selected-v7{grid-template-columns:repeat(3,1fr)}}
-    `;document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
 
+    const icon='<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v11H6z"/><path d="M9 7h6M9 10h4"/><circle cx="12" cy="17" r="3"/><path d="m10.2 19.3-.7 2.2 2.5-1 2.5 1-.7-2.2"/></g></svg>';
     if(!navItems.some(item=>item[0]==='certificates')){
-      const icon='<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.5h12v11H6z"/><path d="M9 7h6M9 10h4"/><circle cx="12" cy="17" r="3"/><path d="m10.2 19.3-.7 2.2 2.5-1 2.5 1-.7-2.2"/></g></svg>';
-      const financeIndex=navItems.findIndex(item=>item[0]==='finance');navItems.splice(financeIndex>=0?financeIndex:navItems.length,0,['certificates',icon,'الشهادات']);
+      const financeIndex=navItems.findIndex(item=>item[0]==='finance');
+      navItems.splice(financeIndex>=0?financeIndex:navItems.length,0,['certificates',icon,'الشهادات']);
     }
+    ensureSidebarLink(icon);
 
     const baseAllPayments=allPayments;
     allPayments=function(){
@@ -291,7 +312,11 @@
       const certLink=target?.closest('a[href="#certificates"]');
       if(certLink){event.preventDefault();history.replaceState(null,'','#certificates');renderCertificates();return;}
       const ledgerRow=target?.closest('#ledgerBody tbody tr[data-student^="certificate:"]');
-      if(ledgerRow){const id=String(ledgerRow.dataset.student||'').replace(/^certificate:/,'');const receipt=certificateState.certificateReceipts.find(item=>item.id===id);if(receipt){event.preventDefault();event.stopImmediatePropagation();openCertificateReceipt(receipt);} }
+      if(ledgerRow){
+        const id=String(ledgerRow.dataset.student||'').replace(/^certificate:/,'');
+        const receipt=certificateState.certificateReceipts.find(item=>item.id===id);
+        if(receipt){event.preventDefault();event.stopImmediatePropagation();openCertificateReceipt(receipt);}
+      }
     },true);
 
     window.addEventListener('hashchange',()=>{if(location.hash==='#certificates')setTimeout(renderCertificates,1);});
@@ -299,12 +324,22 @@
     const baseForce=window.EFC_FORCE_PERSIST;
     if(typeof baseForce==='function') window.EFC_FORCE_PERSIST=async()=>{const result=await baseForce();await persist();return result;};
     const baseApply=window.EFC_APPLY_RESTORED_STATE;
-    if(typeof baseApply==='function') window.EFC_APPLY_RESTORED_STATE=async incoming=>{const result=await baseApply(incoming);if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)){certificateState=mergeState(certificateState,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[]});await persist();}return result;};
+    if(typeof baseApply==='function') window.EFC_APPLY_RESTORED_STATE=async incoming=>{
+      const result=await baseApply(incoming);
+      if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)){
+        certificateState=mergeState(certificateState,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[]});
+        await persist();
+      }
+      return result;
+    };
 
     window.EFC_SAVE_CERTIFICATE_PDF=saveCertificatePdf;
     window.EFC_OPEN_CERTIFICATE_RECEIPT=openCertificateReceipt;
     window.EFC_CERTIFICATES_V7=Object.freeze({separateCertificateFinance:true,externalCertificateBranches:true,internalStudentAutofill:true,phoneStoredNotPrinted:true,certificateIncomeInLedgerAndFinance:true,backupIntegrated:true});
+
     if(location.hash==='#certificates') renderCertificates();
+    else if(location.hash==='#finance'&&typeof renderFinance==='function') renderFinance();
+    else if(location.hash==='#ledger'&&typeof renderLedger==='function') renderLedger();
   }
 
   boot();
