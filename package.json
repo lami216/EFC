@@ -7,6 +7,7 @@
     "harden": "node scripts/harden-production.mjs",
     "check": "node scripts/verify-production.mjs",
     "build": "node scripts/build-demo.mjs",
+    "icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg",
     "tauri": "tauri"
   },
   "devDependencies": {
