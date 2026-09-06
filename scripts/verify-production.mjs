@@ -16,7 +16,8 @@ const browserScripts = [
   'demo-receipt-paper-v11.js',
   'demo-receipt-clean-v12.js',
   'production-runtime.js',
-  'production-monthly-merge-v2.js'
+  'production-monthly-merge-v2.js',
+  'assets/production-student-profile-v3.js'
 ];
 
 for (const file of browserScripts) {
@@ -33,6 +34,7 @@ const index = await readFile('index.html', 'utf8');
 const runtime = await readFile('production-runtime.js', 'utf8');
 const loader = await readFile('production-loader.js', 'utf8');
 const monthlyMerge = await readFile('production-monthly-merge-v2.js', 'utf8');
+const studentProfile = await readFile('assets/production-student-profile-v3.js', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
@@ -51,6 +53,7 @@ for (const needle of forbiddenDemoData) {
 if (!core.includes('const seedStudents=[];')) throw new Error('Student seed is not empty.');
 if (!core.includes('const seedSpecialties = [];')) throw new Error('Specialty seed is not empty.');
 if (!index.includes('./production-loader.js')) throw new Error('Production loader is not wired in index.html.');
+if (!index.includes('./assets/production-student-profile-v3.js')) throw new Error('Student profile refinement is not wired in index.html.');
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
 for (const required of ['settings','renderSettingsProd','period-tabs-prod','sortable-head-prod','EFC_FORCE_PERSIST']) {
@@ -83,6 +86,18 @@ for (const required of [
 if (monthlyMerge.includes('data-tab="payments"')) throw new Error('Payments tab must not return to unified search.');
 if (monthlyMerge.includes("['الإجراء'")) throw new Error('Action column must not return to unified search.');
 
+for (const required of [
+  "openStudent = function(studentId, mode = 'finance')",
+  "currentPage === 'students'",
+  'student-file-tabs-v3',
+  'student-file-profile-v3',
+  'month-paid-placeholder-v3',
+  'compactMonthActionsUseExistingSpace',
+  "['السجل','الطالب','الهاتف','الفرع','التخصص','البداية','النهاية','حالة الدورة']"
+]) {
+  if (!studentProfile.includes(required)) throw new Error(`Student profile refinement missing: ${required}`);
+}
+
 for (const command of ['load_app_state','save_app_state','export_backup','import_backup']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
@@ -93,4 +108,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: month-targeted payments, per-month receipts, no duplicate payment tab/action column, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: month-targeted payments, per-month receipts, informational student profile, compact month actions with placeholders, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
