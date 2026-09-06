@@ -20,7 +20,8 @@ const browserScripts = [
   'assets/production-student-profile-v3.js',
   'assets/production-registration-receipt-v4.js',
   'assets/production-ledger-finance-ui-v5.js',
-  'assets/production-ledger-pdf-v6.js'
+  'assets/production-ledger-pdf-v6.js',
+  'assets/production-certificates-v7.js'
 ];
 
 for (const file of browserScripts) {
@@ -41,13 +42,16 @@ const studentProfile = await readFile('assets/production-student-profile-v3.js',
 const registrationReceipt = await readFile('assets/production-registration-receipt-v4.js', 'utf8');
 const ledgerFinanceUi = await readFile('assets/production-ledger-finance-ui-v5.js', 'utf8');
 const ledgerPdf = await readFile('assets/production-ledger-pdf-v6.js', 'utf8');
+const certificates = await readFile('assets/production-certificates-v7.js', 'utf8');
 const iconGenerator = await readFile('scripts/generate-app-icon.mjs', 'utf8');
 const buildScript = await readFile('scripts/build-demo.mjs', 'utf8');
 const packageJson = await readFile('package.json', 'utf8');
 const tauriConfig = await readFile('src-tauri/tauri.conf.json', 'utf8');
+const nsisHooks = await readFile('src-tauri/windows/hooks.nsh', 'utf8');
 const buildRs = await readFile('src-tauri/build.rs', 'utf8');
 const cargo = await readFile('src-tauri/Cargo.toml', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
+const certificateRust = await readFile('src-tauri/src/certificate_state.rs', 'utf8');
 const receiptPdfRust = await readFile('src-tauri/src/receipt_pdf.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
@@ -70,12 +74,16 @@ for (const asset of [
   './assets/production-student-profile-v3.js',
   './assets/production-registration-receipt-v4.js',
   './assets/production-ledger-finance-ui-v5.js',
-  './assets/production-ledger-pdf-v6.js'
+  './assets/production-ledger-pdf-v6.js',
+  './assets/production-certificates-v7.js'
 ]) {
   if (!index.includes(asset)) throw new Error(`Production refinement is not wired: ${asset}`);
 }
 if (index.indexOf('production-ledger-pdf-v6.js') < index.indexOf('production-ledger-finance-ui-v5.js')) {
   throw new Error('Ledger/PDF v6 must load after the successful finance/ledger v5 refinement.');
+}
+if (index.indexOf('production-certificates-v7.js') < index.indexOf('production-ledger-pdf-v6.js')) {
+  throw new Error('Certificates v7 must load after the stable ledger/PDF layer.');
 }
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
@@ -164,6 +172,33 @@ for (const required of [
   if (!ledgerPdf.includes(required)) throw new Error(`Ledger/PDF v6 behavior missing: ${required}`);
 }
 
+for (const required of [
+  "['certificates',icon,'الشهادات']",
+  "studentType:'internal'",
+  "studentType:'external'",
+  "branchType:'certificate'",
+  "sourceType:'certificate'",
+  "id:`certificate:${receipt.id}`",
+  'allPayments=function()',
+  'رسوم شهادة',
+  'الهاتف يبقى في السجل فقط ولا يظهر في الروسي',
+  'receipt.reg?String(receipt.reg).padStart(4,\'0\'):\'—\'',
+  'window.EFC_APPLY_RESTORED_STATE=async incoming',
+  "invoke('save_certificate_state'",
+  "invoke('load_certificate_state'",
+  'certificateIncomeInLedgerAndFinance:true',
+  'phoneStoredNotPrinted:true',
+  'externalCertificateBranches:true'
+]) {
+  if (!certificates.includes(required)) throw new Error(`Certificate workflow missing: ${required}`);
+}
+if (certificates.includes('students.push(receipt)') || certificates.includes('student.payments.push')) {
+  throw new Error('Certificate fees must remain financially separate from student course payments.');
+}
+if (!certificates.includes("target?.closest('#ledgerBody tbody tr[data-student^=\"certificate:\"]')")) {
+  throw new Error('Certificate transactions in the ledger must open their exact certificate receipt.');
+}
+
 if (!packageJson.includes('"html2canvas": "1.4.1"') || !packageJson.includes('"jspdf": "2.5.2"')) {
   throw new Error('Offline PDF dependencies must be pinned locally.');
 }
@@ -188,10 +223,20 @@ for (const forbidden of ['paint_icon','write_ico','png::Encoder','ico::IconDir']
 }
 if (!buildRs.includes('tauri_build::build()')) throw new Error('Tauri build hook is missing.');
 if (cargo.includes('\npng =') || cargo.includes('\nico =')) throw new Error('Old build-time icon painting dependencies must remain removed.');
+if (!tauriConfig.includes('"version": "1.0.1"')) throw new Error('Windows version must be bumped so the icon fix installs as a real upgrade.');
+if (!tauriConfig.includes('"installerHooks": "./windows/hooks.nsh"')) throw new Error('NSIS shortcut icon hook is not configured.');
+for (const required of ['NSIS_HOOK_POSTINSTALL','File /oname=efc-logo-${VERSION}.ico','Delete "$DESKTOP\\${PRODUCTNAME}.lnk"','CreateShortcut "$DESKTOP\\${PRODUCTNAME}.lnk"','${MAINBINARYNAME}.exe']) {
+  if (!nsisHooks.includes(required)) throw new Error(`NSIS shortcut icon behavior missing: ${required}`);
+}
 
-for (const command of ['load_app_state','save_app_state','export_backup','import_backup','receipt_pdf::save_receipt_pdf']) {
+for (const command of ['load_app_state','save_app_state','export_backup','import_backup','receipt_pdf::save_receipt_pdf','load_certificate_state','save_certificate_state']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
+for (const required of ['CERT_KEY','certificateBranches','certificateReceipts','merge_into_main_state','save_raw','load_raw']) {
+  if (!certificateRust.includes(required)) throw new Error(`Native certificate state behavior missing: ${required}`);
+}
+if (!rust.includes('certificate_state::merge_into_main_state(app, &current)')) throw new Error('Safety backups must include certificate data.');
+if (!rust.includes('certificate_state::merge_into_main_state(&app, &state)')) throw new Error('Manual backups must include certificate data.');
 for (const required of ['save_receipt_pdf','USERPROFILE','Downloads','%PDF-','unique_path']) {
   if (!receiptPdfRust.includes(required)) throw new Error(`Native receipt PDF save behavior missing: ${required}`);
 }
@@ -203,4 +248,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: whole-row ledger receipts, direct offline PDF saving to Downloads, separate print/PDF actions, sidebar-source Windows icon without build.rs overwrite, daily/monthly/yearly finance periods without weekly mode, semantic sidebar icons, manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, informational student profile, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: certificate receipts with separate course balances and certificate-only branches, certificate income in finance/ledger, certificate backup persistence, whole-row ledger receipts, direct offline PDF saving to Downloads, separate print/PDF actions, NSIS desktop shortcut pinned to the generated EFC logo icon, daily/monthly/yearly finance periods without weekly mode, manual registration choices, month-only receipt remaining for monthly courses, informational student profile, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
