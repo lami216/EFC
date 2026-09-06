@@ -6,6 +6,7 @@ const files = [
   'demo.css',
   'production-loader.js',
   'production-runtime.js',
+  'production-monthly-merge-v2.js',
   'demo-app.js',
   'demo-period-merge.js',
   'demo-monthly-finance-v3.js',

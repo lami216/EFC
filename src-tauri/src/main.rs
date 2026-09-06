@@ -90,7 +90,7 @@ fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|e| format!("تعذر إنشاء وقت نسخة الأمان: {e}"))?
-        .as_secs();
+        .as_millis();
     fs::write(backups.join(format!("auto-before-restore-{stamp}.json")), current)
         .map_err(|e| format!("تعذر إنشاء نسخة الأمان قبل الاستعادة: {e}"))?;
     Ok(())
@@ -110,7 +110,7 @@ fn save_app_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
 #[tauri::command]
 fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option<String>, String> {
     let state = load_state_raw(&app)?.unwrap_or_else(|| {
-        r#"{"version":2,"updatedAt":0,"students":[],"specialties":[],"paymentMethods":[]}"#.to_string()
+        r#"{"version":3,"updatedAt":0,"students":[],"specialties":[],"paymentMethods":[]}"#.to_string()
     });
     validate_state_json(&state)?;
 
@@ -138,8 +138,11 @@ fn import_backup(app: tauri::AppHandle) -> Result<Option<String>, String> {
     let state = fs::read_to_string(&path)
         .map_err(|e| format!("تعذر قراءة ملف النسخة: {e}"))?;
     validate_state_json(&state)?;
+
+    // Keep the current database intact. The browser layer merges the selected
+    // backup into the current state and then persists the merged result.
+    // This safety snapshot is intentionally additive and never deletes older snapshots.
     write_safety_backup(&app)?;
-    save_state_raw(&app, &state)?;
     Ok(Some(state))
 }
 
