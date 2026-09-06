@@ -1,7 +1,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod certificate_state;
 mod receipt_pdf;
 
+use certificate_state::{load_certificate_state, save_certificate_state};
 use receipt_pdf::save_receipt_pdf;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
@@ -79,6 +81,13 @@ fn validate_state_json(raw: &str) -> Result<(), String> {
             return Err(format!("ملف النسخة ناقص أو غير صالح: {key}"));
         }
     }
+    for key in ["certificateBranches", "certificateReceipts"] {
+        if let Some(value) = object.get(key) {
+            if !value.is_array() {
+                return Err(format!("ملف النسخة يحتوي بيانات شهادات غير صالحة: {key}"));
+            }
+        }
+    }
     Ok(())
 }
 
@@ -87,6 +96,7 @@ fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
         return Ok(());
     };
     validate_state_json(&current)?;
+    let combined = certificate_state::merge_into_main_state(app, &current)?;
     let backups = app_data_dir(app)?.join("backups");
     fs::create_dir_all(&backups)
         .map_err(|e| format!("تعذر إنشاء مجلد نسخ الأمان: {e}"))?;
@@ -94,7 +104,7 @@ fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
         .duration_since(UNIX_EPOCH)
         .map_err(|e| format!("تعذر إنشاء وقت نسخة الأمان: {e}"))?
         .as_millis();
-    fs::write(backups.join(format!("auto-before-restore-{stamp}.json")), current)
+    fs::write(backups.join(format!("auto-before-restore-{stamp}.json")), combined)
         .map_err(|e| format!("تعذر إنشاء نسخة الأمان قبل الاستعادة: {e}"))?;
     Ok(())
 }
@@ -116,6 +126,7 @@ fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option
         r#"{"version":3,"updatedAt":0,"students":[],"specialties":[],"paymentMethods":[]}"#.to_string()
     });
     validate_state_json(&state)?;
+    let combined = certificate_state::merge_into_main_state(&app, &state)?;
 
     let Some(path) = rfd::FileDialog::new()
         .add_filter("EFC data backup", &["json"])
@@ -125,7 +136,7 @@ fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option
         return Ok(None);
     };
 
-    fs::write(&path, state).map_err(|e| format!("تعذر حفظ ملف النسخة: {e}"))?;
+    fs::write(&path, combined).map_err(|e| format!("تعذر حفظ ملف النسخة: {e}"))?;
     Ok(Some(path.to_string_lossy().into_owned()))
 }
 
@@ -156,6 +167,8 @@ fn main() {
             save_app_state,
             export_backup,
             import_backup,
+            load_certificate_state,
+            save_certificate_state,
             save_receipt_pdf
         ])
         .run(tauri::generate_context!())
