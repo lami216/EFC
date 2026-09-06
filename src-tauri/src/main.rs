@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod certificate_state;
+mod license;
 mod receipt_pdf;
 
 use certificate_state::{load_certificate_state, save_certificate_state};
+use license::{get_license_device_id, get_license_status, install_license_file};
 use receipt_pdf::save_receipt_pdf;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
@@ -111,17 +113,20 @@ fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
 
 #[tauri::command]
 fn load_app_state(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    license::require_valid_license()?;
     load_state_raw(&app)
 }
 
 #[tauri::command]
 fn save_app_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
+    license::require_valid_license()?;
     validate_state_json(&state)?;
     save_state_raw(&app, &state)
 }
 
 #[tauri::command]
 fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option<String>, String> {
+    license::require_valid_license()?;
     let state = load_state_raw(&app)?.unwrap_or_else(|| {
         r#"{"version":3,"updatedAt":0,"students":[],"specialties":[],"paymentMethods":[]}"#.to_string()
     });
@@ -142,6 +147,7 @@ fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option
 
 #[tauri::command]
 fn import_backup(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    license::require_valid_license()?;
     let Some(path) = rfd::FileDialog::new()
         .add_filter("EFC data backup", &["json"])
         .pick_file()
@@ -163,6 +169,9 @@ fn import_backup(app: tauri::AppHandle) -> Result<Option<String>, String> {
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            get_license_device_id,
+            get_license_status,
+            install_license_file,
             load_app_state,
             save_app_state,
             export_backup,

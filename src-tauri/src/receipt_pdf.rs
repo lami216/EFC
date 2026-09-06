@@ -36,6 +36,7 @@ fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
 
 #[tauri::command]
 pub fn save_receipt_pdf(file_name: String, data_base64: String) -> Result<String, String> {
+    crate::license::require_valid_license()?;
     let bytes = STANDARD
         .decode(data_base64.as_bytes())
         .map_err(|e| format!("تعذر فك بيانات PDF: {e}"))?;

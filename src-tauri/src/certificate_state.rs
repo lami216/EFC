@@ -106,10 +106,12 @@ pub fn merge_into_main_state(app: &tauri::AppHandle, main_raw: &str) -> Result<S
 
 #[tauri::command]
 pub fn load_certificate_state(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    crate::license::require_valid_license()?;
     load_raw(&app)
 }
 
 #[tauri::command]
 pub fn save_certificate_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
+    crate::license::require_valid_license()?;
     save_raw(&app, &state)
 }

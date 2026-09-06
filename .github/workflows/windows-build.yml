@@ -41,6 +41,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build activation generator
+        run: cargo build --manifest-path tools/license-generator/Cargo.toml --release
+
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
 
@@ -66,4 +69,11 @@ jobs:
         with:
           name: EFC-Windows-Setup
           path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
+
+      - name: Upload activation generator
+        uses: actions/upload-artifact@v4
+        with:
+          name: EFC-License-Generator
+          path: tools/license-generator/target/release/efc-license-generator.exe
           if-no-files-found: error
