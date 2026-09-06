@@ -70,13 +70,24 @@
     return list.map(name=>{const on=norm12(name)===norm12(current);return `<div class="method12 ${on?'on12':''}"><span class="check12">${on?'✓':''}</span><b>${esc12(name)}</b></div>`}).join('');
   }
 
+  function isMonthlyReceipt12(r){
+    const month=String(r?.month||'').trim();
+    const desc=String(r?.desc||'').trim();
+    return /^الشهر\s+\d+$/.test(month) && desc.startsWith('إجمالي مدفوع الشهر');
+  }
+
+  function remainingText12(r){
+    if(isMonthlyReceipt12(r) && Number(r?.remaining||0) <= 0) return 'لا شيء متبقي';
+    return moneyV3(r?.remaining);
+  }
+
   function html12(r){
     const h=head12(r);
     if(r.statement){
       const rows=(r.plan||[]).map(m=>{const st=m.state==='paid'?'مدفوع':m.state==='partial'?'دفع جزئي':m.state==='overdue'?'متأخر':m.state==='due'?'مستحق':'لم يحن';return `<tr><td>الشهر ${westernDigitsV3(m.number)}</td><td>${fmtDateV3(m.dueDate)}</td><td>${moneyV3(m.fee)}</td><td>${moneyV3(m.paid)}</td><td>${moneyV3(m.remaining)}</td><td>${st}</td></tr>`}).join('');
       return `${h}${meta12(r)}${row12("Nom de l’étudiant",r.student,'اسم الطالب')}${row12('Filière',r.specialty,'تخصص')}<div class="pair12">${half12('N° Registre',westernDigitsV3(r.reg),'رقم السجل','reg12')}${half12('Montant',moneyV3(r.paid),'إجمالي المدفوع')}</div><table class="mt12"><thead><tr><th>الشهر</th><th>الاستحقاق</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr></thead><tbody>${rows}</tbody></table><div class="tot12"><b>إجمالي المدفوع: ${moneyV3(r.paid)}</b><b>المتبقي من الدورة: ${moneyV3(r.remaining)}</b></div><p class="note12">ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p>`;
     }
-    return `${h}${meta12(r)}${row12("Nom de l’étudiant",r.student,'اسم الطالب')}${row12('Filière',r.specialty,'تخصص')}<div class="pair12">${half12('Reliquat',moneyV3(r.remaining),'المبلغ المتبقي')}${half12('Montant',moneyV3(r.amount),'المبلغ')}</div><div class="pair12">${half12('Mois',westernDigitsV3(r.month||'—'),'الشهر')}${half12('N° Registre',westernDigitsV3(r.reg),'رقم السجل','reg12')}</div><div class="desc12">${row12('Libellé',r.desc||'','البيان')}</div><p class="note12">ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p><div class="methods12">${methods12(r.method)}</div>`;
+    return `${h}${meta12(r)}${row12("Nom de l’étudiant",r.student,'اسم الطالب')}${row12('Filière',r.specialty,'تخصص')}<div class="pair12">${half12('Reliquat',remainingText12(r),'المبلغ المتبقي')}${half12('Montant',moneyV3(r.amount),'المبلغ')}</div><div class="pair12">${half12('Mois',westernDigitsV3(r.month||'—'),'الشهر')}${half12('N° Registre',westernDigitsV3(r.reg),'رقم السجل','reg12')}</div><div class="desc12">${row12('Libellé',r.desc||'','البيان')}</div><p class="note12">ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p><div class="methods12">${methods12(r.method)}</div>`;
   }
 
   function load12(src,key){return new Promise((res,rej)=>{if(window[key])return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)});}
