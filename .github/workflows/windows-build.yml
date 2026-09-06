@@ -32,6 +32,9 @@ jobs:
       - name: Install desktop build tools
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Generate EFC app icons
+        run: npm run icons
+
       - name: Verify production source
         run: npm run check
 
