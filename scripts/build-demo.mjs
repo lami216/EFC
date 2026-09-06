@@ -34,4 +34,14 @@ for (const file of files) {
 if (!existsSync('assets')) throw new Error('Missing EFC assets directory');
 await cp('assets', 'dist/assets', { recursive: true });
 
-console.log('EFC production interface copied to dist.');
+const vendorFiles = [
+  ['node_modules/html2canvas/dist/html2canvas.min.js', 'dist/vendor/html2canvas.min.js'],
+  ['node_modules/jspdf/dist/jspdf.umd.min.js', 'dist/vendor/jspdf.umd.min.js']
+];
+await mkdir('dist/vendor', { recursive: true });
+for (const [source, target] of vendorFiles) {
+  if (!existsSync(source)) throw new Error(`Missing offline PDF dependency: ${source}`);
+  await cp(source, target);
+}
+
+console.log('EFC production interface copied to dist with offline PDF libraries.');
