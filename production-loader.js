@@ -183,10 +183,20 @@
       installationId = imported ? legacySourceId(raw) : (fallbackInstallationId || legacySourceId(raw));
     }
 
-    const specialties = (Array.isArray(raw.specialties) ? raw.specialties : [])
-      .map(item => normalizeSpecialty(item, installationId));
-    const students = (Array.isArray(raw.students) ? raw.students : [])
-      .map(item => normalizeStudent(item, item?.sourceCenterId || installationId));
+    const rawSpecialties = Array.isArray(raw.specialties) ? raw.specialties : [];
+    const rawStudents = Array.isArray(raw.students) ? raw.students : [];
+    const hasExistingCodes = [...rawSpecialties, ...rawStudents].some(item =>
+      (typeof item?.recordCode === 'string' && item.recordCode.trim()) ||
+      (typeof item?.sourceCenterId === 'string' && item.sourceCenterId.trim())
+    );
+    const dataSourceId = hasExistingCodes || (!rawSpecialties.length && !rawStudents.length)
+      ? installationId
+      : legacySourceId(raw);
+
+    const specialties = rawSpecialties
+      .map(item => normalizeSpecialty(item, item?.sourceCenterId || dataSourceId));
+    const students = rawStudents
+      .map(item => normalizeStudent(item, item?.sourceCenterId || dataSourceId));
     const paymentMethods = (Array.isArray(raw.paymentMethods) && raw.paymentMethods.length
       ? raw.paymentMethods
       : DEFAULT_METHODS)
