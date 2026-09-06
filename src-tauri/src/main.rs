@@ -2,6 +2,7 @@
 
 mod receipt_pdf;
 
+use receipt_pdf::save_receipt_pdf;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 use std::{
@@ -155,7 +156,7 @@ fn main() {
             save_app_state,
             export_backup,
             import_backup,
-            receipt_pdf::save_receipt_pdf
+            save_receipt_pdf
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centre EFC");
