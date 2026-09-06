@@ -20,9 +20,13 @@ jobs:
         run: npm install --no-audit --no-fund --package-lock=false
       - name: Generate icons
         run: npm run icons
+      - name: Verify production source
+        run: npm run check
       - name: Build frontend
         run: npm run build
       - name: Check EFC Rust
         run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Test EFC license verifier
+        run: cargo test --manifest-path src-tauri/Cargo.toml license::tests --no-fail-fast
       - name: Check activation generator
         run: cargo check --manifest-path tools/license-generator/Cargo.toml
