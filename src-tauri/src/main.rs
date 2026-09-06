@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod receipt_pdf;
+
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 use std::{
@@ -152,7 +154,8 @@ fn main() {
             load_app_state,
             save_app_state,
             export_backup,
-            import_backup
+            import_backup,
+            receipt_pdf::save_receipt_pdf
         ])
         .run(tauri::generate_context!())
         .expect("error while running Centre EFC");
