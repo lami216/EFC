@@ -38,11 +38,11 @@ jobs:
       - name: Verify production source
         run: npm run check
 
+      - name: Verify HTML activation generator
+        run: node scripts/verify-license-generator-html.mjs
+
       - name: Build frontend
         run: npm run build
-
-      - name: Build activation generator
-        run: cargo build --manifest-path tools/license-generator/Cargo.toml --release
 
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
@@ -75,5 +75,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EFC-License-Generator
-          path: tools/license-generator/target/release/efc-license-generator.exe
+          path: tools/license-generator/efc-license-generator.html
           if-no-files-found: error
