@@ -1,17 +1,26 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rusqlite::{params, Connection, OptionalExtension};
-use std::{fs, path::PathBuf};
+use serde_json::Value;
+use std::{
+    fs,
+    path::PathBuf,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tauri::Manager;
 
-fn db_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("تعذر تحديد مجلد بيانات التطبيق: {e}"))?;
     fs::create_dir_all(&dir)
         .map_err(|e| format!("تعذر إنشاء مجلد بيانات التطبيق: {e}"))?;
-    Ok(dir.join("efc-state-v1.sqlite"))
+    Ok(dir)
+}
+
+fn db_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app_data_dir(app)?.join("efc-state-v1.sqlite"))
 }
 
 fn open_db(app: &tauri::AppHandle) -> Result<Connection, String> {
@@ -30,9 +39,8 @@ fn open_db(app: &tauri::AppHandle) -> Result<Connection, String> {
     Ok(conn)
 }
 
-#[tauri::command]
-fn load_app_state(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    let conn = open_db(&app)?;
+fn load_state_raw(app: &tauri::AppHandle) -> Result<Option<String>, String> {
+    let conn = open_db(app)?;
     conn.query_row(
         "SELECT value FROM app_state WHERE key='main'",
         [],
@@ -42,9 +50,8 @@ fn load_app_state(app: tauri::AppHandle) -> Result<Option<String>, String> {
     .map_err(|e| format!("تعذر قراءة بيانات التطبيق: {e}"))
 }
 
-#[tauri::command]
-fn save_app_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
-    let conn = open_db(&app)?;
+fn save_state_raw(app: &tauri::AppHandle, state: &str) -> Result<(), String> {
+    let conn = open_db(app)?;
     conn.execute(
         "INSERT INTO app_state(key,value,updated_at)
          VALUES('main', ?1, CURRENT_TIMESTAMP)
@@ -57,9 +64,93 @@ fn save_app_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_state_json(raw: &str) -> Result<(), String> {
+    let value: Value = serde_json::from_str(raw)
+        .map_err(|_| "ملف النسخة ليس ملف JSON صالحًا.".to_string())?;
+    let object = value
+        .as_object()
+        .ok_or_else(|| "ملف النسخة لا يحتوي بيانات EFC صالحة.".to_string())?;
+
+    for key in ["students", "specialties", "paymentMethods"] {
+        if !object.get(key).is_some_and(Value::is_array) {
+            return Err(format!("ملف النسخة ناقص أو غير صالح: {key}"));
+        }
+    }
+    Ok(())
+}
+
+fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
+    let Some(current) = load_state_raw(app)? else {
+        return Ok(());
+    };
+    validate_state_json(&current)?;
+    let backups = app_data_dir(app)?.join("backups");
+    fs::create_dir_all(&backups)
+        .map_err(|e| format!("تعذر إنشاء مجلد نسخ الأمان: {e}"))?;
+    let stamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| format!("تعذر إنشاء وقت نسخة الأمان: {e}"))?
+        .as_secs();
+    fs::write(backups.join(format!("auto-before-restore-{stamp}.json")), current)
+        .map_err(|e| format!("تعذر إنشاء نسخة الأمان قبل الاستعادة: {e}"))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn load_app_state(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    load_state_raw(&app)
+}
+
+#[tauri::command]
+fn save_app_state(app: tauri::AppHandle, state: String) -> Result<(), String> {
+    validate_state_json(&state)?;
+    save_state_raw(&app, &state)
+}
+
+#[tauri::command]
+fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option<String>, String> {
+    let state = load_state_raw(&app)?.unwrap_or_else(|| {
+        r#"{"version":2,"updatedAt":0,"students":[],"specialties":[],"paymentMethods":[]}"#.to_string()
+    });
+    validate_state_json(&state)?;
+
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("EFC data backup", &["json"])
+        .set_file_name(&suggested_name)
+        .save_file()
+    else {
+        return Ok(None);
+    };
+
+    fs::write(&path, state).map_err(|e| format!("تعذر حفظ ملف النسخة: {e}"))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
+}
+
+#[tauri::command]
+fn import_backup(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let Some(path) = rfd::FileDialog::new()
+        .add_filter("EFC data backup", &["json"])
+        .pick_file()
+    else {
+        return Ok(None);
+    };
+
+    let state = fs::read_to_string(&path)
+        .map_err(|e| format!("تعذر قراءة ملف النسخة: {e}"))?;
+    validate_state_json(&state)?;
+    write_safety_backup(&app)?;
+    save_state_raw(&app, &state)?;
+    Ok(Some(state))
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![load_app_state, save_app_state])
+        .invoke_handler(tauri::generate_handler![
+            load_app_state,
+            save_app_state,
+            export_backup,
+            import_backup
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Centre EFC");
 }
