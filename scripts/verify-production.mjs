@@ -19,7 +19,8 @@ const browserScripts = [
   'production-monthly-merge-v2.js',
   'assets/production-student-profile-v3.js',
   'assets/production-student-enrollments-v4.js',
-  'assets/production-student-pages-receipts-v5.js'
+  'assets/production-student-pages-receipts-v5.js',
+  'assets/production-student-route-guard-v6.js'
 ];
 
 for (const file of browserScripts) {
@@ -39,6 +40,7 @@ const monthlyMerge = await readFile('production-monthly-merge-v2.js', 'utf8');
 const studentProfile = await readFile('assets/production-student-profile-v3.js', 'utf8');
 const studentEnrollments = await readFile('assets/production-student-enrollments-v4.js', 'utf8');
 const studentPagesReceipts = await readFile('assets/production-student-pages-receipts-v5.js', 'utf8');
+const studentRouteGuard = await readFile('assets/production-student-route-guard-v6.js', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
@@ -60,6 +62,7 @@ if (!index.includes('./production-loader.js')) throw new Error('Production loade
 if (!index.includes('./assets/production-student-profile-v3.js')) throw new Error('Student profile refinement is not wired in index.html.');
 if (!index.includes('./assets/production-student-enrollments-v4.js')) throw new Error('Student pages/multi-course refinement is not wired in index.html.');
 if (!index.includes('./assets/production-student-pages-receipts-v5.js')) throw new Error('Final student pages/receipt runtime is not wired in index.html.');
+if (!index.includes('./assets/production-student-route-guard-v6.js')) throw new Error('Student route guard is not wired in index.html.');
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
 for (const required of ['settings','renderSettingsProd','period-tabs-prod','sortable-head-prod','EFC_FORCE_PERSIST']) {
@@ -136,6 +139,15 @@ if (!studentPagesReceipts.includes("/^\\d+$/.test")) throw new Error('Receipt nu
 if (!studentPagesReceipts.includes('paymentReceiptNo(s,i)')) throw new Error('Each payment must resolve a stable receipt number.');
 if (!studentPagesReceipts.includes("data-payment=\"${p.paymentIndex}\"")) throw new Error('Ledger rows must keep the payment index for receipt opening.');
 
+for (const required of [
+  'event.stopImmediatePropagation()',
+  "/^(student|enrollment)\\//",
+  'registrationFallbackBlocked:true',
+  "window.EFC_STUDENT_PAGES_RECEIPTS_V5?.pagesAreFinal"
+]) {
+  if (!studentRouteGuard.includes(required)) throw new Error(`Integrated student routing missing: ${required}`);
+}
+
 for (const command of ['load_app_state','save_app_state','export_backup','import_backup']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
@@ -146,4 +158,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: final student/finance pages, independent multi-course enrollments, numeric sequential receipts, clickable ledger receipts, month-targeted payments, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: integrated student routing, final student/finance pages, independent multi-course enrollments, numeric sequential receipts, clickable ledger receipts, month-targeted payments, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
