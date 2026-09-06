@@ -168,9 +168,18 @@
       return {student:s.name,phone:s.phone||'',branch:branchName(s.branch),specialty:spec(s.specialty)?.name||s.specialty,reg:String(s.reg??'').padStart(4,'0'),date:latest?.[0]||month.dueDate,receipt:receiptText(monthReceiptNo(s,monthNumber)),amount:month.paid,remaining:month.remaining,method:methods.length?methods.join(' + '):'—',month:`الشهر ${monthNumber}`,desc:`إجمالي مدفوع الشهر ${monthNumber}: ${cash(month.paid)} · المتبقي من الشهر: ${cash(month.remaining)}`};
     }
 
-    function hrefPerson(id){ location.hash=`#student/${encodeURIComponent(id)}`; }
-    function hrefCourse(id){ location.hash=`#enrollment/${encodeURIComponent(id)}`; }
-    function hrefNewCourse(id){ location.hash=`#student/${encodeURIComponent(id)}/new-course`; }
+    function hrefPerson(id){
+      history.replaceState(null,'',`#student/${encodeURIComponent(id)}`);
+      renderPersonPage(id);
+    }
+    function hrefCourse(id){
+      history.replaceState(null,'',`#enrollment/${encodeURIComponent(id)}`);
+      renderCoursePage(id);
+    }
+    function hrefNewCourse(id){
+      history.replaceState(null,'',`#student/${encodeURIComponent(id)}/new-course`);
+      renderNewCoursePage(id);
+    }
     function route(){
       const parts=location.hash.slice(1).split('/').filter(Boolean).map(v=>{try{return decodeURIComponent(v)}catch{return v}});
       if(parts[0]==='student'&&parts[1]&&parts[2]==='new-course') return ['new',parts[1]];
@@ -195,7 +204,7 @@
         <div class="spv5-actions"><button class="spv5-back" id="spv5Back">← رجوع</button><div><button class="button secondary" id="spv5Courses">${only?'الدورة والدفع':'الدورات والدفع'}</button><button class="button" id="spv5New">＋ تسجيل في دورة جديدة</button></div></div>
         <section class="card spv5-card"><div class="section-head"><h2>بيانات الطالب</h2><span>المعلومات الأساسية</span></div>${identityFields(owner,only)}</section>
         ${only?`<section class="card spv5-card" style="margin-top:16px"><div class="section-head"><h2>حالة التسجيل</h2><span>${esc(spec(only.specialty)?.name||'')}</span></div><div class="spv5-grid"><div class="spv5-field"><small>حالة الدورة</small>${badge(courseStatus(only))}</div><div class="spv5-field"><small>نوع التسجيل</small><b>${(only.snapshot||{}).billing==='monthly'?'دورة بدفع شهري':'دورة بدفعة واحدة'}</b></div><div class="spv5-field"><small>تاريخ البداية المعتمد</small><b>${fmt(only.start)}</b></div><div class="spv5-field"><small>تاريخ النهاية المعتمد</small><b>${fmt(only.end)}</b></div></div></section>`:`<section class="card spv5-card" id="spv5CourseList" style="margin-top:16px"><div class="section-head"><h2>دورات الطالب</h2><span>${group.length} دورات</span></div>${table(['السجل','التخصص','الفرع','البداية','النهاية','حالة الدورة','الوضع المالي'],group.map(s=>`<tr class="spv5-course-row" data-course="${esc(s.id)}"><td>${String(s.reg??'').padStart(4,'0')}</td><td><b>${esc(spec(s.specialty)?.name||s.specialty)}</b></td><td>${esc(branchName(s.branch))}</td><td>${fmt(s.start)}</td><td>${fmt(s.end)}</td><td>${badge(courseStatus(s))}</td><td>${financialCellV3(s)}</td></tr>`).join(''))}</section>`}`);
-      document.getElementById('spv5Back').onclick=()=>location.hash='#students';
+      document.getElementById('spv5Back').onclick=()=>{history.replaceState(null,'','#students');renderStudents();};
       document.getElementById('spv5New').onclick=()=>hrefNewCourse(personId);
       document.getElementById('spv5Courses').onclick=()=>only?hrefCourse(only.id):document.getElementById('spv5CourseList')?.scrollIntoView({behavior:'smooth'});
       document.querySelectorAll('[data-course]').forEach(row=>row.onclick=()=>hrefCourse(row.dataset.course));
@@ -314,7 +323,7 @@
     if(baseRenderCurrentMerged) renderCurrentMerged=function(){ if(renderRoute()) return; return baseRenderCurrentMerged(); };
     window.addEventListener('hashchange',()=>setTimeout(renderRoute,0));
     syncPeople(true);
-    window.EFC_STUDENT_PAGES_RECEIPTS_V5=Object.freeze({pagesAreFinal:true,multiCourse:true,numericSequentialReceipts:true,ledgerReceiptOpen:true});
+    window.EFC_STUDENT_PAGES_RECEIPTS_V5=Object.freeze({pagesAreFinal:true,multiCourse:true,numericSequentialReceipts:true,ledgerReceiptOpen:true,directPageNavigation:true});
     if(route()) renderRoute(); else if(currentPage==='students') renderStudents(); else if(currentPage==='ledger') renderLedger();
   }
 
