@@ -22,5 +22,7 @@ jobs:
         run: npm run icons
       - name: Verify production source
         run: npm run check
+      - name: Build frontend
+        run: npm run build
       - name: Check Rust
         run: cargo check --manifest-path src-tauri/Cargo.toml
