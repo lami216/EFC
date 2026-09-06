@@ -17,7 +17,8 @@ const browserScripts = [
   'demo-receipt-clean-v12.js',
   'production-runtime.js',
   'production-monthly-merge-v2.js',
-  'assets/production-student-profile-v3.js'
+  'assets/production-student-profile-v3.js',
+  'assets/production-registration-receipt-v4.js'
 ];
 
 for (const file of browserScripts) {
@@ -35,6 +36,7 @@ const runtime = await readFile('production-runtime.js', 'utf8');
 const loader = await readFile('production-loader.js', 'utf8');
 const monthlyMerge = await readFile('production-monthly-merge-v2.js', 'utf8');
 const studentProfile = await readFile('assets/production-student-profile-v3.js', 'utf8');
+const registrationReceipt = await readFile('assets/production-registration-receipt-v4.js', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
@@ -54,6 +56,7 @@ if (!core.includes('const seedStudents=[];')) throw new Error('Student seed is n
 if (!core.includes('const seedSpecialties = [];')) throw new Error('Specialty seed is not empty.');
 if (!index.includes('./production-loader.js')) throw new Error('Production loader is not wired in index.html.');
 if (!index.includes('./assets/production-student-profile-v3.js')) throw new Error('Student profile refinement is not wired in index.html.');
+if (!index.includes('./assets/production-registration-receipt-v4.js')) throw new Error('Registration/receipt refinement is not wired in index.html.');
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
 for (const required of ['settings','renderSettingsProd','period-tabs-prod','sortable-head-prod','EFC_FORCE_PERSIST']) {
@@ -98,6 +101,19 @@ for (const required of [
   if (!studentProfile.includes(required)) throw new Error(`Student profile refinement missing: ${required}`);
 }
 
+for (const required of [
+  "ensureBlankChoice(form.elements?.branch,'اختر الفرع')",
+  "ensureBlankChoice(form.elements?.specialty,'اختر التخصص')",
+  'manualBranchAndSpecialty:true',
+  'monthlyReceiptUsesMonthRemaining:true',
+  'nonMonthlyReceiptUsesCourseRemaining:true',
+  "(student.snapshot||{}).billing!=='monthly'",
+  'installmentPlanV3(scoped.student)',
+  'model.remaining=Math.max(0,Number(month.remaining||0))'
+]) {
+  if (!registrationReceipt.includes(required)) throw new Error(`Registration/receipt behavior missing: ${required}`);
+}
+
 for (const command of ['load_app_state','save_app_state','export_backup','import_backup']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
@@ -108,4 +124,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: month-targeted payments, per-month receipts, informational student profile, compact month actions with placeholders, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, month-targeted payments, per-month receipts, informational student profile, compact month actions with placeholders, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
