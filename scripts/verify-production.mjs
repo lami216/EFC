@@ -18,7 +18,8 @@ const browserScripts = [
   'production-runtime.js',
   'production-monthly-merge-v2.js',
   'assets/production-student-profile-v3.js',
-  'assets/production-registration-receipt-v4.js'
+  'assets/production-registration-receipt-v4.js',
+  'assets/production-ledger-finance-ui-v5.js'
 ];
 
 for (const file of browserScripts) {
@@ -37,6 +38,10 @@ const loader = await readFile('production-loader.js', 'utf8');
 const monthlyMerge = await readFile('production-monthly-merge-v2.js', 'utf8');
 const studentProfile = await readFile('assets/production-student-profile-v3.js', 'utf8');
 const registrationReceipt = await readFile('assets/production-registration-receipt-v4.js', 'utf8');
+const ledgerFinanceUi = await readFile('assets/production-ledger-finance-ui-v5.js', 'utf8');
+const iconGenerator = await readFile('scripts/generate-app-icon.mjs', 'utf8');
+const packageJson = await readFile('package.json', 'utf8');
+const tauriConfig = await readFile('src-tauri/tauri.conf.json', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
@@ -57,6 +62,7 @@ if (!core.includes('const seedSpecialties = [];')) throw new Error('Specialty se
 if (!index.includes('./production-loader.js')) throw new Error('Production loader is not wired in index.html.');
 if (!index.includes('./assets/production-student-profile-v3.js')) throw new Error('Student profile refinement is not wired in index.html.');
 if (!index.includes('./assets/production-registration-receipt-v4.js')) throw new Error('Registration/receipt refinement is not wired in index.html.');
+if (!index.includes('./assets/production-ledger-finance-ui-v5.js')) throw new Error('Ledger/finance UI refinement is not wired in index.html.');
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
 for (const required of ['settings','renderSettingsProd','period-tabs-prod','sortable-head-prod','EFC_FORCE_PERSIST']) {
@@ -114,6 +120,32 @@ for (const required of [
   if (!registrationReceipt.includes(required)) throw new Error(`Registration/receipt behavior missing: ${required}`);
 }
 
+for (const required of [
+  'ledgerTransactionReceiptOpen:true',
+  'resolvePaymentIndex(payment)',
+  'receiptWindowV4(receiptModelV4(student,index))',
+  'financeDailyBySelectedMonth:true',
+  'financeMonthlyBySelectedYear:true',
+  'financeYearlyLastTenYears:true',
+  'weeklyFinanceRemoved:true',
+  "['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر']",
+  "<button data-mode=\"daily\">يومي</button>",
+  "<button data-mode=\"monthly\" class=\"active\">شهري</button>",
+  "<button data-mode=\"yearly\">سنوي</button>",
+  '.shell nav i svg{width:24px;height:24px;display:block}'
+]) {
+  if (!ledgerFinanceUi.includes(required)) throw new Error(`Ledger/finance UI behavior missing: ${required}`);
+}
+if (ledgerFinanceUi.includes('data-mode="weekly"')) throw new Error('Weekly finance mode must remain removed.');
+
+if (!iconGenerator.includes("readFile('efc-logo.svg'")) throw new Error('Desktop icon must be generated from the sidebar EFC logo source.');
+if (!iconGenerator.includes("writeFile('src-tauri/app-icon.svg'")) throw new Error('Square app icon source generation is missing.');
+if (!packageJson.includes('"icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg"')) throw new Error('App icon npm command is missing.');
+if (!workflow.includes('npm run icons')) throw new Error('Windows build must generate the EFC icons before bundling.');
+for (const requiredIcon of ['icons/32x32.png','icons/128x128.png','icons/128x128@2x.png','icons/icon.ico']) {
+  if (!tauriConfig.includes(requiredIcon)) throw new Error(`Tauri bundle icon missing: ${requiredIcon}`);
+}
+
 for (const command of ['load_app_state','save_app_state','export_backup','import_backup']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
@@ -124,4 +156,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, month-targeted payments, per-month receipts, informational student profile, compact month actions with placeholders, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: clickable ledger receipts, daily/monthly/yearly finance periods without weekly mode, larger semantic sidebar icons, EFC desktop icon generation, manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, month-targeted payments, per-month receipts, informational student profile, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
