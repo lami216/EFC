@@ -3,8 +3,38 @@
   if(window[FLAG])return;
   window[FLAG]=true;
 
+  const APP_SCRIPTS=[
+    './production-loader.js',
+    './assets/production-student-profile-v3.js',
+    './assets/production-registration-receipt-v4.js',
+    './assets/production-ledger-finance-ui-v5.js',
+    './assets/production-ledger-pdf-v6.js',
+    './assets/production-certificates-v7.js',
+    './assets/production-certificate-filters-v8.js'
+  ];
   const invoke=window.__TAURI__?.core?.invoke;
-  if(!invoke){window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true});return;}
+  let appStarted=false;
+
+  function loadScript(src){
+    return new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src=src;
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));
+      document.head.appendChild(script);
+    });
+  }
+  async function startApplication(){
+    if(appStarted)return;
+    appStarted=true;
+    for(const src of APP_SCRIPTS)await loadScript(src);
+  }
+
+  if(!invoke){
+    startApplication().catch(error=>console.error('EFC browser bootstrap failed.',error));
+    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true});
+    return;
+  }
 
   const style=document.createElement('style');
   style.textContent=`
@@ -32,8 +62,10 @@
   function setBusy(value){busy=value;installButton.disabled=value;refreshButton.disabled=value;copyButton.disabled=value||!deviceId;}
   function setReason(text){reason.textContent=text||'يجب تفعيل هذا الجهاز قبل استخدام النظام.';}
   function setMessage(text,ok=false){message.className=text?(ok?'efc-license-success-v8':'efc-license-error-v8'):'';message.textContent=text||'';}
-  function unlock(status){
+  async function unlock(status){
     window.EFC_LICENSE_STATUS=status;
+    setReason('تم التحقق من التفعيل. جاري فتح النظام…');
+    await startApplication();
     if(app)app.inert=false;
     overlay.remove();
     if(watchTimer)clearInterval(watchTimer);
@@ -52,7 +84,7 @@
     try{
       const status=await invoke('get_license_status');
       window.EFC_LICENSE_STATUS=status;
-      if(status?.valid){unlock(status);return;}
+      if(status?.valid){await unlock(status);return;}
       setReason(status?.reason||'يجب تفعيل هذا الجهاز قبل استخدام النظام.');
     }catch(error){setReason(String(error||'تعذر التحقق من التفعيل.'));}
     finally{setBusy(false);}
@@ -74,12 +106,12 @@
       const status=await invoke('get_license_status');
       if(!status?.valid)throw new Error(status?.reason||'تعذر اعتماد ملف التفعيل.');
       window.EFC_LICENSE_STATUS=status;
-      setTimeout(()=>location.reload(),350);
+      setTimeout(()=>location.reload(),300);
     }catch(error){setMessage(String(error||'تعذر تثبيت ملف التفعيل.'));}
     finally{setBusy(false);}
   };
 
   loadDevice();
   refresh();
-  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true});
+  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true});
 })();
