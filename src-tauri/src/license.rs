@@ -7,10 +7,10 @@ use std::{
     collections::HashSet,
     env,
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command,
     sync::{Mutex, OnceLock},
-    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 #[cfg(windows)]
@@ -431,59 +431,67 @@ fn load_ledger(device: &str) -> Result<Ledger, String> {
 }
 
 fn evaluate_temporary(ledger: &mut Ledger) -> Result<u64, String> {
-    let active = ledger
-        .active_license
-        .as_mut()
-        .ok_or_else(|| "يجب تفعيل ترخيص الجهاز.".to_string())?;
-    if active.expired {
-        return Err("انتهت صلاحية التفعيل.".to_string());
-    }
-    if active.clock_rollback_detected {
-        return Err("تم اكتشاف تغيير غير صالح في تاريخ أو وقت الجهاز.".to_string());
-    }
     let now = now_ms()?;
     let mut guard = runtime()
         .lock()
         .map_err(|_| "تعذر قراءة عداد التفعيل.".to_string())?;
-    let remaining = if let Some(checkpoint) = guard.as_ref().filter(|item| item.license_id == active.license_id) {
-        if now.saturating_add(ROLLBACK_TOLERANCE_MS) < checkpoint.checkpoint_wall_ms
-            || now.saturating_add(ROLLBACK_TOLERANCE_MS) < active.last_wall_clock_ms
-        {
-            active.clock_rollback_detected = true;
-            persist_ledger(ledger)?;
+    let remaining;
+    let expired;
+    {
+        let active = ledger
+            .active_license
+            .as_mut()
+            .ok_or_else(|| "يجب تفعيل ترخيص الجهاز.".to_string())?;
+        if active.expired {
+            return Err("انتهت صلاحية التفعيل.".to_string());
+        }
+        if active.clock_rollback_detected {
             return Err("تم اكتشاف تغيير غير صالح في تاريخ أو وقت الجهاز.".to_string());
         }
-        let monotonic_elapsed = u64::try_from(checkpoint.checkpoint_instant.elapsed().as_millis()).unwrap_or(u64::MAX);
-        let wall_elapsed = now.saturating_sub(checkpoint.checkpoint_wall_ms);
-        checkpoint
-            .checkpoint_remaining_ms
-            .saturating_sub(monotonic_elapsed.max(wall_elapsed))
-    } else {
-        if now.saturating_add(ROLLBACK_TOLERANCE_MS) < active.last_wall_clock_ms {
-            active.clock_rollback_detected = true;
-            persist_ledger(ledger)?;
-            return Err("تم اكتشاف تغيير غير صالح في تاريخ أو وقت الجهاز.".to_string());
+        remaining = if let Some(checkpoint) = guard.as_ref().filter(|item| item.license_id == active.license_id) {
+            if now.saturating_add(ROLLBACK_TOLERANCE_MS) < checkpoint.checkpoint_wall_ms
+                || now.saturating_add(ROLLBACK_TOLERANCE_MS) < active.last_wall_clock_ms
+            {
+                active.clock_rollback_detected = true;
+                drop(guard);
+                persist_ledger(ledger)?;
+                return Err("تم اكتشاف تغيير غير صالح في تاريخ أو وقت الجهاز.".to_string());
+            }
+            let monotonic_elapsed = u64::try_from(checkpoint.checkpoint_instant.elapsed().as_millis()).unwrap_or(u64::MAX);
+            let wall_elapsed = now.saturating_sub(checkpoint.checkpoint_wall_ms);
+            checkpoint
+                .checkpoint_remaining_ms
+                .saturating_sub(monotonic_elapsed.max(wall_elapsed))
+        } else {
+            if now.saturating_add(ROLLBACK_TOLERANCE_MS) < active.last_wall_clock_ms {
+                active.clock_rollback_detected = true;
+                drop(guard);
+                persist_ledger(ledger)?;
+                return Err("تم اكتشاف تغيير غير صالح في تاريخ أو وقت الجهاز.".to_string());
+            }
+            let base = active
+                .remaining_ms
+                .or_else(|| active.duration_seconds.map(|seconds| seconds.saturating_mul(1000)))
+                .unwrap_or(0);
+            let value = base.saturating_sub(now.saturating_sub(active.last_wall_clock_ms));
+            *guard = Some(RuntimeClock {
+                license_id: active.license_id.clone(),
+                checkpoint_remaining_ms: value,
+                checkpoint_wall_ms: now,
+                checkpoint_instant: Instant::now(),
+            });
+            value
+        };
+        active.remaining_ms = Some(remaining);
+        active.last_wall_clock_ms = active.last_wall_clock_ms.max(now);
+        if remaining == 0 {
+            active.expired = true;
         }
-        let base = active
-            .remaining_ms
-            .or_else(|| active.duration_seconds.map(|seconds| seconds.saturating_mul(1000)))
-            .unwrap_or(0);
-        let value = base.saturating_sub(now.saturating_sub(active.last_wall_clock_ms));
-        *guard = Some(RuntimeClock {
-            license_id: active.license_id.clone(),
-            checkpoint_remaining_ms: value,
-            checkpoint_wall_ms: now,
-            checkpoint_instant: Instant::now(),
-        });
-        value
-    };
-    active.remaining_ms = Some(remaining);
-    active.last_wall_clock_ms = active.last_wall_clock_ms.max(now);
-    if remaining == 0 {
-        active.expired = true;
+        expired = active.expired;
     }
+    drop(guard);
     persist_ledger(ledger)?;
-    if active.expired {
+    if expired {
         return Err("انتهت صلاحية التفعيل.".to_string());
     }
     Ok((remaining + 999) / 1000)
@@ -650,5 +658,16 @@ mod tests {
         assert_eq!(bytes.len(), 65);
         assert_eq!(bytes[0], 4);
         assert!(VerifyingKey::from_sec1_bytes(&bytes).is_ok());
+    }
+
+    #[test]
+    fn signed_fixture_verifies_and_mutation_fails() {
+        let raw = br#"{"schema":"efc-license","version":1,"keyId":"efc-license-v1","algorithm":"ECDSA_P256_SHA256","payload":{"licenseId":"EFC-TEST-FIXTURE","customerName":"Test Customer","centerName":"Test Center","deviceId":"EFC-1111-2222-3333-4444-5555","edition":"desktop","type":"perpetual","durationSeconds":null,"activationMode":"single-install","notes":"fixture"},"signature":"8cJVistx0cr0KRafgjcIqqpfXF2HiT3WYUR9tDYRTVWNqURAVUB2xW1il1mL2rHe8anCL-bYTxd6Wu1R542KgQ"}"#;
+        let device = "EFC-1111-2222-3333-4444-5555";
+        assert!(parse_and_verify(raw, device).is_ok());
+        let changed = String::from_utf8(raw.to_vec())
+            .unwrap()
+            .replace("Test Center", "Other Center");
+        assert!(parse_and_verify(changed.as_bytes(), device).is_err());
     }
 }
