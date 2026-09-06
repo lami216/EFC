@@ -19,7 +19,8 @@ const browserScripts = [
   'production-monthly-merge-v2.js',
   'assets/production-student-profile-v3.js',
   'assets/production-registration-receipt-v4.js',
-  'assets/production-ledger-finance-ui-v5.js'
+  'assets/production-ledger-finance-ui-v5.js',
+  'assets/production-ledger-pdf-v6.js'
 ];
 
 for (const file of browserScripts) {
@@ -39,10 +40,15 @@ const monthlyMerge = await readFile('production-monthly-merge-v2.js', 'utf8');
 const studentProfile = await readFile('assets/production-student-profile-v3.js', 'utf8');
 const registrationReceipt = await readFile('assets/production-registration-receipt-v4.js', 'utf8');
 const ledgerFinanceUi = await readFile('assets/production-ledger-finance-ui-v5.js', 'utf8');
+const ledgerPdf = await readFile('assets/production-ledger-pdf-v6.js', 'utf8');
 const iconGenerator = await readFile('scripts/generate-app-icon.mjs', 'utf8');
+const buildScript = await readFile('scripts/build-demo.mjs', 'utf8');
 const packageJson = await readFile('package.json', 'utf8');
 const tauriConfig = await readFile('src-tauri/tauri.conf.json', 'utf8');
+const buildRs = await readFile('src-tauri/build.rs', 'utf8');
+const cargo = await readFile('src-tauri/Cargo.toml', 'utf8');
 const rust = await readFile('src-tauri/src/main.rs', 'utf8');
+const receiptPdfRust = await readFile('src-tauri/src/receipt_pdf.rs', 'utf8');
 const workflow = await readFile('.github/workflows/windows-build.yml', 'utf8');
 
 const forbiddenDemoData = [
@@ -60,16 +66,23 @@ for (const needle of forbiddenDemoData) {
 if (!core.includes('const seedStudents=[];')) throw new Error('Student seed is not empty.');
 if (!core.includes('const seedSpecialties = [];')) throw new Error('Specialty seed is not empty.');
 if (!index.includes('./production-loader.js')) throw new Error('Production loader is not wired in index.html.');
-if (!index.includes('./assets/production-student-profile-v3.js')) throw new Error('Student profile refinement is not wired in index.html.');
-if (!index.includes('./assets/production-registration-receipt-v4.js')) throw new Error('Registration/receipt refinement is not wired in index.html.');
-if (!index.includes('./assets/production-ledger-finance-ui-v5.js')) throw new Error('Ledger/finance UI refinement is not wired in index.html.');
+for (const asset of [
+  './assets/production-student-profile-v3.js',
+  './assets/production-registration-receipt-v4.js',
+  './assets/production-ledger-finance-ui-v5.js',
+  './assets/production-ledger-pdf-v6.js'
+]) {
+  if (!index.includes(asset)) throw new Error(`Production refinement is not wired: ${asset}`);
+}
+if (index.indexOf('production-ledger-pdf-v6.js') < index.indexOf('production-ledger-finance-ui-v5.js')) {
+  throw new Error('Ledger/PDF v6 must load after the successful finance/ledger v5 refinement.');
+}
 if (index.includes('<script src="./demo-app.js"')) throw new Error('index.html still loads demo scripts directly.');
 
 for (const required of ['settings','renderSettingsProd','period-tabs-prod','sortable-head-prod','EFC_FORCE_PERSIST']) {
   if (!(runtime.includes(required) || loader.includes(required))) throw new Error(`Production feature missing: ${required}`);
 }
 if (!runtime.includes("currentPage === 'payments' || currentPage === 'status'")) throw new Error('Legacy status/payments redirects are missing.');
-if (!runtime.includes('window.downloadReceiptPdfV12 = r => receiptWindowV4(r,true)')) throw new Error('Offline receipt PDF/print fallback is missing.');
 if (!loader.includes('chooseNewestState') || !loader.includes('updatedAt')) throw new Error('Newest-state startup protection is missing.');
 
 for (const required of [
@@ -138,6 +151,31 @@ for (const required of [
 }
 if (ledgerFinanceUi.includes('data-mode="weekly"')) throw new Error('Weekly finance mode must remain removed.');
 
+for (const required of [
+  '#ledgerBody tbody tr[data-student][data-payment]',
+  'event.stopImmediatePropagation()',
+  'receiptWindowV4(receiptModelV4(student,paymentIndex))',
+  "loadLocalScript('./vendor/html2canvas.min.js','html2canvas')",
+  "loadLocalScript('./vendor/jspdf.umd.min.js','jspdf')",
+  "invoke('save_receipt_pdf'",
+  'directDownloadsFolderSave:true',
+  'printAndPdfSeparated:true'
+]) {
+  if (!ledgerPdf.includes(required)) throw new Error(`Ledger/PDF v6 behavior missing: ${required}`);
+}
+
+if (!packageJson.includes('"html2canvas": "1.4.1"') || !packageJson.includes('"jspdf": "2.5.2"')) {
+  throw new Error('Offline PDF dependencies must be pinned locally.');
+}
+for (const required of [
+  'node_modules/html2canvas/dist/html2canvas.min.js',
+  'dist/vendor/html2canvas.min.js',
+  'node_modules/jspdf/dist/jspdf.umd.min.js',
+  'dist/vendor/jspdf.umd.min.js'
+]) {
+  if (!buildScript.includes(required)) throw new Error(`Offline PDF build copy missing: ${required}`);
+}
+
 if (!iconGenerator.includes("readFile('efc-logo.svg'")) throw new Error('Desktop icon must be generated from the sidebar EFC logo source.');
 if (!iconGenerator.includes("writeFile('src-tauri/app-icon.svg'")) throw new Error('Square app icon source generation is missing.');
 if (!packageJson.includes('"icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg"')) throw new Error('App icon npm command is missing.');
@@ -145,10 +183,19 @@ if (!workflow.includes('npm run icons')) throw new Error('Windows build must gen
 for (const requiredIcon of ['icons/32x32.png','icons/128x128.png','icons/128x128@2x.png','icons/icon.ico']) {
   if (!tauriConfig.includes(requiredIcon)) throw new Error(`Tauri bundle icon missing: ${requiredIcon}`);
 }
+for (const forbidden of ['paint_icon','write_ico','png::Encoder','ico::IconDir']) {
+  if (buildRs.includes(forbidden)) throw new Error(`build.rs must not overwrite generated EFC icons: ${forbidden}`);
+}
+if (!buildRs.includes('tauri_build::build()')) throw new Error('Tauri build hook is missing.');
+if (cargo.includes('\npng =') || cargo.includes('\nico =')) throw new Error('Old build-time icon painting dependencies must remain removed.');
 
-for (const command of ['load_app_state','save_app_state','export_backup','import_backup']) {
+for (const command of ['load_app_state','save_app_state','export_backup','import_backup','receipt_pdf::save_receipt_pdf']) {
   if (!rust.includes(command)) throw new Error(`Rust command missing: ${command}`);
 }
+for (const required of ['save_receipt_pdf','USERPROFILE','Downloads','%PDF-','unique_path']) {
+  if (!receiptPdfRust.includes(required)) throw new Error(`Native receipt PDF save behavior missing: ${required}`);
+}
+if (!cargo.includes('base64 = "0.22"')) throw new Error('Native PDF base64 dependency is missing.');
 if (!rust.includes('auto-before-restore')) throw new Error('Automatic safety backup before restore is missing.');
 if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
   throw new Error('Import must not replace SQLite before browser-side merge.');
@@ -156,4 +203,4 @@ if (rust.includes('save_state_raw(&app, &state)?;\n    Ok(Some(state))')) {
 if (!rust.includes('as_millis')) throw new Error('Safety backup names must be collision resistant.');
 if (workflow.includes('git push') || workflow.includes('git commit')) throw new Error('Build workflow must not mutate main.');
 
-console.log('Production checks passed: clickable ledger receipts, daily/monthly/yearly finance periods without weekly mode, larger semantic sidebar icons, EFC desktop icon generation, manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, month-targeted payments, per-month receipts, informational student profile, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
+console.log('Production checks passed: whole-row ledger receipts, direct offline PDF saving to Downloads, separate print/PDF actions, sidebar-source Windows icon without build.rs overwrite, daily/monthly/yearly finance periods without weekly mode, semantic sidebar icons, manual registration choices, month-only receipt remaining for monthly courses, course remaining for non-monthly courses, informational student profile, merge-safe backups, hidden transaction codes, deduplication, immutable CI.');
