@@ -10,7 +10,8 @@
     './assets/production-ledger-finance-ui-v5.js',
     './assets/production-ledger-pdf-v6.js',
     './assets/production-certificates-v7.js',
-    './assets/production-certificate-filters-v8.js'
+    './assets/production-certificate-filters-v8.js',
+    './assets/production-receipt-sequences-v10.js'
   ];
   const invoke=window.__TAURI__?.core?.invoke;
   let appStarted=false;
