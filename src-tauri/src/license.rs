@@ -18,7 +18,7 @@ use std::os::windows::process::CommandExt;
 
 const LICENSE_SCHEMA: &str = "efc-license";
 const LICENSE_VERSION: u8 = 1;
-const LICENSE_KEY_ID: &str = "efc-license-v1";
+const LICENSE_KEY_ID: &str = "efc-license-v2";
 const LICENSE_ALGORITHM: &str = "ECDSA_P256_SHA256";
 const LICENSE_FILE_NAME: &str = "license.efc-license";
 const STATE_FILE_NAME: &str = "state-v1.json";
@@ -27,7 +27,7 @@ const REGISTRY_KEY: &str = r"HKCU\Software\Centre EFC\Licensing\v1";
 const REGISTRY_VALUE: &str = "State";
 const ROLLBACK_TOLERANCE_MS: u64 = 120_000;
 const MAX_LICENSE_BYTES: usize = 64 * 1024;
-const PUBLIC_KEY_SEC1_B64: &str = "BK_2ws4TMDStsDqV7HokicMC814XtpAu00YZtUZ8KYBZfnzVXY0GB0ufHBUp9--5Ixb8DbgNUyoenXAQ3To6shI";
+const PUBLIC_KEY_SEC1_B64: &str = "BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -662,7 +662,7 @@ mod tests {
 
     #[test]
     fn signed_fixture_verifies_and_mutation_fails() {
-        let raw = br#"{"schema":"efc-license","version":1,"keyId":"efc-license-v1","algorithm":"ECDSA_P256_SHA256","payload":{"licenseId":"EFC-TEST-FIXTURE","customerName":"Test Customer","centerName":"Test Center","deviceId":"EFC-1111-2222-3333-4444-5555","edition":"desktop","type":"perpetual","durationSeconds":null,"activationMode":"single-install","notes":"fixture"},"signature":"8cJVistx0cr0KRafgjcIqqpfXF2HiT3WYUR9tDYRTVWNqURAVUB2xW1il1mL2rHe8anCL-bYTxd6Wu1R542KgQ"}"#;
+        let raw = br#"{\"schema\":\"efc-license\",\"version\":1,\"keyId\":\"efc-license-v2\",\"algorithm\":\"ECDSA_P256_SHA256\",\"payload\":{\"licenseId\":\"EFC-TEST-FIXTURE\",\"customerName\":\"Test Customer\",\"centerName\":\"Test Center\",\"deviceId\":\"EFC-1111-2222-3333-4444-5555\",\"edition\":\"desktop\",\"type\":\"perpetual\",\"durationSeconds\":null,\"activationMode\":\"single-install\",\"notes\":\"fixture\"},\"signature\":\"QPmJhxn3Hn8EWEaIJgGoRMz84Kzb-LUN7jPAmxHOvmBzVqh5dsbQPb8vKqaYQ7VUEgaZZO24vvqKPBKb0lbduA\"}"#;
         let device = "EFC-1111-2222-3333-4444-5555";
         assert!(parse_and_verify(raw, device).is_ok());
         let changed = String::from_utf8(raw.to_vec())
