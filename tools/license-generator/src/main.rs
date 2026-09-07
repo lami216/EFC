@@ -15,10 +15,10 @@ use std::{
 
 const LICENSE_SCHEMA: &str = "efc-license";
 const LICENSE_VERSION: u8 = 1;
-const LICENSE_KEY_ID: &str = "efc-license-v1";
+const LICENSE_KEY_ID: &str = "efc-license-v2";
 const LICENSE_ALGORITHM: &str = "ECDSA_P256_SHA256";
 const DEFAULT_KEY_FILE: &str = "EFC-license-master-private.pem";
-const PUBLIC_KEY_SEC1_B64: &str = "BK_2ws4TMDStsDqV7HokicMC814XtpAu00YZtUZ8KYBZfnzVXY0GB0ufHBUp9--5Ixb8DbgNUyoenXAQ3To6shI";
+const PUBLIC_KEY_SEC1_B64: &str = "BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
