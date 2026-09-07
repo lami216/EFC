@@ -12,7 +12,7 @@
   <main class="card">
     <div class="head">
       <h1>أداة توليد ملفات تفعيل EFC</h1>
-      <p>تعمل هذه الصفحة محليًا وبدون إنترنت. اختر المفتاح الخاص من جهازك، أدخل بيانات العميل ورقم الجهاز، ثم نزّل ملف التفعيل.</p>
+      <p>تعمل هذه الصفحة محليًا وبدون إنترنت. هذه نسخة GitHub العامة؛ اختر المفتاح الخاص من جهازك، ثم أدخل بيانات العميل ورقم الجهاز.</p>
     </div>
 
     <div class="grid">
@@ -52,9 +52,9 @@
   'use strict';
   const LICENSE_SCHEMA='efc-license';
   const LICENSE_VERSION=1;
-  const LICENSE_KEY_ID='efc-license-v1';
+  const LICENSE_KEY_ID='efc-license-v2';
   const LICENSE_ALGORITHM='ECDSA_P256_SHA256';
-  const PUBLIC_KEY_SEC1_B64='BK_2ws4TMDStsDqV7HokicMC814XtpAu00YZtUZ8KYBZfnzVXY0GB0ufHBUp9--5Ixb8DbgNUyoenXAQ3To6shI';
+  const PUBLIC_KEY_SEC1_B64='BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0';
 
   const $=id=>document.getElementById(id);
   const type=$('licenseType'),hoursWrap=$('hoursWrap'),button=$('generate'),status=$('status');
@@ -83,7 +83,7 @@
     const pem=await file.text();
     const key=await crypto.subtle.importKey('pkcs8',pemToDer(pem),{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
     const publicKey=await crypto.subtle.importKey('raw',b64UrlToBytes(PUBLIC_KEY_SEC1_B64),{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
-    const challenge=new TextEncoder().encode('EFC license private-key validation v1');
+    const challenge=new TextEncoder().encode('EFC license private-key validation v2');
     const signature=new Uint8Array(await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,challenge));
     if(signature.length!==64)throw new Error('صيغة توقيع ECDSA في هذا المتصفح غير مدعومة. استخدم Chrome أو Edge حديث.');
     const valid=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},publicKey,signature,challenge);

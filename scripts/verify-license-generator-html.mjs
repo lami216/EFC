@@ -6,7 +6,7 @@ const html=fs.readFileSync(file,'utf8');
 
 const required=[
   'efc-license',
-  'efc-license-v1',
+  'efc-license-v2',
   'ECDSA_P256_SHA256',
   'ECDSA',
   'P-256',
@@ -18,7 +18,7 @@ const required=[
   'single-install'
 ];
 for(const token of required){if(!html.includes(token))throw new Error(`HTML license generator missing: ${token}`);}
-if(/-----BEGIN PRIVATE KEY-----[A-Za-z0-9+/=\s]+-----END PRIVATE KEY-----/.test(html))throw new Error('Private signing key must never be embedded in HTML.');
+if(/-----BEGIN PRIVATE KEY-----[A-Za-z0-9+/=\s]+-----END PRIVATE KEY-----/.test(html))throw new Error('Private signing key must never be embedded in the public GitHub HTML template.');
 if(/<script\s+[^>]*src=/i.test(html))throw new Error('HTML generator must not load external scripts.');
 if(/https?:\/\//i.test(html))throw new Error('HTML generator must be fully offline.');
 
@@ -35,4 +35,4 @@ for(const field of order){
   last=index;
 }
 
-console.log('HTML activation generator verified: offline, no embedded private key, compatible payload/signature schema.');
+console.log('HTML activation generator verified: offline public template, no embedded private key, compatible v2 payload/signature schema.');
