@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "harden": "node scripts/harden-production.mjs",
-    "check": "node scripts/verify-production.mjs && node scripts/verify-v10.mjs && node scripts/verify-license-silent-start.mjs",
+    "check": "node scripts/verify-production.mjs && node scripts/verify-v10.mjs && node scripts/verify-license-silent-start.mjs && node scripts/verify-center-ops-v11.mjs",
     "build": "node scripts/build-demo.mjs",
     "icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg",
     "tauri": "tauri"
