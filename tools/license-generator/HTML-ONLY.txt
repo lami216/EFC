@@ -1,1 +1,0 @@
-The distributed activation generator artifact is HTML: efc-license-generator.html
