@@ -23,10 +23,11 @@ if(gate.includes("setTimeout(()=>location.reload(),300)")){
 }
 
 const silentIndex=gate.indexOf('async function silentStartup()');
+const statusIndex=gate.indexOf("status=await invoke('get_license_status')",silentIndex);
 const validIndex=gate.indexOf('if(status?.valid)',silentIndex);
 const uiIndex=gate.indexOf('ensureActivationUi();',silentIndex);
-if(silentIndex<0||validIndex<0||uiIndex<0||validIndex>uiIndex){
-  throw new Error('Silent startup must accept a valid saved license before creating the activation UI.');
+if(silentIndex<0||statusIndex<0||validIndex<0||uiIndex<0||statusIndex>uiIndex){
+  throw new Error('Silent startup must check the saved license before creating the activation UI.');
 }
 
 console.log('Silent license startup verified: valid saved activation opens without rendering activation UI.');
