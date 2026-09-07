@@ -44,6 +44,16 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build legacy activation generator compatibility check
+        run: cargo build --manifest-path tools/license-generator/Cargo.toml --release
+
+      - name: Verify legacy activation generator compatibility output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) {
+            throw "Legacy generator compatibility binary was not produced."
+          }
+
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
 
