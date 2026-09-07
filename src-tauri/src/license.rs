@@ -662,7 +662,7 @@ mod tests {
 
     #[test]
     fn signed_fixture_verifies_and_mutation_fails() {
-        let raw = br#"{\"schema\":\"efc-license\",\"version\":1,\"keyId\":\"efc-license-v2\",\"algorithm\":\"ECDSA_P256_SHA256\",\"payload\":{\"licenseId\":\"EFC-TEST-FIXTURE\",\"customerName\":\"Test Customer\",\"centerName\":\"Test Center\",\"deviceId\":\"EFC-1111-2222-3333-4444-5555\",\"edition\":\"desktop\",\"type\":\"perpetual\",\"durationSeconds\":null,\"activationMode\":\"single-install\",\"notes\":\"fixture\"},\"signature\":\"QPmJhxn3Hn8EWEaIJgGoRMz84Kzb-LUN7jPAmxHOvmBzVqh5dsbQPb8vKqaYQ7VUEgaZZO24vvqKPBKb0lbduA\"}"#;
+        let raw = br#"{"schema":"efc-license","version":1,"keyId":"efc-license-v2","algorithm":"ECDSA_P256_SHA256","payload":{"licenseId":"EFC-TEST-FIXTURE","customerName":"Test Customer","centerName":"Test Center","deviceId":"EFC-1111-2222-3333-4444-5555","edition":"desktop","type":"perpetual","durationSeconds":null,"activationMode":"single-install","notes":"fixture"},"signature":"QPmJhxn3Hn8EWEaIJgGoRMz84Kzb-LUN7jPAmxHOvmBzVqh5dsbQPb8vKqaYQ7VUEgaZZO24vvqKPBKb0lbduA"}"#;
         let device = "EFC-1111-2222-3333-4444-5555";
         assert!(parse_and_verify(raw, device).is_ok());
         let changed = String::from_utf8(raw.to_vec())
