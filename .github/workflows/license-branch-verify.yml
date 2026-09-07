@@ -2,7 +2,7 @@ name: Verify license branch
 
 on:
   push:
-    branches: [certificate-filters-license-v8, html-license-generator-v9, license-v2-receipt-sequences-v10]
+    branches: [certificate-filters-license-v8, html-license-generator-v9, license-v2-receipt-sequences-v10, feature/center-ops-v11]
 
 permissions:
   contents: read
