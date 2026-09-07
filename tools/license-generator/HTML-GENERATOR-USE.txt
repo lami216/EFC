@@ -1,0 +1,3 @@
+Open efc-license-generator.html in Chrome or Edge.
+Paste the EFC device code, enter activation details, select EFC-license-master-private.pem locally, and generate the .efc-license file.
+The HTML tool is offline and does not upload the private key.
