@@ -66,6 +66,18 @@
   }
   function removeStartupShield(){startupShield?.remove();startupShield=null;}
 
+  async function finalizeActiveRoute(){
+    // Several legacy layers registered route listeners before Center Ops existed.
+    // Re-fire the current route once after every override is installed, while the
+    // startup shield is still covering intermediate renders. This guarantees the
+    // first visible frame is produced by the final runtime rather than by an old
+    // renderer that ran earlier during bootstrap.
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await new Promise(resolve=>setTimeout(resolve,60));
+    const hasVisibleRuntime=Boolean(document.querySelector('.shell')||document.querySelector('.login-overlay-v12'));
+    if(!hasVisibleRuntime)throw new Error('اكتمل تحميل الملفات لكن لم تجهز واجهة النظام النهائية.');
+  }
+
   async function startApplication(){
     if(appStarted)return;
     if(appStartPromise)return appStartPromise;
@@ -81,10 +93,11 @@
       for(const src of REFINEMENTS)await loadScript(src);
       await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10&&window.EFC_CERTIFICATES_V7,'طبقات الإنتاج');
 
-      // Center Ops is one final feature layer. It performs one final render and publishes
-      // EFC_CENTER_OPS_V12 only after installation has completed successfully.
+      // Center Ops is one final feature layer. It publishes readiness only after
+      // installing the approved business rules and performing its first render.
       await loadScript(CENTER_OPS);
       await waitUntil(()=>window.EFC_CENTER_OPS_V12?.ready===true,'Center Ops v12');
+      await finalizeActiveRoute();
 
       appStarted=true;
       removeStartupShield();
@@ -103,7 +116,7 @@
       console.error('EFC browser bootstrap failed.',error);
       if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;
     });
-    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,deterministicRuntimeOrder:true,centerOpsV12:true});
+    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,deterministicRuntimeOrder:true,finalRouteBeforeReveal:true,centerOpsV12:true});
     return;
   }
 
@@ -241,5 +254,5 @@
   }
 
   silentStartup();
-  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,deterministicRuntimeOrder:true,baseRuntimeAwaited:true,centerOpsV12:true});
+  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,deterministicRuntimeOrder:true,baseRuntimeAwaited:true,finalRouteBeforeReveal:true,centerOpsV12:true});
 })();
