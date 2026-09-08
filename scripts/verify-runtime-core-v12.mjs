@@ -34,7 +34,9 @@ const centerLoad=gate.indexOf('await loadScript(CENTER_OPS)');
 if(!(baseLoad>=0&&baseReady>baseLoad&&refinementLoad>baseReady&&centerLoad>refinementLoad))throw new Error('Runtime boot order is not deterministic.');
 
 // Root freeze regression: no DOM observer is allowed in the Center Ops layer.
-forbidText(center,'MutationObserver','Center Ops must not observe and rewrite its own DOM');
+// Match the actual constructor form so the diagnostic marker
+// `noMutationObserverLoop` itself does not create a false positive.
+forbidText(center,'new MutationObserver(','Center Ops must not observe and rewrite its own DOM');
 forbidText(center,'saveStudents=function','Center Ops must not reassign legacy const saveStudents');
 forbidText(center,'saveSpecs=function','Center Ops must not reassign legacy const saveSpecs');
 for(const marker of [
@@ -73,7 +75,7 @@ const distCenter=readFileSync('dist/'+centerPath,'utf8');
 const distCore=readFileSync('dist/demo-app.js','utf8');
 requireText(distGate,"production-center-ops-v12.js",'v12 in packaged gate');
 forbidText(distGate,'production-center-ops-v11.js','v11 absent from packaged gate');
-forbidText(distCenter,'MutationObserver','packaged v12 observer loop');
+forbidText(distCenter,'new MutationObserver(','packaged v12 observer loop');
 requireText(distCore,"const saveStudents=()=>",'packaged legacy core copied verbatim');
 execFileSync(process.execPath,['--check','dist/'+centerPath],{stdio:'inherit'});
 execFileSync(process.execPath,['--check','dist/'+gatePath],{stdio:'inherit'});
