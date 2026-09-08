@@ -116,9 +116,9 @@ execFileSync(process.execPath, ['--check', 'dist/demo-app.js'], { stdio: 'inheri
 execFileSync(process.execPath, ['--check', 'dist/assets/production-center-ops-v11.js'], { stdio: 'inherit' });
 execFileSync(process.execPath, ['--check', 'dist/assets/production-center-ops-v11-fix1.js'], { stdio: 'inherit' });
 
-requireText(packageJson, '"version": "1.2.0"', 'package version 1.2.0');
-requireText(tauri, '"version": "1.2.0"', 'Tauri version 1.2.0');
-requireText(cargo, 'version = "1.2.0"', 'Rust package version 1.2.0');
+requireText(packageJson, '"version": "1.1.0"', 'package version 1.1.0');
+requireText(tauri, '"version": "1.1.0"', 'Tauri version 1.1.0');
+requireText(cargo, 'version = "1.1.0"', 'Rust package version 1.1.0');
 requireText(tauri, '"title": "مركز EFC للغات والمعلوماتية"', 'official Windows title');
 
 console.log('Center operations v11 runtime verification passed.');
