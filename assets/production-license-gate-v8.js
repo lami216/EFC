@@ -3,18 +3,17 @@
   if(window[FLAG])return;
   window[FLAG]=true;
 
-  const APP_SCRIPTS=[
-    './production-loader.js',
+  const BASE_RUNTIME='./production-loader.js';
+  const REFINEMENTS=[
     './assets/production-student-profile-v3.js',
     './assets/production-registration-receipt-v4.js',
     './assets/production-ledger-finance-ui-v5.js',
     './assets/production-ledger-pdf-v6.js',
     './assets/production-certificates-v7.js',
     './assets/production-certificate-filters-v8.js',
-    './assets/production-receipt-sequences-v10.js',
-    './assets/production-center-ops-v11.js',
-    './assets/production-center-ops-v11-fix1.js'
+    './assets/production-receipt-sequences-v10.js'
   ];
+  const CENTER_OPS='./assets/production-center-ops-v12.js';
   const invoke=window.__TAURI__?.core?.invoke;
   const app=document.getElementById('app');
   let appStarted=false;
@@ -30,55 +29,94 @@
   let deviceId='';
   let busy=false;
   let styleMounted=false;
+  let startupShield=null;
 
   function loadScript(src){
     return new Promise((resolve,reject)=>{
       const script=document.createElement('script');
       script.src=src;
+      script.async=false;
       script.onload=resolve;
       script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));
       document.head.appendChild(script);
     });
   }
 
-  function waitForRuntimeReady(timeoutMs=12000){
+  function waitUntil(check,label,timeoutMs=15000){
     const started=Date.now();
     return new Promise((resolve,reject)=>{
       const inspect=()=>{
-        const missing=[];
-        if(!window.EFC_RECEIPT_SEQUENCES_V10)missing.push('receipt-sequences-v10');
-        if(!window.EFC_CENTER_OPS_V11)missing.push('center-ops-v11');
-        if(!window.EFC_CENTER_OPS_V11_FIX1)missing.push('center-ops-v11-fix1');
-        if(!missing.length){resolve();return;}
-        if(Date.now()-started>=timeoutMs){
-          reject(new Error(`تعذر اكتمال تشغيل مكونات النظام: ${missing.join(', ')}`));
-          return;
-        }
-        setTimeout(inspect,40);
+        let ready=false;
+        try{ready=Boolean(check());}catch{}
+        if(ready){resolve();return;}
+        if(Date.now()-started>=timeoutMs){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}
+        setTimeout(inspect,35);
       };
       inspect();
     });
+  }
+
+  function mountStartupShield(){
+    if(startupShield)return;
+    startupShield=document.createElement('div');
+    startupShield.id='efc-runtime-startup-shield';
+    startupShield.style.cssText='position:fixed;inset:0;z-index:2147483400;background:#eef3f1;display:grid;place-items:center;padding:24px;direction:rtl;font-family:Tahoma,Arial,sans-serif;color:#17332b';
+    startupShield.innerHTML='<div style="text-align:center"><img src="./efc-logo.svg" alt="EFC" style="width:95px;height:75px;object-fit:contain"><h2 style="font-size:18px;margin:10px 0 5px">مركز EFC للغات والمعلوماتية</h2><p style="font-size:10px;color:#70827b">جاري تجهيز النظام…</p></div>';
+    document.body.appendChild(startupShield);
+  }
+  function removeStartupShield(){startupShield?.remove();startupShield=null;}
+
+  async function finalizeActiveRoute(){
+    // Several legacy layers registered route listeners before Center Ops existed.
+    // Re-fire the current route once after every override is installed, while the
+    // startup shield is still covering intermediate renders. This guarantees the
+    // first visible frame is produced by the final runtime rather than by an old
+    // renderer that ran earlier during bootstrap.
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await new Promise(resolve=>setTimeout(resolve,60));
+    const hasVisibleRuntime=Boolean(document.querySelector('.shell')||document.querySelector('.login-overlay-v12'));
+    if(!hasVisibleRuntime)throw new Error('اكتمل تحميل الملفات لكن لم تجهز واجهة النظام النهائية.');
   }
 
   async function startApplication(){
     if(appStarted)return;
     if(appStartPromise)return appStartPromise;
     appStartPromise=(async()=>{
-      for(const src of APP_SCRIPTS)await loadScript(src);
-      await waitForRuntimeReady();
+      mountStartupShield();
+
+      // production-loader.js starts an async state/bootstrap sequence internally.
+      // Its script onload only means evaluation finished, not that the app runtime is ready.
+      // EFC_DIAGNOSTICS is published only after that sequence and its core SCRIPT_ORDER finish.
+      await loadScript(BASE_RUNTIME);
+      await waitUntil(()=>window.EFC_DIAGNOSTICS&&typeof shell==='function'&&typeof renderRegister==='function','الواجهة الأساسية');
+
+      for(const src of REFINEMENTS)await loadScript(src);
+      await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10&&window.EFC_CERTIFICATES_V7,'طبقات الإنتاج');
+
+      // Center Ops is one final feature layer. It publishes readiness only after
+      // installing the approved business rules and performing its first render.
+      await loadScript(CENTER_OPS);
+      await waitUntil(()=>window.EFC_CENTER_OPS_V12?.ready===true,'Center Ops v12');
+      await finalizeActiveRoute();
+
       appStarted=true;
+      removeStartupShield();
     })();
     try{
       await appStartPromise;
     }catch(error){
       appStartPromise=null;
+      removeStartupShield();
       throw error;
     }
   }
 
   if(!invoke){
-    startApplication().catch(error=>console.error('EFC browser bootstrap failed.',error));
-    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,centerOpsRuntimeGuard:true});
+    startApplication().catch(error=>{
+      console.error('EFC browser bootstrap failed.',error);
+      if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;
+    });
+    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,deterministicRuntimeOrder:true,finalRouteBeforeReveal:true,centerOpsV12:true});
     return;
   }
 
@@ -107,6 +145,7 @@
 
   function ensureActivationUi(){
     if(overlay)return overlay;
+    removeStartupShield();
     mountStyle();
     overlay=document.createElement('div');
     overlay.className='efc-license-lock-v8';
@@ -203,6 +242,7 @@
       try{await unlock(status);}
       catch(error){
         console.error('EFC licensed startup failed.',error);
+        removeStartupShield();
         if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error||'فشل تحميل مكونات النظام.')}</small></div>`;
       }
       return;
@@ -214,5 +254,5 @@
   }
 
   silentStartup();
-  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,centerOpsRuntimeGuard:true,centerOpsLoadedAfterLicense:true});
+  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,deterministicRuntimeOrder:true,baseRuntimeAwaited:true,finalRouteBeforeReveal:true,centerOpsV12:true});
 })();
