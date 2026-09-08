@@ -11,11 +11,14 @@
     './assets/production-ledger-pdf-v6.js',
     './assets/production-certificates-v7.js',
     './assets/production-certificate-filters-v8.js',
-    './assets/production-receipt-sequences-v10.js'
+    './assets/production-receipt-sequences-v10.js',
+    './assets/production-center-ops-v11.js',
+    './assets/production-center-ops-v11-fix1.js'
   ];
   const invoke=window.__TAURI__?.core?.invoke;
   const app=document.getElementById('app');
   let appStarted=false;
+  let appStartPromise=null;
   let watchTimer=null;
   let overlay=null;
   let reason=null;
@@ -37,15 +40,45 @@
       document.head.appendChild(script);
     });
   }
+
+  function waitForRuntimeReady(timeoutMs=12000){
+    const started=Date.now();
+    return new Promise((resolve,reject)=>{
+      const inspect=()=>{
+        const missing=[];
+        if(!window.EFC_RECEIPT_SEQUENCES_V10)missing.push('receipt-sequences-v10');
+        if(!window.EFC_CENTER_OPS_V11)missing.push('center-ops-v11');
+        if(!window.EFC_CENTER_OPS_V11_FIX1)missing.push('center-ops-v11-fix1');
+        if(!missing.length){resolve();return;}
+        if(Date.now()-started>=timeoutMs){
+          reject(new Error(`تعذر اكتمال تشغيل مكونات النظام: ${missing.join(', ')}`));
+          return;
+        }
+        setTimeout(inspect,40);
+      };
+      inspect();
+    });
+  }
+
   async function startApplication(){
     if(appStarted)return;
-    appStarted=true;
-    for(const src of APP_SCRIPTS)await loadScript(src);
+    if(appStartPromise)return appStartPromise;
+    appStartPromise=(async()=>{
+      for(const src of APP_SCRIPTS)await loadScript(src);
+      await waitForRuntimeReady();
+      appStarted=true;
+    })();
+    try{
+      await appStartPromise;
+    }catch(error){
+      appStartPromise=null;
+      throw error;
+    }
   }
 
   if(!invoke){
     startApplication().catch(error=>console.error('EFC browser bootstrap failed.',error));
-    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true});
+    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,centerOpsRuntimeGuard:true});
     return;
   }
 
@@ -170,7 +203,7 @@
       try{await unlock(status);}
       catch(error){
         console.error('EFC licensed startup failed.',error);
-        if(app)app.innerHTML='<div style="max-width:620px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527">تعذر تشغيل نظام EFC.</div>';
+        if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error||'فشل تحميل مكونات النظام.')}</small></div>`;
       }
       return;
     }
@@ -181,5 +214,5 @@
   }
 
   silentStartup();
-  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true});
+  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,centerOpsRuntimeGuard:true,centerOpsLoadedAfterLicense:true});
 })();
