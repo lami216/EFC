@@ -10,9 +10,7 @@
 <body>
   <div id="app"><div style="max-width:620px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#49635a">جاري تشغيل مركز EFC…</div></div>
   <script src="./assets/production-license-gate-v8.js" defer></script>
-  <script src="./assets/production-center-ops-v11.js" defer></script>
-  <script src="./assets/production-center-ops-v11-fix1.js" defer></script>
-  <!-- Core runtime files are intentionally loaded by production-license-gate-v8.js only after a valid license:
+  <!-- Runtime order is owned by production-license-gate-v8.js after a valid license:
        ./production-loader.js
        ./assets/production-student-profile-v3.js
        ./assets/production-registration-receipt-v4.js
@@ -21,7 +19,8 @@
        ./assets/production-certificates-v7.js
        ./assets/production-certificate-filters-v8.js
        ./assets/production-receipt-sequences-v10.js
-       production-center-ops-v11.js and its fix layer wait for these licensed runtime layers before installing overrides.
+       ./assets/production-center-ops-v11.js
+       ./assets/production-center-ops-v11-fix1.js
   -->
 </body>
 </html>
