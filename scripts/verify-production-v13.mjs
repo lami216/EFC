@@ -51,7 +51,7 @@ forbidText(certificate,'new MutationObserver(','certificate observer patch');
 forbidText(certificate,'window.open=','window.open override');
 
 for(const token of ['function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
-for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function'])requireText(studentUi,token,`student UI ${token}`);
+for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','.quick-days-v13[hidden]'])requireText(studentUi,token,`student UI ${token}`);
 for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true'])requireText(financeUi,token,`finance UI ${token}`);
 for(const token of ['renderCurrentV13','mountLogin','loginAttemptThrottle:true','notificationBell:true','usersAndPermissions:true'])requireText(securityUi,token,`security UI ${token}`);
 
@@ -61,7 +61,8 @@ for(const source of [domain,studentUi,financeUi,securityUi]){
   forbidText(source,'saveSpecs=function','saveSpecs reassignment');
 }
 
-requireText(build,"cpSync(path.join(ROOT,'assets')",'assets copied into dist');
+requireText(build,"await cp('assets', 'dist/assets', { recursive: true });",'assets copied into dist');
+requireText(build,'Production source is copied verbatim','verbatim production build');
 forbidText(build,"replace('const saveStudents'",'build-time JS mutation');
 forbidText(build,'production-center-ops-v11','obsolete build patch');
 requireText(tauri,'"frontendDist": "../dist"','Tauri packaged frontend');
