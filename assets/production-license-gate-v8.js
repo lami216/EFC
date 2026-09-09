@@ -8,8 +8,8 @@ const RUNTIME=[
   './assets/production-foundation-v13.js',
   './assets/production-receipts-v13.js',
   './assets/production-certificates-v13.js',
-  './assets/production-receipt-sequences-v10.js',
   './assets/production-domain-v13.js',
+  './assets/production-receipt-sequences-v10.js',
   './assets/production-student-ui-v13.js',
   './assets/production-finance-ui-v13.js',
   './assets/production-security-ui-v13.js'
@@ -40,11 +40,11 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_CERTIFICATES_V13?.ready,'الشهادات');
 
     await loadScript(RUNTIME[4]);
-    await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10,'ترقيم الإيصالات');
-
-    await loadScript(RUNTIME[5]);
     if(window.EFC_DOMAIN_V13_READY)await window.EFC_DOMAIN_V13_READY;
     await waitUntil(()=>window.EFC_DOMAIN_V13?.ready,'نواة الحسابات');
+
+    await loadScript(RUNTIME[5]);
+    await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10,'ترقيم الإيصالات');
 
     await loadScript(RUNTIME[6]);
     await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready,'واجهة الطلاب');
@@ -83,5 +83,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,noLegacyDemoRuntime:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,centerOpsV13:true});
 })();
