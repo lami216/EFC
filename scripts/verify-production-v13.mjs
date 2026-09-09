@@ -75,8 +75,11 @@ for(const forbidden of ['new MutationObserver(','window.MutationObserver =','win
 const hashOwners=[foundation,receipts,certificate,sequence,domain,studentUi,financeUi,securityUi].filter(source=>source.includes("addEventListener('hashchange'")||source.includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!==securityUi)throw new Error(`Expected exactly one hashchange router owner; found ${hashOwners.length}.`);
 
-for(const legacy of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])forbidText(build,`'${legacy}'`,`legacy build asset ${legacy}`);
-for(const required of ['assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-security-ui-v13.js','forbiddenProductionFiles'])requireText(build,required,`clean build ${required}`);
+const runtimeBlock=build.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
+if(!runtimeBlock)throw new Error('Could not inspect production runtime file list.');
+for(const legacy of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])forbidText(runtimeBlock,`'${legacy}'`,`legacy packaged runtime ${legacy}`);
+for(const required of ['assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-security-ui-v13.js'])requireText(runtimeBlock,required,`clean packaged runtime ${required}`);
+requireText(build,'forbiddenProductionFiles','legacy dist guard');
 forbidText(build,"await cp('assets', 'dist/assets', { recursive: true });",'recursive assets copy');
 requireText(tauri,'"frontendDist": "../dist"','Tauri packaged frontend');
 for(const command of ['save_app_state','load_app_state','save_receipt_pdf','save_certificate_state','load_certificate_state','get_license_status'])requireText(rust,command,`native command ${command}`);
