@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.EFC_CERTIFICATES_V13?.ready)return;
-if(!window.EFC_LEDGER_PDF_V6||typeof allPayments!=='function'||typeof shell!=='function')throw new Error('Certificates v13 loaded before finance runtime.');
+if(!window.EFC_RECEIPTS_V13?.ready||typeof allPayments!=='function'||typeof shell!=='function')throw new Error('Certificates v13 loaded before clean receipt/foundation runtime.');
 
 const STORAGE_KEY='efc-certificate-state-v1';
 const OFFICIAL_NAME='مركز EFC للغات والمعلوماتية';
@@ -140,7 +140,7 @@ function addBranch(){
   state.certificateBranches.push({id:uid('cert-branch'),recordCode:uid('cert-branch-record'),name,createdAt:Date.now()});mode='external';persist().then(renderCertificates);
 }
 function historyRows(){return[...state.certificateReceipts].sort((a,b)=>b.date.localeCompare(a.date)||Number(b.timestamp)-Number(a.timestamp)).map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${receipt.studentType==='internal'?'مسجل':'خارجي'}</td><td>${esc(receipt.branchName)}</td><td>${esc(receipt.specialtyName)}</td><td>${cash(receipt.amount)}</td><td>${esc(receipt.method)}</td><td>${showDate(receipt.date)}</td></tr>`).join('');}
-function switchMode(next){mode=next==='external'?'external':'internal';document.querySelectorAll('.cert-mode-v13 button').forEach(button=>button.classList.toggle('active',button.dataset.mode===mode));const internal=document.getElementById('certInternalPaneV13'),external=document.getElementById('certExternalPaneV13'),issue=document.getElementById('certIssueV13');if(internal)internal.hidden=mode!=='internal';if(external)external.hidden=mode!=='external';if(issue)issue.disabled=!canEditCertificates()||(mode==='internal'&&!selectedStudentId);}
+function switchMode(next){mode=next==='external'?'external':'internal';document.querySelectorAll('.cert-mode-v13 button').forEach(button=>button.classList.toggle('active',button.dataset.mode===mode));const internal=document.getElementById('certInternalPaneV13'),external=document.getElementById('certExternalPaneV13'),issue=document.getElementById('certIssueV13');if(internal)internal.hidden=mode!=='internal';if(external)external.hidden=mode==='internal';if(issue)issue.disabled=!canEditCertificates()||(mode==='internal'&&!selectedStudentId);}
 function updateInternalSpecialties(){
   const branch=document.getElementById('certInternalBranchV13').value,select=document.getElementById('certInternalSpecV13');
   const allowed=new Set(students.filter(student=>student.branch===branch&&isOperationalStudent(student)).map(student=>student.specialty));
@@ -193,14 +193,11 @@ async function boot(){
   const baseApply=window.EFC_APPLY_RESTORED_STATE;if(typeof baseApply==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{const result=await baseApply(incoming);if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[]});await persist();}return result;};
 
   const style=document.createElement('style');style.textContent=`.cert-layout-v13{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(280px,.8fr);gap:16px;margin-bottom:16px}.cert-form-v13{display:grid;gap:16px}.cert-mode-v13{display:flex;gap:5px;background:#edf1ef;border:1px solid var(--border);border-radius:9px;padding:5px;width:max-content}.cert-mode-v13 button{border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:6px;font-size:9px;cursor:pointer}.cert-mode-v13 button.active{background:#fff;color:var(--primary);box-shadow:0 2px 7px #0000000c}.cert-results-v13{display:grid;gap:5px;margin-top:6px}.cert-student-option-v13{border:1px solid var(--border);background:#fff;border-radius:8px;padding:9px 11px;text-align:right;cursor:pointer;color:var(--text)}.cert-student-option-v13 b,.cert-selected-v13 b{display:block;font-size:10px}.cert-student-option-v13 span,.cert-selected-v13 span{display:block;color:var(--muted);font-size:8px;margin-top:3px}.cert-empty-v13,.cert-selected-v13{padding:12px;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:9px}.cert-private-note-v13{display:block;color:var(--muted);font-size:8px;margin-top:7px}.cert-payment-v13{padding-top:14px;border-top:1px solid var(--border)}.cert-help-v13{height:max-content}.cert-help-v13 p{color:var(--muted);font-size:9px;line-height:1.9}.cert-history-v13{padding:18px}.cert-history-row-v13{cursor:pointer}.cert-history-row-v13:hover{background:#f1f8f5}@media(max-width:1250px){.cert-layout-v13{grid-template-columns:1fr}}`;document.head.appendChild(style);
-  window.addEventListener('hashchange',()=>{if(location.hash==='#certificates')setTimeout(renderCertificates,0);});
-  document.addEventListener('click',event=>{const link=event.target instanceof Element?event.target.closest('a[href="#certificates"]'):null;if(link){event.preventDefault();history.replaceState(null,'','#certificates');renderCertificates();}},true);
   window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;
   window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;
   window.EFC_FIND_CERTIFICATE_V13=id=>state.certificateReceipts.find(item=>String(item.id)===String(id))||null;
   window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;
-  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,separateCertificateFinance:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,externalRegistrationNative:true,certificateIncomeInLedgerAndFinance:true,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,officialNameOnReceipt:true,permissionsEnforced:true,noObserverPatch:true});
-  if(location.hash==='#certificates')renderCertificates();
+  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,separateCertificateFinance:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,externalRegistrationNative:true,certificateIncomeInLedgerAndFinance:true,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,officialNameOnReceipt:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }
 
 boot().catch(error=>{console.error('EFC certificates v13 failed to initialize.',error);throw error;});
