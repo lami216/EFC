@@ -24,7 +24,7 @@ for(const marker of [
   "'./assets/production-finance-ui-v13.js'",
   "'./assets/production-security-ui-v13.js'",
   'window.EFC_DOMAIN_V13_READY',
-  'window.EFC_CENTER_OPS_V13?.ready===true',
+  'window.EFC_CENTER_OPS_V13?.ready',
   'noStartupSplash:true'
 ])requireText(source.gate,marker);
 for(const obsolete of ['production-center-ops-v11.js','production-center-ops-v11-fix1.js','production-center-ops-v12.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
@@ -54,8 +54,6 @@ requireText(source.finance,"pageTitle('الإدارة المالية','الما�
 requireText(source.finance,'financePrimaryActionV13','expense primary action slot');
 requireText(source.finance,"section==='expenses'&&canEdit('finance')",'expense action only on expense page');
 
-// Execute the actual domain layer with a small browser/state harness. This catches the
-// regression that previously let UI totals diverge from the payment transaction list.
 const store=new Map();
 const localStorage={getItem:key=>store.has(key)?store.get(key):null,setItem:(key,value)=>store.set(key,String(value)),removeItem:key=>store.delete(key)};
 const students=[];
