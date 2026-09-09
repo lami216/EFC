@@ -3,16 +3,12 @@
 if(window.__EFC_LICENSE_GATE_V13__)return;
 window.__EFC_LICENSE_GATE_V13__=true;
 
-const BASE_RUNTIME='./production-loader.js';
-const REFINEMENTS=[
-  './assets/production-student-profile-v3.js',
-  './assets/production-registration-receipt-v4.js',
-  './assets/production-ledger-finance-ui-v5.js',
-  './assets/production-ledger-pdf-v6.js',
+const RUNTIME=[
+  './production-loader.js',
+  './assets/production-foundation-v13.js',
+  './assets/production-receipts-v13.js',
   './assets/production-certificates-v13.js',
-  './assets/production-receipt-sequences-v10.js'
-];
-const CENTER_LAYERS=[
+  './assets/production-receipt-sequences-v10.js',
   './assets/production-domain-v13.js',
   './assets/production-student-ui-v13.js',
   './assets/production-finance-ui-v13.js',
@@ -23,28 +19,44 @@ const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
 
 function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));document.head.appendChild(script);});}
-function waitUntil(check,label,timeout=15000){const startedAt=Date.now();return new Promise((resolve,reject)=>{const poll=()=>{try{if(check()){resolve();return;}}catch{}if(Date.now()-startedAt>=timeout){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}setTimeout(poll,25);};poll();});}
+function waitUntil(check,label,timeout=15000){const startedAt=Date.now();return new Promise((resolve,reject)=>{const poll=()=>{try{if(check()){resolve();return;}}catch{}if(Date.now()-startedAt>=timeout){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}setTimeout(poll,20);};poll();});}
 function reveal(){document.documentElement.classList.remove('efc-booting');}
 
 async function startApplication(){
   if(started)return;
   if(startPromise)return startPromise;
   startPromise=(async()=>{
-    await loadScript(BASE_RUNTIME);
-    await waitUntil(()=>window.EFC_DIAGNOSTICS&&typeof shell==='function'&&typeof renderRegister==='function','الواجهة الأساسية');
-    for(const src of REFINEMENTS)await loadScript(src);
-    await waitUntil(()=>window.EFC_CERTIFICATES_V13?.ready&&window.EFC_RECEIPT_SEQUENCES_V10,'طبقات الإنتاج');
-    await loadScript(CENTER_LAYERS[0]);
+    await loadScript(RUNTIME[0]);
+    if(window.EFC_CORE_STORAGE_READY)await window.EFC_CORE_STORAGE_READY;
+    await waitUntil(()=>window.EFC_CORE_STORAGE_V13?.ready,'تخزين البيانات');
+
+    await loadScript(RUNTIME[1]);
+    await waitUntil(()=>window.EFC_FOUNDATION_V13?.ready&&typeof shell==='function','الواجهة الأساسية');
+
+    await loadScript(RUNTIME[2]);
+    await waitUntil(()=>window.EFC_RECEIPTS_V13?.ready&&typeof receiptModelV4==='function','خدمة الإيصالات');
+
+    await loadScript(RUNTIME[3]);
+    await waitUntil(()=>window.EFC_CERTIFICATES_V13?.ready,'الشهادات');
+
+    await loadScript(RUNTIME[4]);
+    await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10,'ترقيم الإيصالات');
+
+    await loadScript(RUNTIME[5]);
     if(window.EFC_DOMAIN_V13_READY)await window.EFC_DOMAIN_V13_READY;
     await waitUntil(()=>window.EFC_DOMAIN_V13?.ready,'نواة الحسابات');
-    await loadScript(CENTER_LAYERS[1]);
+
+    await loadScript(RUNTIME[6]);
     await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready,'واجهة الطلاب');
-    await loadScript(CENTER_LAYERS[2]);
+
+    await loadScript(RUNTIME[7]);
     await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready,'المالية');
-    await loadScript(CENTER_LAYERS[3]);
+
+    await loadScript(RUNTIME[8]);
     await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
     window.renderCurrentV13?.();
-    await new Promise(resolve=>setTimeout(resolve,20));
+    await new Promise(resolve=>setTimeout(resolve,10));
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');
     started=true;reveal();
   })();
@@ -71,5 +83,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,certificateV13Native:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,noLegacyDemoRuntime:true,centerOpsV13:true});
 })();
