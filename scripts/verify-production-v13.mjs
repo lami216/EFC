@@ -66,8 +66,9 @@ for(const token of ['noRouter:true','noMutationObserver:true','noStartupRender:t
 forbidText(foundation,"addEventListener('hashchange'",'foundation router');
 forbidText(foundation,'new MutationObserver(','foundation observer');
 
-for(const token of ['window.receiptModelV4','window.receiptWindowV4','window.EFC_SAVE_RECEIPT_PDF','noLegacyReceiptChain:true','noWindowOpenPatch:true','offlinePdfLibraries:true'])requireText(receipts,token,`receipts ${token}`);
+for(const token of ['window.receiptModelV4','window.receiptWindowV4','window.EFC_SAVE_RECEIPT_PDF','noLegacyReceiptChain:true','noWindowOpenPatch:true','offlinePdfLibraries:true','inAppReceiptViewer:true','restoredLegacyReceiptDesign:true','receipt-viewer-frame-v13','socialLine12'])requireText(receipts,token,`receipts ${token}`);
 forbidText(receipts,'window.open=function','receipt global window.open patch');
+forbidText(receipts,'window.open(','external receipt window');
 forbidText(receipts,'new MutationObserver(','receipt observer');
 
 for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
@@ -76,7 +77,7 @@ forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
 
 for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
-for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','.quick-days-v13[hidden]'])requireText(studentUi,token,`student UI ${token}`);
+for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden'])requireText(studentUi,token,`student UI ${token}`);
 for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true'])requireText(financeUi,token,`finance UI ${token}`);
 for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','loginAttemptThrottle:true','notificationBell:true'])requireText(securityUi,token,`security UI ${token}`);
 
@@ -99,4 +100,4 @@ if('harden' in (packageJson.scripts||{}))throw new Error('Obsolete harden script
 if(!String(packageJson.scripts?.check||'').includes('verify-runtime-core-v13.mjs'))throw new Error('package check does not run runtime v13 verifier.');
 if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');
 
-console.log('Production v13 verification passed: clean source tree/runtime, safe persistence order, single router, explicit persistence, canonical payments, native certificates and offline receipts.');
+console.log('Production v13 verification passed: clean source tree/runtime, restored student/search/receipt UI, safe persistence order, single router, canonical payments and native certificates.');
