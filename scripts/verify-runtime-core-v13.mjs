@@ -15,7 +15,7 @@ const files={
   finance:'assets/production-finance-ui-v13.js',
   security:'assets/production-security-ui-v13.js',
   index:'index.html',
-  build:'scripts/build-demo.mjs'
+  build:'scripts/build-production.mjs'
 };
 const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,readFileSync(path,'utf8')]));
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
@@ -39,13 +39,16 @@ for(const marker of [
   'window.EFC_CENTER_OPS_V13?.ready',
   'noStartupSplash:true',
   'noLegacyDemoRuntime:true',
-  'domainBeforeReceiptSequence:true'
+  'domainBeforeReceiptSequence:true',
+  'singleStartupRender:true'
 ])requireText(source.gate,marker);
 for(const obsolete of ['demo-app.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-center-ops-v11.js','production-center-ops-v12.js','production-ledger-pdf-v6.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
 forbidText(source.gate,'mountStartupShield','visible startup shield');
 forbidText(source.gate,'جاري تجهيز النظام','startup progress page');
 requireText(source.index,'<div id="app"></div>','empty startup root');
 requireText(source.index,'class="efc-booting"','boot visibility guard');
+requireText(source.index,'./assets/production-ui-v13.css','production stylesheet');
+forbidText(source.index,'demo.css','demo stylesheet');
 forbidText(source.index,'جاري تشغيل مركز EFC','old visible startup text');
 
 const activeCombined=activeKeys.filter(key=>key!=='gate').map(key=>source[key]).join('\n');
@@ -122,8 +125,9 @@ if(D.paymentTotal(monthly)!==600||monthly.paid!==600||D.remainingAmount(monthly)
 const earlyPlan=D.installmentPlan(monthly,'2026-10-06');
 if(earlyPlan.length!==2)throw new Error('Next monthly period was not opened three days before renewal.');
 
-execFileSync(process.execPath,['scripts/build-demo.mjs'],{stdio:'inherit'});
+execFileSync(process.execPath,['scripts/build-production.mjs'],{stdio:'inherit'});
+if(!existsSync('dist/assets/production-ui-v13.css'))throw new Error('Packaged production stylesheet is missing.');
 for(const key of activeKeys){const dist=`dist/${files[key]}`;if(!existsSync(dist))throw new Error(`Packaged runtime missing: ${dist}`);execFileSync(process.execPath,['--check',dist],{stdio:'inherit'});}
-for(const legacy of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])if(existsSync(`dist/${legacy}`))throw new Error(`Legacy runtime leaked into dist: ${legacy}`);
+for(const legacy of ['.demo-imported','demo.css','demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])if(existsSync(`dist/${legacy}`))throw new Error(`Obsolete runtime leaked into dist: ${legacy}`);
 
-console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime, safe persistence order, single router, canonical payments and no demo side effects.');
+console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime/source names, safe persistence order, single router, canonical payments and no demo side effects.');

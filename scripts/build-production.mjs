@@ -4,21 +4,23 @@ import { dirname } from 'node:path';
 
 const runtimeFiles = [
   'index.html',
-  'demo.css',
+  'assets/production-ui-v13.css',
   'production-loader.js',
   'efc-logo.svg',
   'assets/production-license-gate-v8.js',
   'assets/production-foundation-v13.js',
   'assets/production-receipts-v13.js',
   'assets/production-certificates-v13.js',
-  'assets/production-receipt-sequences-v10.js',
   'assets/production-domain-v13.js',
+  'assets/production-receipt-sequences-v10.js',
   'assets/production-student-ui-v13.js',
   'assets/production-finance-ui-v13.js',
   'assets/production-security-ui-v13.js'
 ];
 
 const forbiddenProductionFiles = [
+  '.demo-imported',
+  'demo.css',
   'demo-app.js',
   'demo-period-merge.js',
   'demo-monthly-finance-v3.js',
@@ -37,8 +39,16 @@ const forbiddenProductionFiles = [
   'assets/production-student-profile-v3.js',
   'assets/production-registration-receipt-v4.js',
   'assets/production-ledger-finance-ui-v5.js',
-  'assets/production-ledger-pdf-v6.js'
+  'assets/production-ledger-pdf-v6.js',
+  'scripts/build-demo.mjs',
+  'scripts/harden-production.mjs',
+  'scripts/verify-center-ops-v11.mjs',
+  'scripts/verify-production.mjs'
 ];
+
+for (const file of forbiddenProductionFiles) {
+  if (existsSync(file)) throw new Error(`Obsolete EFC source still present in clean v13: ${file}`);
+}
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });
@@ -61,7 +71,7 @@ for (const [source, target] of vendorFiles) {
 }
 
 for (const file of forbiddenProductionFiles) {
-  if (existsSync(`dist/${file}`)) throw new Error(`Legacy runtime leaked into production dist: ${file}`);
+  if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 runtime copied to dist with offline PDF libraries; legacy demo runtime excluded.');
+console.log('EFC clean v13 production runtime copied to dist with offline PDF libraries; obsolete demo-era sources are absent.');
