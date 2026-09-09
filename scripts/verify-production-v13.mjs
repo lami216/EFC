@@ -72,12 +72,15 @@ forbidText(receipts,'window.open(','external receipt window');
 forbidText(receipts,'new MutationObserver(','receipt observer');
 
 for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
+forbidText(certificate,'اختر الفرع والتخصص أولًا','certificate search must not require branch/specialty');
+forbidText(certificate,'اختر الفرع والتخصص أولاً','certificate search must not require branch/specialty');
 forbidText(certificate,"addEventListener('hashchange'",'certificate router hook');
 forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
 
 for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
-for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);
+for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','legacyRecordsUseRestoredStudentFile:true','snapshot.billing===\'monthly\'','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);
+forbidText(studentUi,'legacyOpenStudent(id,mode)','legacy records must use the restored student-file UI');
 for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true'])requireText(financeUi,token,`finance UI ${token}`);
 for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','loginAttemptThrottle:true','notificationBell:true'])requireText(securityUi,token,`security UI ${token}`);
 
@@ -100,4 +103,4 @@ if('harden' in (packageJson.scripts||{}))throw new Error('Obsolete harden script
 if(!String(packageJson.scripts?.check||'').includes('verify-runtime-core-v13.mjs'))throw new Error('package check does not run runtime v13 verifier.');
 if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');
 
-console.log('Production v13 verification passed: clean runtime with restored original student/search/receipt experience, filter-first certificates, safe persistence, single router and canonical payments.');
+console.log('Production v13 verification passed: clean runtime with restored original student/search/receipt experience for current and legacy records, optional certificate filters, safe persistence, single router and canonical payments.');
