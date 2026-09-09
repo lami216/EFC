@@ -71,7 +71,7 @@ forbidText(receipts,'window.open=function','receipt global window.open patch');
 forbidText(receipts,'window.open(','external receipt window');
 forbidText(receipts,'new MutationObserver(','receipt observer');
 
-for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
+for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','certificateManagementTitleBelowHeader:true','originalCertificateFooter:true','cert-section-title','SEDAD BANK','bimbank','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
 forbidText(certificate,'اختر الفرع والتخصص أولًا','certificate search must not require branch/specialty');
 forbidText(certificate,'اختر الفرع والتخصص أولاً','certificate search must not require branch/specialty');
 forbidText(certificate,"addEventListener('hashchange'",'certificate router hook');
