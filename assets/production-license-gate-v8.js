@@ -13,7 +13,12 @@
     './assets/production-certificate-filters-v8.js',
     './assets/production-receipt-sequences-v10.js'
   ];
-  const CENTER_OPS='./assets/production-center-ops-v12.js';
+  const CENTER_LAYERS=[
+    './assets/production-domain-v13.js',
+    './assets/production-student-ui-v13.js',
+    './assets/production-finance-ui-v13.js',
+    './assets/production-security-ui-v13.js'
+  ];
   const invoke=window.__TAURI__?.core?.invoke;
   const app=document.getElementById('app');
   let appStarted=false;
@@ -29,7 +34,6 @@
   let deviceId='';
   let busy=false;
   let styleMounted=false;
-  let startupShield=null;
 
   function loadScript(src){
     return new Promise((resolve,reject)=>{
@@ -50,63 +54,50 @@
         try{ready=Boolean(check());}catch{}
         if(ready){resolve();return;}
         if(Date.now()-started>=timeoutMs){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}
-        setTimeout(inspect,35);
+        setTimeout(inspect,25);
       };
       inspect();
     });
   }
 
-  function mountStartupShield(){
-    if(startupShield)return;
-    startupShield=document.createElement('div');
-    startupShield.id='efc-runtime-startup-shield';
-    startupShield.style.cssText='position:fixed;inset:0;z-index:2147483400;background:#eef3f1;display:grid;place-items:center;padding:24px;direction:rtl;font-family:Tahoma,Arial,sans-serif;color:#17332b';
-    startupShield.innerHTML='<div style="text-align:center"><img src="./efc-logo.svg" alt="EFC" style="width:95px;height:75px;object-fit:contain"><h2 style="font-size:18px;margin:10px 0 5px">مركز EFC للغات والمعلوماتية</h2><p style="font-size:10px;color:#70827b">جاري تجهيز النظام…</p></div>';
-    document.body.appendChild(startupShield);
-  }
-  function removeStartupShield(){startupShield?.remove();startupShield=null;}
+  function revealRuntime(){document.documentElement.classList.remove('efc-booting');}
 
   async function finalizeActiveRoute(){
-    // Several legacy layers registered route listeners before Center Ops existed.
-    // Re-fire the current route once after every override is installed, while the
-    // startup shield is still covering intermediate renders. This guarantees the
-    // first visible frame is produced by the final runtime rather than by an old
-    // renderer that ran earlier during bootstrap.
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-    await new Promise(resolve=>setTimeout(resolve,60));
-    const hasVisibleRuntime=Boolean(document.querySelector('.shell')||document.querySelector('.login-overlay-v12'));
-    if(!hasVisibleRuntime)throw new Error('اكتمل تحميل الملفات لكن لم تجهز واجهة النظام النهائية.');
+    window.renderCurrentV13?.();
+    await new Promise(resolve=>setTimeout(resolve,25));
+    const hasRuntime=Boolean(document.querySelector('.shell')||document.querySelector('.login-overlay-v13'));
+    if(!hasRuntime)throw new Error('اكتمل تحميل الملفات لكن لم تجهز واجهة النظام النهائية.');
   }
 
   async function startApplication(){
     if(appStarted)return;
     if(appStartPromise)return appStartPromise;
     appStartPromise=(async()=>{
-      mountStartupShield();
-
-      // production-loader.js starts an async state/bootstrap sequence internally.
-      // Its script onload only means evaluation finished, not that the app runtime is ready.
-      // EFC_DIAGNOSTICS is published only after that sequence and its core SCRIPT_ORDER finish.
       await loadScript(BASE_RUNTIME);
       await waitUntil(()=>window.EFC_DIAGNOSTICS&&typeof shell==='function'&&typeof renderRegister==='function','الواجهة الأساسية');
 
       for(const src of REFINEMENTS)await loadScript(src);
       await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10&&window.EFC_CERTIFICATES_V7,'طبقات الإنتاج');
 
-      // Center Ops is one final feature layer. It publishes readiness only after
-      // installing the approved business rules and performing its first render.
-      await loadScript(CENTER_OPS);
-      await waitUntil(()=>window.EFC_CENTER_OPS_V12?.ready===true,'Center Ops v12');
+      await loadScript(CENTER_LAYERS[0]);
+      if(window.EFC_DOMAIN_V13_READY)await window.EFC_DOMAIN_V13_READY;
+      await waitUntil(()=>window.EFC_DOMAIN_V13?.ready===true,'نواة الحسابات v13');
+      await loadScript(CENTER_LAYERS[1]);
+      await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready===true,'واجهة الطلاب v13');
+      await loadScript(CENTER_LAYERS[2]);
+      await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready===true,'المالية v13');
+      await loadScript(CENTER_LAYERS[3]);
+      await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready===true,'EFC v13');
       await finalizeActiveRoute();
 
       appStarted=true;
-      removeStartupShield();
+      revealRuntime();
     })();
     try{
       await appStartPromise;
     }catch(error){
       appStartPromise=null;
-      removeStartupShield();
+      revealRuntime();
       throw error;
     }
   }
@@ -114,9 +105,10 @@
   if(!invoke){
     startApplication().catch(error=>{
       console.error('EFC browser bootstrap failed.',error);
+      revealRuntime();
       if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;
     });
-    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,deterministicRuntimeOrder:true,finalRouteBeforeReveal:true,centerOpsV12:true});
+    window.EFC_LICENSE_GATE_V8=Object.freeze({nativeOnly:true,bypassed:true,runtimeBlockedUntilValid:true,silentValidStartup:true,deterministicRuntimeOrder:true,noStartupSplash:true,finalRouteBeforeReveal:true,centerOpsV13:true});
     return;
   }
 
@@ -145,11 +137,10 @@
 
   function ensureActivationUi(){
     if(overlay)return overlay;
-    removeStartupShield();
     mountStyle();
     overlay=document.createElement('div');
     overlay.className='efc-license-lock-v8';
-    overlay.innerHTML=`<section class="efc-license-card-v8" role="dialog" aria-modal="true" aria-labelledby="efcLicenseTitle"><div class="efc-license-head-v8"><img src="./efc-logo.svg" alt="EFC"><div><h1 id="efcLicenseTitle">تفعيل نظام EFC</h1><p>هذا الجهاز يحتاج ملف تفعيل صالح قبل فتح بيانات المركز.</p></div><span class="efc-license-state-v8">غير مفعل</span></div><div class="efc-license-body-v8"><div class="efc-license-error-v8" id="efcLicenseReason">يجب تفعيل هذا الجهاز قبل استخدام النظام.</div><label class="efc-license-label-v8">رقم هذا الجهاز<div class="efc-license-device-v8"><input id="efcLicenseDevice" readonly value="جاري الاستخراج…"><button class="efc-license-soft-v8" id="efcLicenseCopy" type="button" disabled>نسخ</button></div></label><div class="efc-license-actions-v8"><button class="efc-license-primary-v8" id="efcLicenseInstall" type="button">اختيار ملف التفعيل</button><button class="efc-license-soft-v8" id="efcLicenseRefresh" type="button">إعادة التحقق</button></div><p class="efc-license-note-v8">أرسل رقم الجهاز إلى مسؤول التفعيل، ثم اختر ملف <b>.efc-license</b> الذي تم إنشاؤه لهذا الجهاز. لا يحتاج التفعيل إلى إنترنت.</p><div id="efcLicenseMessage"></div></div></section>`;
+    overlay.innerHTML=`<section class="efc-license-card-v8" role="dialog" aria-modal="true" aria-labelledby="efcLicenseTitle"><div class="efc-license-head-v8"><img src="./efc-logo.svg" alt="EFC"><div><h1 id="efcLicenseTitle">تفعيل نظام EFC</h1><p>هذا الجهاز يحتاج ملف تفعيل صالح قبل فتح بيانات المركز.</p></div><span class="efc-license-state-v8">غير مفعل</span></div><div class="efc-license-body-v8"><div class="efc-license-error-v8" id="efcLicenseReason">يجب تفعيل هذا الجهاز قبل استخدام النظام.</div><label class="efc-license-label-v8">رقم هذا الجهاز<div class="efc-license-device-v8"><input id="efcLicenseDevice" readonly value="جاري الاستخراج…" autocomplete="off"><button class="efc-license-soft-v8" id="efcLicenseCopy" type="button" disabled>نسخ</button></div></label><div class="efc-license-actions-v8"><button class="efc-license-primary-v8" id="efcLicenseInstall" type="button">اختيار ملف التفعيل</button><button class="efc-license-soft-v8" id="efcLicenseRefresh" type="button">إعادة التحقق</button></div><p class="efc-license-note-v8">أرسل رقم الجهاز إلى مسؤول التفعيل، ثم اختر ملف <b>.efc-license</b> الذي تم إنشاؤه لهذا الجهاز. لا يحتاج التفعيل إلى إنترنت.</p><div id="efcLicenseMessage"></div></div></section>`;
     document.body.appendChild(overlay);
     if(app)app.inert=true;
 
@@ -242,7 +233,7 @@
       try{await unlock(status);}
       catch(error){
         console.error('EFC licensed startup failed.',error);
-        removeStartupShield();
+        revealRuntime();
         if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#8f3527;line-height:1.9"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error||'فشل تحميل مكونات النظام.')}</small></div>`;
       }
       return;
@@ -254,5 +245,5 @@
   }
 
   silentStartup();
-  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,deterministicRuntimeOrder:true,baseRuntimeAwaited:true,finalRouteBeforeReveal:true,centerOpsV12:true});
+  window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,deterministicRuntimeOrder:true,baseRuntimeAwaited:true,noStartupSplash:true,finalRouteBeforeReveal:true,centerOpsV13:true});
 })();
