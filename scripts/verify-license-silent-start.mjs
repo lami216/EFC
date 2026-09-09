@@ -11,7 +11,8 @@ for(const required of [
   'silentValidStartup:true',
   'activationUiOnlyWhenInvalid:true',
   'noReloadAfterInstall:true',
-  'noStartupSplash:true'
+  'noStartupSplash:true',
+  'singleStartupRender:true'
 ]){
   if(!gate.includes(required))throw new Error(`Silent license startup behavior missing: ${required}`);
 }
@@ -19,6 +20,7 @@ for(const required of [
 if(gate.includes('جاري التحقق من حالة التفعيل…'))throw new Error('Activation verification screen must not be rendered before saved-license validation.');
 if(gate.includes("setTimeout(()=>location.reload(),300)"))throw new Error('Successful first activation must unlock directly without reloading through the activation gate.');
 if(gate.includes('mountStartupShield')||gate.includes('جاري تجهيز النظام'))throw new Error('Valid startup must not render a startup splash/shield.');
+if(gate.includes('window.renderCurrentV13?.();'))throw new Error('License gate must not trigger a second final render after security v13 owns startup rendering.');
 
 const silentIndex=gate.indexOf('async function silentStartup()');
 const statusIndex=gate.indexOf("status=await invoke('get_license_status')",silentIndex);
@@ -28,4 +30,4 @@ if(silentIndex<0||statusIndex<0||validIndex<0||uiIndex<0||statusIndex>validIndex
   throw new Error('Silent startup must validate the saved license before constructing activation UI.');
 }
 
-console.log('Silent license startup verified: saved activation is checked first and no startup/activation screen is rendered when valid.');
+console.log('Silent license startup verified: saved activation is checked first, startup renders once, and no startup/activation screen is rendered when valid.');
