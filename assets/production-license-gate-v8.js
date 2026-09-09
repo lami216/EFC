@@ -25,11 +25,12 @@ let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,devi
 
 function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));document.head.appendChild(script);});}
 function waitUntil(check,label,timeout=15000){const startedAt=Date.now();return new Promise((resolve,reject)=>{const poll=()=>{try{if(check()){resolve();return;}}catch{}if(Date.now()-startedAt>=timeout){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}setTimeout(poll,25);};poll();});}
-function reveal(){document.documentElement.classList.remove('efc-booting');}
+function reveal(){document.documentElement.classList.remove('efc-booting','efc-runtime-loading');}
 
 async function startApplication(){
   if(started)return;
   if(startPromise)return startPromise;
+  document.documentElement.classList.add('efc-runtime-loading');
   startPromise=(async()=>{
     await loadScript(BASE_RUNTIME);
     await waitUntil(()=>window.EFC_DIAGNOSTICS&&typeof shell==='function'&&typeof renderRegister==='function','الواجهة الأساسية');
@@ -74,5 +75,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,certificateV13Native:true,centerOpsV13:true,fiscalV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,certificateV13Native:true,centerOpsV13:true,fiscalV13:true,singleRevealOwner:true});
 })();
