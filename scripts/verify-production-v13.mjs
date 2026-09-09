@@ -27,8 +27,8 @@ const activeRuntimeFiles=[
   'assets/production-foundation-v13.js',
   'assets/production-receipts-v13.js',
   'assets/production-certificates-v13.js',
-  'assets/production-receipt-sequences-v10.js',
   'assets/production-domain-v13.js',
+  'assets/production-receipt-sequences-v10.js',
   'assets/production-student-ui-v13.js',
   'assets/production-finance-ui-v13.js',
   'assets/production-security-ui-v13.js'
@@ -41,10 +41,10 @@ requireText(index,'html.efc-booting #app{visibility:hidden}','silent boot guard'
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'./demo-app.js','demo runtime documentation');
 
-const gateOrder=['production-loader.js','production-foundation-v13.js','production-receipts-v13.js','production-certificates-v13.js','production-receipt-sequences-v10.js','production-domain-v13.js','production-student-ui-v13.js','production-finance-ui-v13.js','production-security-ui-v13.js'];
+const gateOrder=['production-loader.js','production-foundation-v13.js','production-receipts-v13.js','production-certificates-v13.js','production-domain-v13.js','production-receipt-sequences-v10.js','production-student-ui-v13.js','production-finance-ui-v13.js','production-security-ui-v13.js'];
 let last=-1;for(const token of gateOrder){const position=gate.indexOf(token);if(position<0)throw new Error(`Gate does not contain ${token}`);if(position<last)throw new Error(`Gate runtime order is wrong at ${token}`);last=position;}
 for(const obsolete of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-student-profile-v3.js','production-registration-receipt-v4.js','production-ledger-finance-ui-v5.js','production-ledger-pdf-v6.js','production-center-ops-v11.js','production-center-ops-v12.js'])forbidText(gate,obsolete,`legacy gate layer ${obsolete}`);
-for(const token of ['silentValidStartup:true','activationUiOnlyWhenInvalid:true','noStartupSplash:true','noLegacyDemoRuntime:true','foundationV13:true','standaloneReceiptsV13:true'])requireText(gate,token,`gate ${token}`);
+for(const token of ['silentValidStartup:true','activationUiOnlyWhenInvalid:true','noStartupSplash:true','noLegacyDemoRuntime:true','foundationV13:true','standaloneReceiptsV13:true','domainBeforeReceiptSequence:true'])requireText(gate,token,`gate ${token}`);
 
 for(const token of ['chooseNewestState','EFC_FORCE_PERSIST','EFC_APPLY_RESTORED_STATE','EFC_CORE_CHANGED','explicitPersistence:true','noStoragePrototypePatch:true','noRuntimeScriptChain:true'])requireText(loader,token,`loader ${token}`);
 forbidText(loader,'SCRIPT_ORDER','legacy loader script chain');
@@ -65,7 +65,7 @@ forbidText(certificate,"addEventListener('hashchange'",'certificate router hook'
 forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
 
-for(const token of ['function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
+for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
 for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','.quick-days-v13[hidden]'])requireText(studentUi,token,`student UI ${token}`);
 for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true'])requireText(financeUi,token,`finance UI ${token}`);
 for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','loginAttemptThrottle:true','notificationBell:true'])requireText(securityUi,token,`security UI ${token}`);
@@ -87,4 +87,4 @@ for(const command of ['save_app_state','load_app_state','save_receipt_pdf','save
 if(!String(packageJson.scripts?.check||'').includes('verify-runtime-core-v13.mjs'))throw new Error('package check does not run runtime v13 verifier.');
 if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');
 
-console.log('Production v13 verification passed: clean runtime, single router, explicit persistence, canonical payments, native certificates and offline receipts.');
+console.log('Production v13 verification passed: clean runtime, safe persistence order, single router, explicit persistence, canonical payments, native certificates and offline receipts.');
