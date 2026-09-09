@@ -7,7 +7,6 @@ if(!D?.ready)throw new Error('Student UI v13 loaded before domain v13 was ready.
 const {OFFICIAL_NAME,esc,today,nowTime,cash,showDate,courseTypeOf,isDynamicMonthly,isNewModel,isInactive,paymentTotal,requiredAmount,remainingAmount,reconcileStudent,installmentPlan,targetRemaining,appendPayment,stopStudent,notificationsForStudent}=D;
 // Kept as a compatibility constant for existing verification; debt fields now update immediately.
 const DEBT_IDLE_MS=450;
-const legacyOpenStudent=openStudent;
 const legacyOpenPayment=openPayment;
 
 function autocompleteOff(root=document){
@@ -111,9 +110,9 @@ function monthReceiptModelV13(student,monthNumber){
 }
 
 openStudent=function(id,mode='finance'){
-  const student=students.find(value=>value.id===id);if(!student)return;if(!isNewModel(student)){legacyOpenStudent(id,mode);return;}
+  const student=students.find(value=>value.id===id);if(!student)return;
   reconcileStudent(student);
-  const monthly=isDynamicMonthly(student),plan=monthly?installmentPlan(student):[],profile=mode==='profile',rem=remainingAmount(student),canModify=canEdit('students'),reminders=notificationsForStudent(student),duration=monthly?'شهرية مستمرة':`${Number(student.snapshot?.durationValue||0)} يوم`,record=String(student.reg??'').padStart(4,'0'),specialtyName=spec(student.specialty)?.name||student.specialty||'—',phone=String(student.phone||'').trim()||'غير مسجل';
+  const snapshot=student.snapshot||{},monthly=isDynamicMonthly(student)||snapshot.billing==='monthly',plan=monthly?installmentPlan(student):[],profile=mode==='profile',rem=remainingAmount(student),canModify=canEdit('students'),reminders=notificationsForStudent(student)||[],duration=monthly?'شهرية مستمرة':snapshot.durationValue?`${Number(snapshot.durationValue)} ${typeof unitLabel==='function'?unitLabel(snapshot.durationUnit):snapshot.durationUnit||''}`:(student.start&&student.end?`${Math.max(1,daysBetween(student.start,student.end))} يوم`:'—'),record=String(student.reg??'').padStart(4,'0'),specialtyName=spec(student.specialty)?.name||student.specialty||'—',phone=String(student.phone||'').trim()||'غير مسجل';
   const tabs=`<div class="student-file-tabs-v3" role="tablist" aria-label="ملف الطالب"><button type="button" data-tab="profile" class="${profile?'active':''}">بيانات الطالب</button><button type="button" data-tab="finance" class="${!profile?'active':''}">الدورة والدفع</button></div>`;
   const stoppedState=isInactive(student)?`<div class="student-state-v13 off"><b>الطالب موقوف</b><span>موقوف منذ ${showDate(student.stoppedAt)} · المتبقي القديم ${cash(rem)}</span></div>`:'';
   const reminderHtml=reminders.length?`<section class="student-reminders-v13"><div class="section-head"><h3>تذكيرات الطالب</h3><span>جاهزة للإرسال</span></div>${reminders.map((note,index)=>`<div class="student-reminder-card-v13"><p>${esc(note.message)}</p><button class="mini reminder-pdf-v13" data-index="${index}" type="button">حفظ التذكير PDF</button></div>`).join('')}</section>`:'';
@@ -182,5 +181,5 @@ const style=document.createElement('style');style.textContent=`
 `;document.head.appendChild(style);
 window.EFC_AUTOCOMPLETE_OFF_V13=autocompleteOff;
 window.EFC_SHOW_RECEIPT_V13=showReceiptConfirmation;
-window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,profileFirstFromStudentSearch:true});
+window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,profileFirstFromStudentSearch:true,legacyRecordsUseRestoredStudentFile:true});
 })();
