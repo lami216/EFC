@@ -35,7 +35,7 @@ requireText(index,'<div id="app"></div>','empty startup root');
 requireText(index,'<script src="./assets/production-license-gate-v8.js" defer></script>','single direct production bootstrap');
 forbidText(index,'<script src="./demo-app.js"','direct demo script');
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
-requireText(index,'html.efc-booting #app{visibility:hidden}','silent boot guard');
+requireText(index,'html.efc-runtime-loading #app{visibility:hidden}','runtime hidden until all modules ready');
 
 const gateOrder=['production-loader.js','production-student-profile-v3.js','production-registration-receipt-v4.js','production-ledger-finance-ui-v5.js','production-ledger-pdf-v6.js','production-certificates-v13.js','production-receipt-sequences-v10.js','production-domain-v13.js','production-student-ui-v13.js','production-finance-ui-v13.js','production-security-ui-v13.js','production-fiscal-year-v13.js'];
 let last=-1;for(const token of gateOrder){const position=gate.indexOf(token);if(position<0)throw new Error(`Gate does not contain ${token}`);if(position<last)throw new Error(`Gate runtime order is wrong at ${token}`);last=position;}
@@ -44,7 +44,10 @@ requireText(gate,'silentValidStartup:true','silent valid-license startup');
 requireText(gate,'activationUiOnlyWhenInvalid:true','activation UI invalid-only');
 requireText(gate,'noStartupSplash:true','no startup splash marker');
 requireText(gate,'fiscalV13:true','fiscal runtime marker');
+requireText(gate,'singleRevealOwner:true','single runtime reveal owner');
 requireText(gate,"waitUntil(()=>window.EFC_FISCAL_V13?.ready,'السنة المالية')",'fiscal readiness before reveal');
+requireText(gate,"classList.add('efc-runtime-loading')",'runtime loading guard enabled by gate');
+requireText(gate,"classList.remove('efc-booting','efc-runtime-loading')",'gate removes both startup guards');
 
 for(const token of ['SCRIPT_ORDER','production-runtime.js','production-monthly-merge-v2.js','chooseNewestState','updatedAt','EFC_FORCE_PERSIST','EFC_APPLY_RESTORED_STATE'])requireText(loader,token,`loader ${token}`);
 for(const token of ['renderSettingsProd','createBackupProd','restoreBackupProd','EFC_FORCE_PERSIST'])requireText(runtime,token,`production runtime ${token}`);
