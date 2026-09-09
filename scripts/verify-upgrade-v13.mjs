@@ -100,9 +100,11 @@ const dateOnly=value=>new Date(`${value}T12:00:00`);
 const pad=value=>String(value).padStart(2,'0');
 const iso=date=>`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
 const addDuration=(start,value,unit)=>{const date=dateOnly(start);if(unit==='day')date.setDate(date.getDate()+Number(value));if(unit==='month'){const day=date.getDate();date.setDate(1);date.setMonth(date.getMonth()+Number(value));const last=new Date(date.getFullYear(),date.getMonth()+1,0).getDate();date.setDate(Math.min(day,last));}return iso(date);};
+const money=value=>`${Number(value||0)} أوقية`;
+const fmtDate=value=>String(value||'—');
 const context={
   console,Date,setTimeout,clearTimeout,structuredClone,crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,atob:globalThis.atob,btoa:globalThis.btoa,
-  localStorage,students,specialties,methods,DEMO_TODAY:'2026-09-09',dateOnly,iso,addDuration,
+  localStorage,students,specialties,methods,DEMO_TODAY:'2026-09-09',dateOnly,iso,addDuration,money,moneyV3:money,fmtDate,fmtDateV3:fmtDate,
   spec:id=>specialties.find(item=>item.id===id),branchName:id=>id,
   saveStudents:()=>localStorage.setItem('efc-students-v1',JSON.stringify(students)),saveSpecs:()=>localStorage.setItem('efc-specialties-v1',JSON.stringify(specialties)),
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:student=>student.active===false?'موقوف':'نشطة',financialStatus:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0))?'دفع جزئي':'مدفوع كامل',
