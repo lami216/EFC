@@ -64,7 +64,26 @@ window.afterRenderV13=afterRenderV13;
 const baseShell=shell;
 shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;document.querySelectorAll('.brand b').forEach(node=>node.textContent=OFFICIAL_NAME);setTimeout(afterRenderV13,0);};
 
-window.renderCurrentV13=function(){D.reconcileAllStudents();const page=currentSection();try{if(page==='register')renderRegister();else if(page==='specialties')renderSpecialties();else if(page==='period')renderPeriod();else if(page==='students')renderStudents();else if(page==='finance')renderFinance();else if(page==='ledger')renderLedger();else if(page==='settings'||page==='certificates'){}else{history.replaceState(null,'','#register');renderRegister();}}catch(error){console.error('EFC v13 route render failed.',error);}setTimeout(afterRenderV13,0);};
+window.renderCurrentV13=function(){
+  D.reconcileAllStudents();
+  let page=currentSection();
+  try{
+    if(page==='payments'){
+      history.replaceState(null,'','#period');
+      page='period';
+    }
+    if(page==='register')renderRegister();
+    else if(page==='specialties')renderSpecialties();
+    else if(page==='period')renderPeriod();
+    else if(page==='students')renderStudents();
+    else if(page==='finance')renderFinance();
+    else if(page==='ledger')renderLedger();
+    else if(page==='settings')renderSettings();
+    else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.();
+    else{history.replaceState(null,'','#register');renderRegister();}
+  }catch(error){console.error('EFC v13 route render failed.',error);}
+  setTimeout(afterRenderV13,0);
+};
 window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0));
 
 const style=document.createElement('style');style.textContent=`
@@ -73,6 +92,6 @@ const style=document.createElement('style');style.textContent=`
 
 renderCurrentV13();afterRenderV13();
 window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,officialName:OFFICIAL_NAME});
-window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,permissionMutationGuards:true});
+window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true});
 document.documentElement.classList.remove('efc-booting');
 })();
