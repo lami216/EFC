@@ -53,6 +53,8 @@ requireText(source.student,"form.setAttribute('autocomplete','off')",'global for
 requireText(source.finance,"pageTitle('الإدارة المالية','المالية'",'finance page title action');
 requireText(source.finance,'financePrimaryActionV13','expense primary action slot');
 requireText(source.finance,"section==='expenses'&&canEdit('finance')",'expense action only on expense page');
+requireText(source.finance,'historicalExpenseMethodPreserved:true','historical expense method preservation');
+requireText(source.finance,'certificateLedgerReceiptNavigation:true','certificate ledger receipt navigation');
 
 const store=new Map();
 const localStorage={getItem:key=>store.has(key)?store.get(key):null,setItem:(key,value)=>store.set(key,String(value)),removeItem:key=>store.delete(key)};
@@ -91,8 +93,8 @@ const monthly={id:'m1',name:'Monthly',branch:'main',specialty:'normal',reg:2,sta
 students.push(monthly);
 D.appendPayment(monthly,{amount:400,method:'نقداً',date:'2026-09-09',description:'جزئي',targetMonth:1,debtDueDate:'2026-09-15',persist:false});
 if(D.remainingAmount(monthly)!==200||monthly.debtDueDates['1']!=='2026-09-15')throw new Error('Monthly partial payment/debt date is inconsistent.');
-D.appendPayment(monthly,{amount:200,method:'Masrvi',date:'2026-09-10',description:'إكمال',targetMonth:1,persist:false});
-if(D.remainingAmount(monthly)!==0||monthly.debtDueDates['1'])throw new Error('Monthly balance did not close after the final payment.');
+D.appendPayment(monthly,{amount:200,method:'Masrvi',date:'2026-09-09',description:'إكمال',targetMonth:1,persist:false});
+if(D.paymentTotal(monthly)!==600||monthly.paid!==600||D.remainingAmount(monthly)!==0||monthly.debtDueDates['1'])throw new Error('Monthly balance did not close after the final current-date payment.');
 const earlyPlan=D.installmentPlan(monthly,'2026-10-06');
 if(earlyPlan.length!==2)throw new Error('Next monthly period was not opened three days before renewal.');
 
