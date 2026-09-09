@@ -108,7 +108,7 @@ const context={
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:student=>student.active===false?'موقوف':'نشطة',financialStatus:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0))?'دفع جزئي':'مدفوع كامل',
   installmentPlanV3:()=>[],monthlyFocusV3:()=>null,dueNowV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),suggestedPaymentV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),allocV4:()=>({desc:'',before:0,after:0,months:[]}),
   receiptModelV4:(student,index)=>index===null?{amount:0,remaining:student.required}:{amount:Number(student.payments[index][1]),remaining:Math.max(0,student.required-Number(student.payments[index][1]))},
-  window:{EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
+  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
 };
 context.window.window=context.window;
 vm.createContext(context);
