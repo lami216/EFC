@@ -1,10 +1,10 @@
-// Demo v12 — small receipt cleanup requested by user.
-// gh-pages only. Removes the duplicate branch/payment row, keeps payment methods at bottom,
-// and places the branch beside the payment date at the top.
+// Receipt v12 compatibility renderer used by the production runtime.
+// Keeps the compact landscape receipt while using only packaged PDF dependencies.
 (() => {
   const esc12 = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const norm12 = (v) => String(v ?? '').trim().toLowerCase().replace(/\s+/g,' ').replace(/[ًٌٍَُِّْـ]/g,'');
   const logo12 = () => document.querySelector('link[rel="icon"]')?.href || '';
+  const OFFICIAL_NAME12='مركز EFC للغات والمعلوماتية';
 
   function css12(){ return `
     *{box-sizing:border-box}
@@ -24,6 +24,7 @@
     .center12 h1{margin:0;font-size:27px;line-height:1}
     .title12{display:flex;direction:ltr;justify-content:center;align-items:baseline;gap:12px;white-space:nowrap}
     .title12 .enTitle12{direction:ltr}.title12 .arTitle12{direction:rtl}
+    .center12 .official12{font-size:11px;font-weight:900;margin-top:3px}
     .center12 .tag12{font-size:11px;font-weight:700;margin-top:3px}
     .rn12{display:flex;direction:ltr;justify-content:center;align-items:center;gap:9px;margin-top:4px;font-size:17px}.rn12 b{font-size:21px}
     .logoOnly12{height:66px;display:grid;place-items:center}
@@ -57,7 +58,7 @@
 
   function head12(r){
     const src=logo12(); const img=`<img src="${src}" alt="EFC">`;
-    return `<div class="head12"><div class="contact12">${img}<div class="contactText12"><b>Tél: 48 02 84 84</b><div class="socialLine12">${whatsappIcon12()}<span>32 09 86 89</span></div><div class="socialLine12 teacher12">${facebookIcon12()}<span>الأستاذ محمد ديدي</span></div></div></div><div class="center12"><h1 class="title12"><span class="enTitle12">Centre EFC</span><span class="arTitle12">مركز</span></h1><div class="tag12">جميع الشهادات معترف بها من طرف الدولة</div><div class="rn12"><span>Reçu N°</span><b>${westernDigitsV3(r.receipt||'')}</b><span>وصل رقم</span></div></div><div class="logoOnly12">${img}</div></div>`;
+    return `<div class="head12"><div class="contact12">${img}<div class="contactText12"><b>Tél: 48 02 84 84</b><div class="socialLine12">${whatsappIcon12()}<span>32 09 86 89</span></div><div class="socialLine12 teacher12">${facebookIcon12()}<span>الأستاذ محمد ديدي</span></div></div></div><div class="center12"><h1 class="title12"><span class="enTitle12">Centre EFC</span><span class="arTitle12">مركز</span></h1><div class="official12">${OFFICIAL_NAME12}</div><div class="tag12">جميع الشهادات معترف بها من طرف الدولة</div><div class="rn12"><span>Reçu N°</span><b>${westernDigitsV3(r.receipt||'')}</b><span>وصل رقم</span></div></div><div class="logoOnly12">${img}</div></div>`;
   }
 
   function meta12(r){
@@ -81,7 +82,7 @@
 
   function load12(src,key){return new Promise((res,rej)=>{if(window[key])return res();const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s)});}
   async function wait12(root){await Promise.all([...root.querySelectorAll('img')].map(img=>img.complete&&img.naturalWidth?Promise.resolve():new Promise(res=>{img.onload=res;img.onerror=res;setTimeout(res,1200)})));}
-  async function download12(r){let stage;try{await load12('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js','html2canvas');await load12('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js','jspdf');stage=document.createElement('div');stage.style.cssText='position:fixed;left:-14000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${css12()}</style><div class="paper12">${html12(r)}</div>`;document.body.appendChild(stage);await wait12(stage);const canvas=await html2canvas(stage.querySelector('.paper12'),{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false});const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),ratio=Math.min(pw/canvas.width,ph/canvas.height),w=canvas.width*ratio,h=canvas.height*ratio;doc.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pw-w)/2,(ph-h)/2,w,h);doc.save(`وصل-${westernDigitsV3(r.receipt||r.reg||'EFC')}.pdf`)}catch(e){console.error('receipt v12',e);alert('تعذر تنزيل PDF. جرّب زر الطباعة.')}finally{stage?.remove();}}
+  async function download12(r){let stage;try{await load12('./vendor/html2canvas.min.js','html2canvas');await load12('./vendor/jspdf.umd.min.js','jspdf');stage=document.createElement('div');stage.style.cssText='position:fixed;left:-14000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${css12()}</style><div class="paper12">${html12(r)}</div>`;document.body.appendChild(stage);await wait12(stage);const canvas=await html2canvas(stage.querySelector('.paper12'),{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false});const {jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight(),ratio=Math.min(pw/canvas.width,ph/canvas.height),w=canvas.width*ratio,h=canvas.height*ratio;doc.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pw-w)/2,(ph-h)/2,w,h);doc.save(`وصل-${westernDigitsV3(r.receipt||r.reg||'EFC')}.pdf`)}catch(e){console.error('receipt v12',e);alert('تعذر تنزيل PDF. جرّب زر الطباعة.')}finally{stage?.remove();}}
   window.downloadReceiptPdfV12=download12;
 
   receiptWindowV4=function(r,autoPrint=false){const w=window.open('','_blank','width=1120,height=700');if(!w)return;const data=JSON.stringify(r).replace(/</g,'\\u003c');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>وصل ${westernDigitsV3(r.receipt||'')}</title><style>${css12()}</style></head><body><div class="paper12">${html12(r)}</div><div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="opener&&opener.downloadReceiptPdfV12(R12)">تحميل PDF</button></div><script>const R12=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`);w.document.close();};
