@@ -21,7 +21,7 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Forbidden v13 pattern: ${label}`);};
 
-const activeKeys=['gate','loader','foundation','receipts','certificate','sequence','domain','student','finance','security'];
+const activeKeys=['gate','loader','foundation','receipts','certificate','domain','sequence','student','finance','security'];
 for(const key of activeKeys)execFileSync(process.execPath,['--check',files[key]],{stdio:'inherit'});
 
 for(const marker of [
@@ -29,8 +29,8 @@ for(const marker of [
   "'./assets/production-foundation-v13.js'",
   "'./assets/production-receipts-v13.js'",
   "'./assets/production-certificates-v13.js'",
-  "'./assets/production-receipt-sequences-v10.js'",
   "'./assets/production-domain-v13.js'",
+  "'./assets/production-receipt-sequences-v10.js'",
   "'./assets/production-student-ui-v13.js'",
   "'./assets/production-finance-ui-v13.js'",
   "'./assets/production-security-ui-v13.js'",
@@ -38,7 +38,8 @@ for(const marker of [
   'window.EFC_DOMAIN_V13_READY',
   'window.EFC_CENTER_OPS_V13?.ready',
   'noStartupSplash:true',
-  'noLegacyDemoRuntime:true'
+  'noLegacyDemoRuntime:true',
+  'domainBeforeReceiptSequence:true'
 ])requireText(source.gate,marker);
 for(const obsolete of ['demo-app.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-center-ops-v11.js','production-center-ops-v12.js','production-ledger-pdf-v6.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
 forbidText(source.gate,'mountStartupShield','visible startup shield');
@@ -62,6 +63,7 @@ requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates 
 const hashOwners=['foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!=='security')throw new Error(`Expected one v13 hashchange owner (security), found: ${hashOwners.join(', ')||'none'}.`);
 
+requireText(source.domain,'EFC_RECEIPTS_V13?.ready','domain waits for clean receipt service');
 requireText(source.domain,'function paymentTotal(student)','canonical payment sum');
 requireText(source.domain,'function appendPayment(student','single transaction writer');
 requireText(source.domain,'student.paid=paymentTotal(student)','paid amount reconciled from transactions');
@@ -95,7 +97,7 @@ const context={
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:()=> 'نشطة',financialStatus:()=> 'لم يدفع',
   installmentPlanV3:()=>[],monthlyFocusV3:()=>null,dueNowV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),suggestedPaymentV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),allocV4:()=>({desc:'',before:0,after:0,months:[]}),
   receiptModelV4:(student,index)=>index===null?{amount:0,remaining:student.required}:{amount:Number(student.payments[index][1]),remaining:Math.max(0,student.required-Number(student.payments[index][1]))},
-  window:{EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
+  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
 };
 context.window.window=context.window;
 vm.createContext(context);
@@ -124,4 +126,4 @@ execFileSync(process.execPath,['scripts/build-demo.mjs'],{stdio:'inherit'});
 for(const key of activeKeys){const dist=`dist/${files[key]}`;if(!existsSync(dist))throw new Error(`Packaged runtime missing: ${dist}`);execFileSync(process.execPath,['--check',dist],{stdio:'inherit'});}
 for(const legacy of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])if(existsSync(`dist/${legacy}`))throw new Error(`Legacy runtime leaked into dist: ${legacy}`);
 
-console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime, single router, canonical payments and no demo side effects.');
+console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime, safe persistence order, single router, canonical payments and no demo side effects.');
