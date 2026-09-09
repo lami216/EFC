@@ -1,44 +1,72 @@
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 
 const files={
   gate:'assets/production-license-gate-v8.js',
+  loader:'production-loader.js',
+  foundation:'assets/production-foundation-v13.js',
+  receipts:'assets/production-receipts-v13.js',
+  certificate:'assets/production-certificates-v13.js',
+  sequence:'assets/production-receipt-sequences-v10.js',
   domain:'assets/production-domain-v13.js',
   student:'assets/production-student-ui-v13.js',
   finance:'assets/production-finance-ui-v13.js',
   security:'assets/production-security-ui-v13.js',
   index:'index.html',
-  build:'scripts/build-demo.mjs'
+  build:'scripts/build-production.mjs'
 };
 const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,readFileSync(path,'utf8')]));
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Forbidden v13 pattern: ${label}`);};
 
-for(const path of [files.gate,files.domain,files.student,files.finance,files.security])execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+const activeKeys=['gate','loader','foundation','receipts','certificate','domain','sequence','student','finance','security'];
+for(const key of activeKeys)execFileSync(process.execPath,['--check',files[key]],{stdio:'inherit'});
 
 for(const marker of [
+  "'./production-loader.js'",
+  "'./assets/production-foundation-v13.js'",
+  "'./assets/production-receipts-v13.js'",
+  "'./assets/production-certificates-v13.js'",
   "'./assets/production-domain-v13.js'",
+  "'./assets/production-receipt-sequences-v10.js'",
   "'./assets/production-student-ui-v13.js'",
   "'./assets/production-finance-ui-v13.js'",
   "'./assets/production-security-ui-v13.js'",
+  'window.EFC_CORE_STORAGE_READY',
   'window.EFC_DOMAIN_V13_READY',
   'window.EFC_CENTER_OPS_V13?.ready',
-  'noStartupSplash:true'
+  'noStartupSplash:true',
+  'noLegacyDemoRuntime:true',
+  'domainBeforeReceiptSequence:true',
+  'singleStartupRender:true'
 ])requireText(source.gate,marker);
-for(const obsolete of ['production-center-ops-v11.js','production-center-ops-v11-fix1.js','production-center-ops-v12.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
+for(const obsolete of ['demo-app.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-center-ops-v11.js','production-center-ops-v12.js','production-ledger-pdf-v6.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
 forbidText(source.gate,'mountStartupShield','visible startup shield');
 forbidText(source.gate,'جاري تجهيز النظام','startup progress page');
 requireText(source.index,'<div id="app"></div>','empty startup root');
 requireText(source.index,'class="efc-booting"','boot visibility guard');
+requireText(source.index,'./assets/production-ui-v13.css','production stylesheet');
+forbidText(source.index,'demo.css','demo stylesheet');
 forbidText(source.index,'جاري تشغيل مركز EFC','old visible startup text');
 
-const v13Combined=source.domain+source.student+source.finance+source.security;
-forbidText(v13Combined,'new MutationObserver(','v13 DOM observer');
-forbidText(v13Combined,'window.open=function','v13 window.open interception');
-forbidText(v13Combined,'saveStudents=function','legacy saveStudents reassignment');
-forbidText(v13Combined,'saveSpecs=function','legacy saveSpecs reassignment');
+const activeCombined=activeKeys.filter(key=>key!=='gate').map(key=>source[key]).join('\n');
+for(const forbidden of ['new MutationObserver(','window.MutationObserver =','window.MutationObserver=','window.open=function','Storage.prototype.setItem =','Storage.prototype.setItem=','Storage.prototype.removeItem =','Storage.prototype.removeItem='])forbidText(activeCombined,forbidden,`active runtime side effect ${forbidden}`);
+forbidText(source.loader,'SCRIPT_ORDER','legacy script loading chain');
+requireText(source.loader,'noStoragePrototypePatch:true','storage prototype is not patched');
+requireText(source.loader,'explicitPersistence:true','explicit persistence');
+requireText(source.foundation,'noRouter:true','foundation has no router');
+requireText(source.foundation,'noMutationObserver:true','foundation has no observer');
+requireText(source.receipts,'noWindowOpenPatch:true','receipt service does not intercept window.open');
+requireText(source.certificate,'noRouterHook:true','certificates do not own routing');
+requireText(source.security,'settingsOwnedByFinalRouter:true','settings routed by v13 router');
+requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates routed by v13 router');
+
+const hashOwners=['foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
+if(hashOwners.length!==1||hashOwners[0]!=='security')throw new Error(`Expected one v13 hashchange owner (security), found: ${hashOwners.join(', ')||'none'}.`);
+
+requireText(source.domain,'EFC_RECEIPTS_V13?.ready','domain waits for clean receipt service');
 requireText(source.domain,'function paymentTotal(student)','canonical payment sum');
 requireText(source.domain,'function appendPayment(student','single transaction writer');
 requireText(source.domain,'student.paid=paymentTotal(student)','paid amount reconciled from transactions');
@@ -50,7 +78,6 @@ requireText(source.student,'paidTouched&&paid>0&&price>0&&paid<price','registrat
 requireText(source.student,'.quick-days-v13[hidden]','quick duration hidden rule');
 requireText(source.student,"typeEl.value==='quick'",'quick duration conditional');
 requireText(source.student,"form.setAttribute('autocomplete','off')",'global form autocomplete disable');
-requireText(source.finance,"pageTitle('الإدارة المالية','المالية'",'finance page title action');
 requireText(source.finance,'financePrimaryActionV13','expense primary action slot');
 requireText(source.finance,"section==='expenses'&&canEdit('finance')",'expense action only on expense page');
 requireText(source.finance,'historicalExpenseMethodPreserved:true','historical expense method preservation');
@@ -73,7 +100,7 @@ const context={
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:()=> 'نشطة',financialStatus:()=> 'لم يدفع',
   installmentPlanV3:()=>[],monthlyFocusV3:()=>null,dueNowV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),suggestedPaymentV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),allocV4:()=>({desc:'',before:0,after:0,months:[]}),
   receiptModelV4:(student,index)=>index===null?{amount:0,remaining:student.required}:{amount:Number(student.payments[index][1]),remaining:Math.max(0,student.required-Number(student.payments[index][1]))},
-  window:{EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
+  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
 };
 context.window.window=context.window;
 vm.createContext(context);
@@ -98,9 +125,9 @@ if(D.paymentTotal(monthly)!==600||monthly.paid!==600||D.remainingAmount(monthly)
 const earlyPlan=D.installmentPlan(monthly,'2026-10-06');
 if(earlyPlan.length!==2)throw new Error('Next monthly period was not opened three days before renewal.');
 
-execFileSync(process.execPath,['scripts/build-demo.mjs'],{stdio:'inherit'});
-for(const path of [files.gate,files.domain,files.student,files.finance,files.security]){
-  const dist=`dist/${path}`;const text=readFileSync(dist,'utf8');execFileSync(process.execPath,['--check',dist],{stdio:'inherit'});if(path===files.gate)requireText(text,'production-domain-v13.js','v13 packaged gate');
-}
-forbidText(readFileSync(`dist/${files.gate}`,'utf8'),'production-center-ops-v12.js','v12 absent from packaged gate');
-console.log('Runtime architecture and accounting v13 verification passed.');
+execFileSync(process.execPath,['scripts/build-production.mjs'],{stdio:'inherit'});
+if(!existsSync('dist/assets/production-ui-v13.css'))throw new Error('Packaged production stylesheet is missing.');
+for(const key of activeKeys){const dist=`dist/${files[key]}`;if(!existsSync(dist))throw new Error(`Packaged runtime missing: ${dist}`);execFileSync(process.execPath,['--check',dist],{stdio:'inherit'});}
+for(const legacy of ['.demo-imported','demo.css','demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])if(existsSync(`dist/${legacy}`))throw new Error(`Obsolete runtime leaked into dist: ${legacy}`);
+
+console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime/source names, safe persistence order, single router, canonical payments and no demo side effects.');

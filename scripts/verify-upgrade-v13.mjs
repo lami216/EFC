@@ -6,7 +6,7 @@ const read=path=>readFileSync(path,'utf8');
 const domain=read('assets/production-domain-v13.js');
 const security=read('assets/production-security-ui-v13.js');
 const certificate=read('assets/production-certificates-v13.js');
-const receipt=read('demo-receipt-clean-v12.js');
+const receipt=read('assets/production-receipts-v13.js');
 const gate=read('assets/production-license-gate-v8.js');
 const loader=read('production-loader.js');
 const finance=read('assets/production-finance-ui-v13.js');
@@ -15,8 +15,6 @@ const studentUi=read('assets/production-student-ui-v13.js');
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Upgrade audit missing: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Upgrade audit forbidden: ${label}`);};
 
-// Security invariants: recovery responses require the private recovery key, are
-// bound to the current request/device, expire, and are consumed after use.
 for(const token of [
   "RECOVERY_PREFIX='EFC-ADMIN-RECOVERY-2.'",
   "RESET_PREFIX='EFC-ADMIN-RESET-2.'",
@@ -32,7 +30,6 @@ for(const token of [
 forbidText(security,'s:secret','raw recovery secret persisted');
 forbidText(security,'value.s!==pending.s','unsigned secret-only reset');
 
-// Permissions must be enforced at mutation entry points, not only hidden visually.
 for(const token of [
   "canView('students')",
   "canEdit('students')",
@@ -45,25 +42,26 @@ for(const token of [
   'permissionsEnforced:true'
 ])requireText(certificate,token,`certificate permission ${token}`);
 
-// Final routing must not fall back into the pre-v13 demo router for supported v13 pages.
-requireText(security,"else if(page==='settings'||page==='certificates'){}",'settings/certificates preserved by final router');
-forbidText(security,"else if(typeof renderCurrent==='function')renderCurrent()",'legacy router fallback');
+requireText(security,"else if(page==='settings')renderSettings()",'settings owned by final router');
+requireText(security,"else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'certificates owned by final router');
 requireText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0))",'final v13 hash router');
+forbidText(security,"else if(typeof renderCurrent==='function')renderCurrent()",'legacy router fallback');
+forbidText(certificate,"addEventListener('hashchange'",'certificate-specific router hook');
 
-// Official name is visible in both ordinary receipts and certificate receipts.
 for(const source of [receipt,certificate])requireText(source,'مركز EFC للغات والمعلوماتية','official center name on receipt');
 forbidText(receipt,'https://cdn.jsdelivr.net','receipt CDN dependency');
 requireText(receipt,"./vendor/html2canvas.min.js",'local html2canvas');
 requireText(receipt,"./vendor/jspdf.umd.min.js",'local jspdf');
+requireText(receipt,'noLegacyReceiptChain:true','standalone receipt service');
+requireText(receipt,'noWindowOpenPatch:true','receipt window.open is not intercepted');
 
-// The removed center-ops patch stack must never be loaded by the final gate.
-for(const obsolete of ['production-center-ops-v11.js','production-center-ops-v11-fix1.js','production-center-ops-v12.js','production-certificates-v7.js','production-certificate-filters-v8.js'])forbidText(gate,obsolete,`obsolete runtime ${obsolete}`);
+for(const obsolete of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-student-profile-v3.js','production-registration-receipt-v4.js','production-ledger-finance-ui-v5.js','production-ledger-pdf-v6.js','production-center-ops-v11.js','production-center-ops-v11-fix1.js','production-center-ops-v12.js','production-certificates-v7.js','production-certificate-filters-v8.js'])forbidText(gate,obsolete,`obsolete runtime ${obsolete}`);
 requireText(loader,'efc-demo-v8-payment-methods','legacy payment-method key cleanup');
+requireText(loader,'noRuntimeScriptChain:true','legacy script chain removed');
+requireText(loader,'noStoragePrototypePatch:true','global storage prototype patch removed');
 requireText(finance,'paymentMethodsNoDelete:true','payment methods are stop/reactivate only');
 requireText(studentUi,'dynamicDuesNative:true','v13 dynamic dues UI');
 
-// Execute the real v13 domain against state shaped exactly like the previous v11/v12
-// production layer. This catches old-data regressions that source-marker tests cannot.
 const oldMonthly={
   id:'old-monthly',name:'طالب قديم شهري',phone:'22000001',branch:'main',specialty:'normal',reg:17,
   start:'2026-08-12',end:'',required:600,paid:400,active:true,status:'active',
@@ -100,15 +98,17 @@ const dateOnly=value=>new Date(`${value}T12:00:00`);
 const pad=value=>String(value).padStart(2,'0');
 const iso=date=>`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`;
 const addDuration=(start,value,unit)=>{const date=dateOnly(start);if(unit==='day')date.setDate(date.getDate()+Number(value));if(unit==='month'){const day=date.getDate();date.setDate(1);date.setMonth(date.getMonth()+Number(value));const last=new Date(date.getFullYear(),date.getMonth()+1,0).getDate();date.setDate(Math.min(day,last));}return iso(date);};
+const money=value=>`${Number(value||0)} أوقية`;
+const fmtDate=value=>String(value||'');
 const context={
   console,Date,setTimeout,clearTimeout,structuredClone,crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,atob:globalThis.atob,btoa:globalThis.btoa,
-  localStorage,students,specialties,methods,DEMO_TODAY:'2026-09-09',dateOnly,iso,addDuration,
+  localStorage,students,specialties,methods,DEMO_TODAY:'2026-09-09',dateOnly,iso,addDuration,money,fmtDate,
   spec:id=>specialties.find(item=>item.id===id),branchName:id=>id,
   saveStudents:()=>localStorage.setItem('efc-students-v1',JSON.stringify(students)),saveSpecs:()=>localStorage.setItem('efc-specialties-v1',JSON.stringify(specialties)),
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:student=>student.active===false?'موقوف':'نشطة',financialStatus:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0))?'دفع جزئي':'مدفوع كامل',
   installmentPlanV3:()=>[],monthlyFocusV3:()=>null,dueNowV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),suggestedPaymentV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),allocV4:()=>({desc:'',before:0,after:0,months:[]}),
   receiptModelV4:(student,index)=>index===null?{amount:0,remaining:student.required}:{amount:Number(student.payments[index][1]),remaining:Math.max(0,student.required-Number(student.payments[index][1]))},
-  window:{EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
+  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
 };
 context.window.window=context.window;
 vm.createContext(context);
@@ -135,7 +135,6 @@ if(methods.includes('Bankily'))throw new Error('inactive v11 payment method leak
 if(D.getExpenses().length!==1||D.getExpenses()[0].name!=='طابعة')throw new Error('v11 expenses were not preserved.');
 if(D.getSecurity().users[0]?.username!=='admin')throw new Error('v11 security users were not preserved.');
 
-// Stopping on the three-day pre-open window must discard only the untouched future month.
 D.stopStudent(oldMonthly,'توقف مؤقت');
 if(oldMonthly.active!==false||oldMonthly.frozenMonths!==1)throw new Error('stopping a monthly student did not discard the untouched pre-opened month.');
 if(D.remainingAmount(oldMonthly)!==200)throw new Error('stopping changed the debt of the studied month.');
@@ -146,4 +145,4 @@ if(oldMonthly.active!==false||D.remainingAmount(oldMonthly)!==0)throw new Error(
 const persisted=await D.persistExtrasNow();
 if(!Array.isArray(persisted?.expenses)||!Array.isArray(persisted?.paymentMethodRecords)||!persisted?.security?.users)throw new Error('v13 backup persistence omitted Center Ops extra state.');
 
-console.log('Upgrade/audit v13 verification passed: v11 data preserved, stopped-month rules preserved, recovery signed, permissions guarded, receipts branded/offline.');
+console.log('Upgrade/audit v13 verification passed: v11 data preserved, clean runtime enforced, stopped-month rules preserved, recovery signed, permissions guarded, receipts branded/offline.');

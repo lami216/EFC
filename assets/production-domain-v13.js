@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.EFC_DOMAIN_V13?.ready)return;
-if(!window.EFC_RECEIPT_SEQUENCES_V10)throw new Error('EFC domain v13 loaded before receipt sequencing was ready.');
+if(!window.EFC_RECEIPTS_V13?.ready)throw new Error('EFC domain v13 loaded before clean receipt runtime was ready.');
 
 const OFFICIAL_NAME='مركز EFC للغات والمعلوماتية';
 const GENERAL_EXPENSE='__expense_general__';
