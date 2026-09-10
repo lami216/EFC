@@ -11,8 +11,10 @@ const RUNTIME=[
   './assets/production-domain-v13.js',
   './assets/production-receipt-sequences-v10.js',
   './assets/production-student-ui-v13.js',
+  './assets/production-registration-schedule-v13.js',
   './assets/production-finance-ui-v13.js',
-  './assets/production-security-ui-v13.js'
+  './assets/production-security-ui-v13.js',
+  './assets/production-login-ui-v13.js'
 ];
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
@@ -50,10 +52,16 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready,'واجهة الطلاب');
 
     await loadScript(RUNTIME[7]);
-    await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready,'المالية');
+    await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_V13?.ready,'جدول تسجيل الطالب');
 
     await loadScript(RUNTIME[8]);
+    await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready,'المالية');
+
+    await loadScript(RUNTIME[9]);
     await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
+    await loadScript(RUNTIME[10]);
+    await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');
 
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');
     started=true;reveal();
@@ -81,5 +89,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,loginUiV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
 })();
