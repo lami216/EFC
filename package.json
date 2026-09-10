@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node scripts/verify-production-v13.mjs && node scripts/verify-v10.mjs && node scripts/verify-license-silent-start.mjs && node scripts/verify-runtime-core-v13.mjs && node scripts/verify-upgrade-v13.mjs",
+    "check": "node scripts/verify-production-v13.mjs && node scripts/verify-v10.mjs && node scripts/verify-license-silent-start.mjs && node scripts/verify-runtime-core-v13.mjs && node scripts/verify-upgrade-v13.mjs && node scripts/verify-finance-feedback-v13.mjs",
     "build": "node scripts/build-production.mjs",
     "icons": "node scripts/generate-app-icon.mjs && tauri icon src-tauri/app-icon.svg",
     "tauri": "tauri"
