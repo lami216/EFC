@@ -5,7 +5,12 @@ if(!window.EFC_SECURITY_UI_V13?.ready)throw new Error('Login UI v13 loaded befor
 
 const PIN_SELECTOR='.login-overlay-v13 input[name="pin"]';
 function renderMask(input){const value=String(input.dataset.realPin||'').slice(0,4);input.dataset.realPin=value;input.value='*'.repeat(value.length);try{input.setSelectionRange(input.value.length,input.value.length);}catch{}}
-function prepare(input){if(!(input instanceof HTMLInputElement)||!input.matches(PIN_SELECTOR)||input.dataset.starMaskV13==='1')return;const initial=String(input.value||'').replace(/\D/g,'').slice(0,4);input.dataset.starMaskV13='1';input.dataset.realPin=initial;input.type='text';input.inputMode='numeric';input.autocomplete='off';renderMask(input);}
+function prepare(input){
+  if(!(input instanceof HTMLInputElement)||!input.matches(PIN_SELECTOR)||input.dataset.starMaskV13==='1')return;
+  const initial=String(input.value||'').replace(/\D/g,'').slice(0,4);
+  input.dataset.starMaskV13='1';input.dataset.realPin=initial;input.type='text';input.inputMode='numeric';input.autocomplete='off';renderMask(input);
+  const form=input.form;if(form&&form.dataset.starPinFormV13!=='1'){form.dataset.starPinFormV13='1';form.addEventListener('formdata',event=>{const pin=form.querySelector(PIN_SELECTOR);if(pin?.dataset.starMaskV13==='1')event.formData.set('pin',String(pin.dataset.realPin||''));});}
+}
 function targetInput(event){const input=event.target instanceof HTMLInputElement?event.target:null;if(input?.matches(PIN_SELECTOR)){prepare(input);return input;}return null;}
 
 document.addEventListener('focusin',event=>{targetInput(event);},true);
@@ -19,8 +24,6 @@ document.addEventListener('keydown',event=>{
 },true);
 document.addEventListener('paste',event=>{const input=targetInput(event);if(!input)return;event.preventDefault();const digits=String(event.clipboardData?.getData('text')||'').replace(/\D/g,'').slice(0,4);input.dataset.realPin=digits;renderMask(input);},true);
 document.addEventListener('drop',event=>{if(targetInput(event))event.preventDefault();},true);
-document.addEventListener('formdata',event=>{const input=event.target?.querySelector?.(PIN_SELECTOR);if(input?.dataset.starMaskV13==='1')event.formData.set('pin',String(input.dataset.realPin||''));},true);
-
 document.querySelectorAll(PIN_SELECTOR).forEach(prepare);
 
 const style=document.createElement('style');style.textContent=`
