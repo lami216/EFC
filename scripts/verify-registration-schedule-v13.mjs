@@ -24,21 +24,29 @@ for(const [token,label] of [
   ['scheduleStoredWithStudent:true','schedule persisted with student'],
   ['schedule=readSchedule(scheduleRoot,item)','schedule captured from registration table'],
   ['debtDueDates:{},schedule,snapshot:{','student schedule stored on new student'],
+  ['compactTimetable:true','compact timetable visual marker'],
+  ['noHorizontalTimetableOverflow:true','timetable must fit without forced horizontal width'],
+  ['max-width:520px','compact timetable width'],
+  ['min-width:0;border-collapse:collapse','timetable has no forced oversized minimum'],
   ['noSideSummary:true','redundant side summary removed'],
   ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note'],
   ['ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.','ID note']
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
+forbidText(registration,'min-width:720px','oversized forced timetable width');
 
 for(const [token,label] of [
   ["'*'.repeat",'visible PIN star mask'],
   ['pinStars:true','PIN star marker'],
   ['normalReadableSize:true','normal login size marker'],
-  ['width:min(470px,92vw)','normal login card width'],
+  ['largerLoginCard:true','larger login card marker'],
+  ['oldHalfScaleOverridden:true','old half scale override marker'],
+  ['transform:none!important','old half-scale visually disabled'],
+  ['width:min(560px,92vw)','larger login card width'],
   ['noBackgroundImage:true','no login background image marker']
 ])requireText(login,token,label);
-forbidText(login,'transform:scale(.5)','half-size login scaling');
+forbidText(login,'transform:scale(.5)','half-size login scaling inside login override');
 forbidText(login,'background-image','login photo background');
 
 for(const [token,label] of [
@@ -54,4 +62,4 @@ const order=['production-student-ui-v13.js','production-registration-schedule-v1
 let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
 for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
 
-console.log('Registration schedule and login v13 verified: compact form, editable weekly timetable, receipt schedule/debt note, normal-size login and star-masked PIN without background image.');
+console.log('Registration schedule and login v13 verified: existing registration fields, compact timetable, receipt schedule/debt note, larger login and star-masked PIN without background image.');
