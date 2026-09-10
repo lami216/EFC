@@ -71,9 +71,13 @@ forbidText(receipts,'window.open=function','receipt global window.open patch');
 forbidText(receipts,'window.open(','external receipt window');
 forbidText(receipts,'new MutationObserver(','receipt observer');
 
-for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','certificateManagementTitleBelowHeader:true','originalCertificateFooter:true','cert-section-title','SEDAD BANK','bimbank','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
+for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','certificateIncomeInLedgerAndFinance:true','certificateManagementTitleBelowHeader:true','paymentMethodsFromSettings:true','externalReceiptIssueEnabled:true','certificateReceiptHeaderSimplified:true','certificateFeeNoteRemoved:true','cert-section-title','للغات والمعلوماتية','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
 forbidText(certificate,'اختر الفرع والتخصص أولًا','certificate search must not require branch/specialty');
 forbidText(certificate,'اختر الفرع والتخصص أولاً','certificate search must not require branch/specialty');
+forbidText(certificate,'هذا الوصل خاص برسوم الشهادة ولا يغيّر رصيد الدورة الدراسية للطالب.','obsolete certificate fee note');
+forbidText(certificate,"{key:'bankily'",'hard-coded certificate payment methods');
+forbidText(certificate,'SEDAD BANK','hard-coded certificate payment method label');
+forbidText(certificate,'bimbank','hard-coded certificate payment method label');
 forbidText(certificate,"addEventListener('hashchange'",'certificate router hook');
 forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
@@ -103,4 +107,4 @@ if('harden' in (packageJson.scripts||{}))throw new Error('Obsolete harden script
 if(!String(packageJson.scripts?.check||'').includes('verify-runtime-core-v13.mjs'))throw new Error('package check does not run runtime v13 verifier.');
 if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');
 
-console.log('Production v13 verification passed: clean runtime with restored original student/search/receipt experience for current and legacy records, optional certificate filters, safe persistence, single router and canonical payments.');
+console.log('Production v13 verification passed: clean runtime with restored original student/search/receipt experience, optional certificate filters, settings-driven certificate receipts, external certificate issuing, safe persistence, single router and canonical payments.');
