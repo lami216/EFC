@@ -14,8 +14,10 @@ const runtimeFiles = [
   'assets/production-domain-v13.js',
   'assets/production-receipt-sequences-v10.js',
   'assets/production-student-ui-v13.js',
+  'assets/production-registration-schedule-v13.js',
   'assets/production-finance-ui-v13.js',
-  'assets/production-security-ui-v13.js'
+  'assets/production-security-ui-v13.js',
+  'assets/production-login-ui-v13.js'
 ];
 
 const forbiddenProductionFiles = [
@@ -74,4 +76,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 production runtime copied to dist with offline PDF libraries; obsolete demo-era sources are absent.');
+console.log('EFC clean v13 production runtime copied to dist with registration schedule, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
