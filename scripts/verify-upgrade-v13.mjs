@@ -48,7 +48,12 @@ requireText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>wi
 forbidText(security,"else if(typeof renderCurrent==='function')renderCurrent()",'legacy router fallback');
 forbidText(certificate,"addEventListener('hashchange'",'certificate-specific router hook');
 
-for(const source of [receipt,certificate])requireText(source,'مركز EFC للغات والمعلوماتية','official center name on receipt');
+requireText(receipt,'مركز EFC للغات والمعلوماتية','official center name on course receipt');
+requireText(certificate,'للغات والمعلوماتية','certificate receipt subtitle');
+requireText(certificate,'paymentMethodsFromSettings:true','certificate receipt methods follow settings');
+requireText(certificate,'externalReceiptIssueEnabled:true','external certificate issuing enabled');
+forbidText(certificate,'مركز EFC للغات والمعلوماتية','duplicate center name in certificate receipt header');
+forbidText(certificate,'هذا الوصل خاص برسوم الشهادة ولا يغيّر رصيد الدورة الدراسية للطالب.','obsolete certificate fee note');
 forbidText(receipt,'https://cdn.jsdelivr.net','receipt CDN dependency');
 requireText(receipt,"./vendor/html2canvas.min.js",'local html2canvas');
 requireText(receipt,"./vendor/jspdf.umd.min.js",'local jspdf');
