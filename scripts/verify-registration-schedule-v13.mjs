@@ -1,0 +1,56 @@
+import {readFileSync,existsSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+
+const read=path=>readFileSync(path,'utf8');
+const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Registration/login v13 missing: ${label}`);};
+const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Registration/login v13 regression: ${label}`);};
+
+for(const path of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js']){
+  if(!existsSync(path))throw new Error(`Missing runtime module: ${path}`);
+  execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+}
+const registration=read('assets/production-registration-schedule-v13.js');
+const login=read('assets/production-login-ui-v13.js');
+const receipts=read('assets/production-receipts-v13.js');
+const gate=read('assets/production-license-gate-v8.js');
+const build=read('scripts/build-production.mjs');
+
+for(const [token,label] of [
+  ['authoritativeRegistrationRenderer:true','registration renderer ownership'],
+  ['registration-schedule-layout-v13','side-by-side compact registration and schedule layout'],
+  ['schedule-table-v13','weekly schedule table'],
+  ['type=\"time\"','clickable time fields'],
+  ['data-day-check','day selection boxes'],
+  ['scheduleStoredWithStudent:true','schedule persisted with student'],
+  ['student.schedule','student schedule storage'],
+  ['noSideSummary:true','redundant side summary removed'],
+  ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
+  ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note'],
+  ['ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.','ID note']
+])requireText(registration,token,label);
+forbidText(registration,'side-summary','old side summary card');
+
+for(const [token,label] of [
+  ["'*'.repeat",'visible PIN star mask'],
+  ['pinStars:true','PIN star marker'],
+  ['normalReadableSize:true','normal login size marker'],
+  ['width:min(470px,92vw)','normal login card width'],
+  ['noBackgroundImage:true','no login background image marker']
+])requireText(login,token,label);
+forbidText(login,'transform:scale(.5)','half-size login scaling');
+forbidText(login,'background-image','login photo background');
+
+for(const [token,label] of [
+  ['studentSchedule12','schedule printed on registration receipt'],
+  ['studentScheduleOnRegistrationReceipt:true','receipt schedule marker'],
+  ['debtDueDateOnReceipt:true','debt due date receipt marker'],
+  ['موعد سداد المبلغ المتبقي','debt due date note'],
+  ['schedule:student.schedule||null','receipt model schedule data'],
+  ['debtDueDate','receipt model debt date']
+])requireText(receipts,token,label);
+
+const order=['production-student-ui-v13.js','production-registration-schedule-v13.js','production-finance-ui-v13.js','production-security-ui-v13.js','production-login-ui-v13.js'];
+let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
+for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
+
+console.log('Registration schedule and login v13 verified: compact form, editable weekly timetable, receipt schedule/debt note, normal-size login and star-masked PIN without background image.');
