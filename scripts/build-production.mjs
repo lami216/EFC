@@ -92,7 +92,7 @@ const vendorFiles = [
 await mkdir('dist/vendor', { recursive: true });
 for (const [source, target] of vendorFiles) {
   if (!existsSync(source)) throw new Error(`Missing offline PDF dependency: ${source}`);
-  await cp(file, target);
+  await cp(source, target);
 }
 
 for (const file of forbiddenProductionFiles) {
