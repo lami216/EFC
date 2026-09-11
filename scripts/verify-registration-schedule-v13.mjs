@@ -66,7 +66,8 @@ for(const [token,label] of [
   ['largerLoginCard:true','larger login card marker'],
   ['oldHalfScaleOverridden:true','old half scale override marker'],
   ['transform:none!important','old half-scale visually disabled'],
-  ['width:min(560px,92vw)','larger login card width'],
+  ['efc-login-card-redesign-v15','redesigned login card marker'],
+  ['width:min(632px,100%)','redesigned login card width'],
   ['noBackgroundImage:true','no login background image marker']
 ])requireText(login,token,label);
 forbidText(login,'transform:scale(.5)','half-size login scaling inside login override');
@@ -85,4 +86,4 @@ const order=['production-student-ui-v13.js','production-registration-schedule-v1
 let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
 for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
 
-console.log('Registration schedule and login v13 verified: paired registration fields, expanded timetable, course terminology, managed centers, finance-only summary, whole-field date/time pickers, receipt schedule/debt note, larger login and star-masked PIN.');
+console.log('Registration schedule and login v13 verified: paired registration fields, expanded timetable, course terminology, managed centers, finance-only summary, whole-field date/time pickers, receipt schedule/debt note, redesigned login card and star-masked PIN.');
