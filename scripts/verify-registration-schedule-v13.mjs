@@ -33,7 +33,21 @@ for(const [token,label] of [
   ['::-webkit-calendar-picker-indicator','native picker icon hidden'],
   ['courseTerminology:true','course terminology marker'],
   ['<th class="schedule-course-head-v13">الدورة</th>','schedule course header'],
-  ["nav[2]='الدورات'",'courses navigation label'],
+  ["nav[2]='الدورات و المراكز'",'courses and centers navigation label'],
+  ['expandedTimetable:true','expanded timetable marker'],
+  ['grid-template-columns:minmax(0,470px) minmax(0,1fr)','timetable consumes remaining page width'],
+  ['max-width:none;width:100%','schedule card is not artificially capped'],
+  ['financialSummaryOnly:true','financial summary visibility marker'],
+  ['summary.hidden=!visible','financial summary hidden before pricing'],
+  ['id="regSummaryV13" hidden','financial summary starts hidden'],
+  ['centersManagedInUi:true','center management UI marker'],
+  ['centersPersisted:true','center persistence marker'],
+  ['coursesAndCenters:true','courses and centers page marker'],
+  ["const CENTER_KEY='efc-branches-v13'",'persistent center storage key'],
+  ['إضافة مركز','add center action'],
+  ['الدورات و المراكز','courses and centers page name'],
+  ['state.branches=branches.map','centers included in persisted app state'],
+  ['if(Array.isArray(incoming?.branches))applyCenters(incoming.branches)','centers restored from backups'],
   ['noSideSummary:true','redundant side summary removed'],
   ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note'],
@@ -71,4 +85,4 @@ const order=['production-student-ui-v13.js','production-registration-schedule-v1
 let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
 for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
 
-console.log('Registration schedule and login v13 verified: paired registration fields, compact timetable, course terminology, whole-field date/time pickers, receipt schedule/debt note, larger login and star-masked PIN.');
+console.log('Registration schedule and login v13 verified: paired registration fields, expanded timetable, course terminology, managed centers, finance-only summary, whole-field date/time pickers, receipt schedule/debt note, larger login and star-masked PIN.');
