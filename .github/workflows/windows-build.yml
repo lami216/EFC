@@ -2,7 +2,7 @@ name: Build EFC Windows Setup
 
 on:
   push:
-    branches: [main, refactor/legacy-extraction-v13, fix/v13-user-feedback-2026-09-09, redesign/efc-ui-2026]
+    branches: [main, refactor/legacy-extraction-v13, fix/v13-user-feedback-2026-09-09]
   workflow_dispatch:
 
 permissions:
