@@ -26,7 +26,13 @@ for(const token of [
   "./efc-logo.svg",
   'efc-login-redesign-v15',
   'efc-login-slogan-v15',
-  'efc-login-version-v15'
+  'efc-login-version-v15',
+  "const LOGIN_FONT='Segoe UI Variable'",
+  'arabicFont:LOGIN_FONT',
+  'introRemoved:true',
+  'largerLogo:true',
+  'width:136px!important',
+  'height:112px!important'
 ])requireText(login,token);
 
 for(const token of [
@@ -36,8 +42,10 @@ for(const token of [
 ])requireText(security,token,`security flow ${token}`);
 
 forbidText(login,'data:image','embedded replacement logo/image');
+forbidText(login,'منصة الإدارة الموحدة لنظام المركز','removed login intro headline');
+forbidText(login,'يرجى تسجيل الدخول للمتابعة إلى النظام','removed login intro instruction');
 requireText(build,"'assets/production-login-ui-v13.js'",'login UI packaged in production build');
 if(!String(packageJson.version||''))throw new Error('Package version is missing.');
 requireText(login,`const APP_VERSION='${packageJson.version}'`,'displayed app version follows package.json');
 
-console.log('Login redesign v15 verification passed: existing logo reused, PIN reveal preserves real PIN, auth/recovery IDs remain wired, responsive layout is packaged.');
+console.log('Login redesign v15 verification passed: existing logo reused, Segoe UI Variable typography applied, intro removed, logo enlarged, PIN reveal preserves real PIN, auth/recovery IDs remain wired, responsive layout is packaged.');
