@@ -1,65 +1,35 @@
-(()=>{
+(async()=>{
 'use strict';
 if(window.EFC_REGISTRATION_SELECT_OVERLAY_V18?.ready)return;
-if(!window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready)throw new Error('Registration select overlay v18 loaded before schedule matrix v17.');
+const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Registration select overlay v18 timed out waiting for schedule matrix v17.');await new Promise(resolve=>setTimeout(resolve,20));}};
+await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&typeof window.renderRegister==='function');
 
 const baseRenderRegister=window.renderRegister;
 
 function ensureBlank(select){
   let blank=[...select.options].find(option=>String(option.value||'')==='');
-  if(!blank){
-    blank=new Option('','',true,true);
-    select.insertBefore(blank,select.firstChild);
-  }
-  blank.textContent='';
-  blank.disabled=true;
-  blank.hidden=true;
-  blank.selected=!select.value;
-  blank.defaultSelected=true;
-  return blank;
+  if(!blank){blank=new Option('','',true,true);select.insertBefore(blank,select.firstChild);}
+  blank.textContent='';blank.disabled=true;blank.hidden=true;blank.selected=!select.value;blank.defaultSelected=true;
 }
 
 function enhanceSelect(select,text){
   if(!select)return;
   ensureBlank(select);
-
   let wrap=select.closest('.efc-select-wrap-v18');
-  if(!wrap){
-    wrap=document.createElement('span');
-    wrap.className='efc-select-wrap-v18';
-    select.parentNode.insertBefore(wrap,select);
-    wrap.appendChild(select);
-  }
-
+  if(!wrap){wrap=document.createElement('span');wrap.className='efc-select-wrap-v18';select.parentNode.insertBefore(wrap,select);wrap.appendChild(select);}
   let placeholder=wrap.querySelector('.efc-select-overlay-v18');
-  if(!placeholder){
-    placeholder=document.createElement('span');
-    placeholder.className='efc-select-overlay-v18';
-    placeholder.setAttribute('aria-hidden','true');
-    wrap.appendChild(placeholder);
-  }
+  if(!placeholder){placeholder=document.createElement('span');placeholder.className='efc-select-overlay-v18';placeholder.setAttribute('aria-hidden','true');wrap.appendChild(placeholder);}
   placeholder.textContent=text;
-
-  const sync=()=>{
-    const empty=!String(select.value||'');
-    wrap.classList.toggle('is-empty-v18',empty);
-    placeholder.hidden=!empty;
-  };
-
-  if(select.dataset.efcOverlayPlaceholderBound!=='1'){
-    select.dataset.efcOverlayPlaceholderBound='1';
-    select.addEventListener('change',sync);
-  }
+  const sync=()=>{const empty=!String(select.value||'');wrap.classList.toggle('is-empty-v18',empty);placeholder.hidden=!empty;};
+  if(select.dataset.efcOverlayPlaceholderBound!=='1'){select.dataset.efcOverlayPlaceholderBound='1';select.addEventListener('change',sync);}
   sync();
 }
 
 function enhance(){
-  const form=document.getElementById('regFormV13');
-  if(!form)return;
+  const form=document.getElementById('regFormV13');if(!form)return;
   enhanceSelect(form.elements.branch,'اختر المركز');
   enhanceSelect(form.elements.specialty,'اختر الدورة');
   enhanceSelect(form.elements.method,'اختر وسيلة الدفع');
-
   if(form.dataset.efcOverlayResetBound!=='1'){
     form.dataset.efcOverlayResetBound='1';
     form.addEventListener('reset',()=>queueMicrotask(()=>{
@@ -70,10 +40,7 @@ function enhance(){
   }
 }
 
-window.renderRegister=function(){
-  baseRenderRegister();
-  enhance();
-};
+window.renderRegister=function(){baseRenderRegister();enhance();};
 
 const style=document.createElement('style');
 style.id='efc-registration-select-overlay-style-v18';
@@ -85,13 +52,6 @@ body.efc-registration-redesign-v15 #regFormV13 .efc-select-wrap-v18.is-empty-v18
 `;
 document.head.appendChild(style);
 
-window.EFC_REGISTRATION_SELECT_OVERLAY_V18=Object.freeze({
-  ready:true,
-  visiblePlaceholderOverlay:true,
-  placeholderNotInOptionList:true,
-  center:true,
-  course:true,
-  paymentMethod:true,
-  mainUntouched:true
-});
+enhance();
+window.EFC_REGISTRATION_SELECT_OVERLAY_V18=Object.freeze({ready:true,visiblePlaceholderOverlay:true,placeholderNotInOptionList:true,center:true,course:true,paymentMethod:true,mainUntouched:true});
 })();
