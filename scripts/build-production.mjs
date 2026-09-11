@@ -21,7 +21,7 @@ const runtimeFiles = [
   'assets/production-registration-redesign-v15.js',
   'assets/production-registration-responsive-v16.js',
   'assets/production-registration-schedule-matrix-v17.js',
-  'assets/production-registration-select-overlay-v18.js',
+  'assets/production-registration-select-native-v19.js',
   'assets/production-security-ui-v13.js',
   'assets/production-login-ui-v13.js'
 ];
@@ -82,4 +82,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/select placeholders, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
+console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
