@@ -17,7 +17,7 @@ const build=read('scripts/build-production.mjs');
 
 for(const [token,label] of [
   ['authoritativeRegistrationRenderer:true','registration renderer ownership'],
-  ['registration-schedule-layout-v13','side-by-side compact registration and schedule layout'],
+  ['registration-schedule-layout-v13','side-by-side registration and schedule layout'],
   ['schedule-table-v13','weekly schedule table'],
   ['type="time"','clickable time fields'],
   ['data-day-check','day selection boxes'],
@@ -26,8 +26,14 @@ for(const [token,label] of [
   ['debtDueDates:{},schedule,snapshot:{','student schedule stored on new student'],
   ['compactTimetable:true','compact timetable visual marker'],
   ['noHorizontalTimetableOverflow:true','timetable must fit without forced horizontal width'],
-  ['max-width:520px','compact timetable width'],
-  ['min-width:0;border-collapse:collapse','timetable has no forced oversized minimum'],
+  ['twoColumnRegistration:true','two-column compact registration form'],
+  ['grid-template-columns:repeat(2,minmax(0,1fr))','paired registration fields'],
+  ['wholeInputDateTimePicker:true','whole-field date/time picker marker'],
+  ['input.showPicker?.()','native picker opens from field click'],
+  ['::-webkit-calendar-picker-indicator','native picker icon hidden'],
+  ['courseTerminology:true','course terminology marker'],
+  ['<th class="schedule-course-head-v13">الدورة</th>','schedule course header'],
+  ["nav[2]='الدورات'",'courses navigation label'],
   ['noSideSummary:true','redundant side summary removed'],
   ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note'],
@@ -35,6 +41,9 @@ for(const [token,label] of [
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
 forbidText(registration,'min-width:720px','oversized forced timetable width');
+forbidText(registration,'التخصص / الدورة','mixed specialty/course schedule heading');
+forbidText(registration,'width:102px;min-width:102px','oversized schedule course column');
+forbidText(registration,'grid-template-columns:1fr;gap:8px','single-column registration fields');
 
 for(const [token,label] of [
   ["'*'.repeat",'visible PIN star mask'],
@@ -62,4 +71,4 @@ const order=['production-student-ui-v13.js','production-registration-schedule-v1
 let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
 for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
 
-console.log('Registration schedule and login v13 verified: existing registration fields, compact timetable, receipt schedule/debt note, larger login and star-masked PIN without background image.');
+console.log('Registration schedule and login v13 verified: paired registration fields, compact timetable, course terminology, whole-field date/time pickers, receipt schedule/debt note, larger login and star-masked PIN.');
