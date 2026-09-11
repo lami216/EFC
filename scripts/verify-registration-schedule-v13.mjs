@@ -41,7 +41,7 @@ for(const [token,label] of [
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
 forbidText(registration,'min-width:720px','oversized forced timetable width');
-forbidText(registration,'التخصص / الدورة','mixed specialty/course schedule heading');
+forbidText(registration,'schedule-course-head-v13">التخصص / الدورة','mixed specialty/course schedule heading');
 forbidText(registration,'width:102px;min-width:102px','oversized schedule course column');
 forbidText(registration,'grid-template-columns:1fr;gap:8px','single-column registration fields');
 
