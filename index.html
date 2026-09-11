@@ -5,22 +5,22 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0d3558" />
   <title>مركز EFC للغات والمعلوماتية</title>
-  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20260911-1848" />
+  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20260911-1851" />
   <style>
     html.efc-booting #app{visibility:hidden}
   </style>
 </head>
 <body>
   <div id="app"></div>
-  <script src="./assets/production-license-gate-v8.js?v=20260911-1848" defer></script>
-  <script src="./assets/production-registration-select-native-v19.js?v=20260911-1848" defer></script>
-  <script src="./assets/production-registration-schedule-compat-v20.js?v=20260911-1848" defer></script>
-  <script src="./assets/production-registration-schedule-polish-v21.js?v=20260911-1848" defer></script>
-  <script src="./assets/production-registration-receipt-schedule-v22.js?v=20260911-1848" defer></script>
+  <script src="./assets/production-license-gate-v8.js?v=20260911-1851" defer></script>
+  <script src="./assets/production-registration-select-native-v19.js?v=20260911-1851" defer></script>
+  <script src="./assets/production-registration-schedule-compat-v20.js?v=20260911-1851" defer></script>
+  <script src="./assets/production-registration-schedule-polish-v21.js?v=20260911-1851" defer></script>
+  <script src="./assets/production-registration-receipt-schedule-v22.js?v=20260911-1851" defer></script>
   <!-- Clean v13 runtime order is owned by production-license-gate-v8.js after a valid license.
        v19 keeps registration selects visually blank until the user chooses.
        v20 keeps one shared time per day plus course checkboxes even against an older cached matrix.
        v21 darkens schedule labels/times and allows course boxes to be selected before entering time.
-       v22 captures the selected course/day boxes before registration and prints only those selections with their times. -->
+       v22 captures the selected course/day boxes and renders the receipt using the same weekly matrix layout as registration, with only used course rows. -->
 </body>
 </html>
