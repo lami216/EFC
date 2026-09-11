@@ -18,6 +18,7 @@ const DAYS=[
 const baseRenderRegister=window.renderRegister;
 const baseReceiptWindow=window.receiptWindowV4;
 let pendingSchedule=null;
+const studentList=()=>typeof students!=='undefined'&&Array.isArray(students)?students:[];
 
 function sharedTime(root,day){
   return String(
@@ -71,9 +72,9 @@ function installSubmitCapture(){
   form.addEventListener('submit',()=>{
     const snapshot=captureSchedule();
     pendingSchedule=snapshot;
-    const before=new Set((window.students||[]).map(student=>String(student.id)));
+    const before=new Set(studentList().map(student=>String(student.id)));
     queueMicrotask(()=>{
-      const created=(window.students||[]).find(student=>!before.has(String(student.id)));
+      const created=studentList().find(student=>!before.has(String(student.id)));
       if(!created||!snapshot)return;
       created.schedule=snapshot;
       try{D.saveStudents();}catch(error){console.error('EFC v22 schedule save failed.',error);}
@@ -136,6 +137,7 @@ window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   selectedCourseDaysOnly:true,
   compactReceiptSchedule:true,
   liveScheduleCapturedBeforeReceipt:true,
+  savedScheduleMatchesBlackBoxes:true,
   checkboxSelectionPersistsWithoutTime:true,
   mainUntouched:true
 });
