@@ -35,6 +35,7 @@ const runtimeFiles = [
   'assets/production-sidebar-lock-v30.js',
   'assets/production-student-search-redesign-v31.js',
   'assets/production-search-detail-polish-v32.js',
+  'assets/production-period-count-and-grid-polish-v33.js',
   'assets/production-security-ui-v13.js',
   'assets/production-login-ui-v13.js'
 ];
@@ -95,4 +96,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders/cache-safe schedule preview/schedule polish/registration receipt schedule/courses and centers redesign/sidebar brand polish/compact specialties sizing/order-safe compact override/detail polish v27/period search redesign v28/unified layout v29/global sidebar lock v30/student search redesign v31/search detail polish v32, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
+console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders/cache-safe schedule preview/schedule polish/registration receipt schedule/courses and centers redesign/sidebar brand polish/compact specialties sizing/order-safe compact override/detail polish v27/period search redesign v28/unified layout v29/global sidebar lock v30/student search redesign v31/search detail polish v32/period count and grid polish v33, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
