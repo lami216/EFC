@@ -25,7 +25,6 @@ for(const token of [
   'segoeUiVariable:true',
   'Segoe UI Variable',
   'تسجيل طالب جديد',
-  'بيانات الطالب والتسجيل',
   'جدول الطالب الأسبوعي',
   'حفظ التسجيل',
   'efcScheduleCourseMirrorV15',
@@ -45,6 +44,7 @@ for(const token of [
 ])requireText(monthly,token,`monthly registration behavior ${token}`);
 
 for(const token of [
+  'بيانات الطالب والتسجيل',
   'data-day-time',
   'data-day-check',
   'registration-submit-v13',
