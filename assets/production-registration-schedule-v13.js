@@ -1,10 +1,12 @@
-(()=>{
+(async()=>{
 'use strict';
 if(window.EFC_REGISTRATION_SCHEDULE_V13?.ready)return;
 const D=window.EFC_DOMAIN_V13;
 if(!D?.ready||!window.EFC_STUDENT_UI_V13?.ready)throw new Error('Registration schedule v13 loaded before domain/student UI.');
 
 const {esc,today,nowTime,cash,courseTypeOf,appendPayment}=D;
+const invoke=window.__TAURI__?.core?.invoke;
+const CENTER_KEY='efc-branches-v13';
 const DAYS=[
   {key:'monday',ar:'الاثنين',fr:'Lundi'},
   {key:'tuesday',ar:'الثلاثاء',fr:'Mardi'},
@@ -18,7 +20,7 @@ const noteTop='ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.
 const noteOne='ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.';
 const noteTwo='ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.';
 const paymentOptions=()=>methods.map(value=>`<option>${esc(value)}</option>`).join('');
-const branchOptions=()=>`<option value="">اختر الفرع</option>${opts(branches)}`;
+const branchOptions=()=>`<option value="">اختر المركز</option>${opts(branches)}`;
 const specialtyOptions=()=>`<option value="">اختر الدورة</option>${opts(specialties)}`;
 
 function courseTerms(value){
@@ -47,28 +49,99 @@ function normalizeCourseDom(root){
 if(!window.EFC_COURSE_TERMS_V13?.ready){
   const baseShell=window.shell;
   window.shell=content=>baseShell(courseTerms(content));
-  const nav=window.navItems?.find?.(item=>item?.[0]==='specialties');if(nav)nav[2]='الدورات';
+  const nav=window.navItems?.find?.(item=>item?.[0]==='specialties');if(nav)nav[2]='الدورات و المراكز';
   window.EFC_COURSE_TERMS_V13=Object.freeze({ready:true,apply:courseTerms,normalizeDom:normalizeCourseDom});
   document.addEventListener('click',()=>setTimeout(()=>document.querySelectorAll('.modal').forEach(normalizeCourseDom),0),false);
 }
 function openPicker(input){if(!input||input.disabled||input.readOnly)return;try{input.showPicker?.();}catch{}}
 document.addEventListener('click',event=>{const input=event.target instanceof HTMLInputElement?event.target:null;if(input&&(input.type==='date'||input.type==='time'))openPicker(input);},true);
 
-function emptySchedule(){return{version:1,specialtyId:'',specialtyName:'',days:DAYS.map(day=>({...day,selected:false,time:''}))};}
+function normalizeCenters(items){
+  const seen=new Set();
+  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim()})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
+}
+function applyCenters(items,{write=true}={}){
+  const next=normalizeCenters(items);
+  branches.splice(0,branches.length,...next);
+  if(write)localStorage.setItem(CENTER_KEY,JSON.stringify(next));
+  return next;
+}
+async function hydrateCenters(){
+  const raw=localStorage.getItem(CENTER_KEY);
+  if(raw!==null){try{applyCenters(JSON.parse(raw));return;}catch{applyCenters([]);return;}}
+  if(invoke){
+    try{const stored=await invoke('load_app_state');const state=stored?JSON.parse(stored):null;if(Array.isArray(state?.branches)){applyCenters(state.branches);return;}}catch(error){console.warn('EFC center hydration fell back to empty configuration.',error);}
+  }
+  applyCenters([]);
+}
+await hydrateCenters();
+
+const baseForcePersist=window.EFC_FORCE_PERSIST;
+const baseApplyRestored=window.EFC_APPLY_RESTORED_STATE;
+let centerPersistTimer=null;
+async function persistCentersNow(){
+  const state=typeof baseForcePersist==='function'?await baseForcePersist():{};
+  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name)}));
+  if(invoke)await invoke('save_app_state',{state:JSON.stringify(state)});
+  return state;
+}
+function saveCenters(){
+  localStorage.setItem(CENTER_KEY,JSON.stringify(branches));
+  clearTimeout(centerPersistTimer);centerPersistTimer=setTimeout(()=>window.EFC_FORCE_PERSIST?.().catch?.(error=>console.error('EFC center save failed.',error)),140);
+}
+if(typeof baseForcePersist==='function')window.EFC_FORCE_PERSIST=persistCentersNow;
+if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
+  const result=await baseApplyRestored(incoming);
+  if(Array.isArray(incoming?.branches))applyCenters(incoming.branches);
+  return result;
+};
+
+function openCenterEditor(id=null){
+  const existing=id?branches.find(item=>item.id===id):null;
+  const modal=document.createElement('div');modal.className='modal';
+  modal.innerHTML=`<div class="modal-card narrow"><div class="modal-head"><div><p>إدارة المراكز</p><h2>${existing?'تعديل المركز':'إضافة مركز'}</h2></div><button class="x" type="button">×</button></div><form id="centerFormV13" autocomplete="off"><label>اسم المركز<input class="input" name="name" value="${esc(existing?.name||'')}" autocomplete="off" required></label><div class="modal-actions"><button class="button secondary cancel" type="button">إلغاء</button><button class="button" type="submit">حفظ</button></div></form></div>`;
+  document.body.appendChild(modal);
+  const close=()=>modal.remove();modal.querySelector('.x').onclick=close;modal.querySelector('.cancel').onclick=close;
+  const form=modal.querySelector('form');window.EFC_AUTOCOMPLETE_OFF_V13?.(form);form.elements.name.focus();
+  form.onsubmit=event=>{
+    event.preventDefault();const name=String(new FormData(form).get('name')||'').trim();if(!name)return;
+    const duplicate=branches.some(item=>item.id!==existing?.id&&item.name.trim().toLowerCase()===name.toLowerCase());if(duplicate)return alert('هذا المركز موجود بالفعل.');
+    if(existing)existing.name=name;else branches.push({id:D.uid('center'),name});
+    saveCenters();close();window.renderSpecialties();
+  };
+}
+function centersMarkup(){
+  const cards=branches.length?branches.map(item=>{const count=students.filter(student=>student.branch===item.id).length;return`<div class="card center-card-v13"><div><small>مركز</small><h3>${esc(item.name)}</h3><span>${count} طالب</span></div><button class="mini edit-center-v13" data-id="${esc(item.id)}" type="button">تعديل</button></div>`;}).join(''):'<div class="card centers-empty-v13">لا توجد مراكز بعد. أضف مركزًا ليظهر في التسجيل والفلاتر.</div>';
+  return`<section class="centers-section-v13"><div class="centers-head-v13"><div><h2>المراكز</h2><p>تُدار المراكز من هنا وتُستخدم مباشرة في التسجيل والبحث والمالية.</p></div><button class="button secondary" id="addCenterV13" type="button">＋ إضافة مركز</button></div><div class="centers-grid-v13">${cards}</div></section>`;
+}
+const baseRenderSpecialties=window.renderSpecialties;
+window.renderSpecialties=function(){
+  baseRenderSpecialties();
+  const title=document.querySelector('.page-title h1');if(title)title.textContent='الدورات و المراكز';
+  const desc=document.querySelector('.page-title span');if(desc)desc.textContent='إدارة الدورات والمراكز المستخدمة في التسجيل والبحث والمالية.';
+  const courseGrid=document.querySelector('.spec-grid');if(courseGrid){courseGrid.insertAdjacentHTML('beforebegin',centersMarkup());const section=courseGrid.previousElementSibling;section.querySelector('#addCenterV13')?.addEventListener('click',()=>openCenterEditor());section.querySelectorAll('.edit-center-v13').forEach(button=>button.onclick=()=>openCenterEditor(button.dataset.id));}
+};
+
 function readSchedule(root,item){return{version:1,specialtyId:String(item?.id||''),specialtyName:String(item?.name||''),days:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:Boolean(root.querySelector(`[data-day-check="${day.key}"]`)?.checked),time:String(root.querySelector(`[data-day-time="${day.key}"]`)?.value||'')}))};}
 function scheduleMarkup(){return`<section class="registration-schedule-card-v13" aria-label="جدول الطالب"><div class="schedule-title-v13"><div><small>تنظيم الحصص</small><h2>جدول الطالب الأسبوعي</h2></div><span>الأيام والوقت</span></div><p class="schedule-top-note-v13">${esc(noteTop)}</p><div class="schedule-table-wrap-v13"><table class="schedule-table-v13"><thead><tr><th class="schedule-course-head-v13">الدورة</th>${DAYS.map(day=>`<th><b>${day.ar}</b><small>${day.fr}</small></th>`).join('')}</tr></thead><tbody><tr class="schedule-time-row-v13"><th>الوقت</th>${DAYS.map(day=>`<td><input type="time" data-day-time="${day.key}" aria-label="وقت ${day.ar}" autocomplete="off"></td>`).join('')}</tr><tr class="schedule-course-row-v13"><th id="scheduleCourseNameV13">اختر الدورة</th>${DAYS.map(day=>`<td><label class="schedule-check-v13" title="${day.ar}"><input type="checkbox" data-day-check="${day.key}" disabled><span></span></label></td>`).join('')}</tr></tbody></table></div><div class="schedule-notes-v13"><p>${esc(noteOne)}</p><p>${esc(noteTwo)}</p></div></section>`;}
 
 window.renderRegister=function(){
   currentPage='register';
-  if(!specialties.length){shell(`${pageTitle('الواجهة الرئيسية','تسجيل طالب جديد','أضف دورة واحدة على الأقل قبل تسجيل الطلاب.')}<div class="card production-empty-config"><h2>لا توجد دورات بعد</h2><button class="button" id="goSpecsV13">إضافة دورة</button></div>`);document.getElementById('goSpecsV13').onclick=()=>{location.hash='#specialties';};return;}
-  shell(`${pageTitle('الواجهة الرئيسية','تسجيل طالب جديد','حدد بيانات الطالب وجدوله الأسبوعي ثم احفظ التسجيل.')}<div class="registration-schedule-layout-v13"><form id="regFormV13" class="card form-card registration-form-compact-v13" autocomplete="off"><div class="section-head"><h2>بيانات الطالب والتسجيل</h2><span>التسعير عند التسجيل</span></div><div class="registration-fields-v13"><label>اسم الطالب<input class="input" name="name" autocomplete="off" required></label><label>رقم الهاتف<input class="input" name="phone" autocomplete="off"></label><label>الفرع<select name="branch" required>${branchOptions()}</select></label><label>الدورة<select name="specialty" required>${specialtyOptions()}</select></label><label>تاريخ البداية<input class="input" name="start" type="date" value="${today()}" required></label><label id="priceLabelV13">السعر<input class="input" name="price" type="number" min="1" autocomplete="off" required></label><label>المبلغ المدفوع الآن<input class="input" name="paid" type="number" min="0" value="0" autocomplete="off" required></label><label>وسيلة الدفع<select name="method">${paymentOptions()}</select></label><label class="debt-date-v13 debt-slot-v13" id="regDebtWrapV13">موعد سداد المتبقي<input class="input" name="debtDate" type="date" autocomplete="off"></label></div><div class="summary-inline registration-inline-summary-v13" id="regSummaryV13"></div><button class="button registration-submit-v13" type="submit">حفظ التسجيل</button></form>${scheduleMarkup()}</div>`);
+  if(!specialties.length||!branches.length){
+    const missing=[];if(!specialties.length)missing.push('دورة');if(!branches.length)missing.push('مركز');
+    shell(`${pageTitle('الواجهة الرئيسية','تسجيل طالب جديد',`أضف ${missing.join(' و')} واحدًا على الأقل قبل تسجيل الطلاب.`)}<div class="card production-empty-config"><h2>إعداد التسجيل غير مكتمل</h2><p>تحتاج إلى ${missing.join(' و')} قبل تسجيل طالب جديد.</p><button class="button" id="goSpecsV13">فتح الدورات و المراكز</button></div>`);document.getElementById('goSpecsV13').onclick=()=>{location.hash='#specialties';};return;
+  }
+  shell(`${pageTitle('الواجهة الرئيسية','تسجيل طالب جديد','حدد بيانات الطالب وجدوله الأسبوعي ثم احفظ التسجيل.')}<div class="registration-schedule-layout-v13"><form id="regFormV13" class="card form-card registration-form-compact-v13" autocomplete="off"><div class="section-head"><h2>بيانات الطالب والتسجيل</h2><span>التسعير عند التسجيل</span></div><div class="registration-fields-v13"><label>اسم الطالب<input class="input" name="name" autocomplete="off" required></label><label>رقم الهاتف<input class="input" name="phone" autocomplete="off"></label><label>المركز<select name="branch" required>${branchOptions()}</select></label><label>الدورة<select name="specialty" required>${specialtyOptions()}</select></label><label>تاريخ البداية<input class="input" name="start" type="date" value="${today()}" required></label><label id="priceLabelV13">السعر<input class="input" name="price" type="number" min="1" autocomplete="off" required></label><label>المبلغ المدفوع الآن<input class="input" name="paid" type="number" min="0" value="0" autocomplete="off" required></label><label>وسيلة الدفع<select name="method">${paymentOptions()}</select></label><label class="debt-date-v13 debt-slot-v13" id="regDebtWrapV13">موعد سداد المتبقي<input class="input" name="debtDate" type="date" autocomplete="off"></label></div><div class="summary-inline registration-inline-summary-v13" id="regSummaryV13" hidden></div><button class="button registration-submit-v13" type="submit">حفظ التسجيل</button></form>${scheduleMarkup()}</div>`);
 
-  const form=document.getElementById('regFormV13'),scheduleRoot=document.querySelector('.registration-schedule-card-v13'),spEl=form.elements.specialty,priceEl=form.elements.price,paidEl=form.elements.paid,debtWrap=document.getElementById('regDebtWrapV13'),label=document.getElementById('priceLabelV13'),courseName=document.getElementById('scheduleCourseNameV13');
+  const form=document.getElementById('regFormV13'),scheduleRoot=document.querySelector('.registration-schedule-card-v13'),spEl=form.elements.specialty,priceEl=form.elements.price,paidEl=form.elements.paid,debtWrap=document.getElementById('regDebtWrapV13'),label=document.getElementById('priceLabelV13'),courseName=document.getElementById('scheduleCourseNameV13'),summary=document.getElementById('regSummaryV13');
   let paidTouched=false;
   function values(){const item=spec(spEl.value),type=courseTypeOf(item||{}),price=Math.max(0,Number(priceEl.value||0)),paid=Math.max(0,Number(paidEl.value||0));return{item,type,price,paid,remaining:Math.max(0,price-paid)};}
   function syncScheduleCourse(){const item=spec(spEl.value),enabled=Boolean(item);courseName.textContent=item?.name||'اختر الدورة';scheduleRoot.querySelectorAll('[data-day-check]').forEach(input=>{input.disabled=!enabled;if(!enabled)input.checked=false;});if(!enabled)scheduleRoot.querySelectorAll('[data-day-time]').forEach(input=>{input.value='';});}
   function setDebtVisibility(){const {price,paid}=values(),partial=paidTouched&&paid>0&&price>0&&paid<price,full=price>0&&paid>=price;debtWrap.classList.toggle('debt-slot-hidden',full);form.elements.debtDate.required=partial;}
-  function updateSummary(){const {item,type,price,paid,remaining}=values();label.childNodes[0].textContent=type==='normal'?'سعر الشهر':'سعر الدورة كاملة';document.getElementById('regSummaryV13').innerHTML=item?`<div><span>نوع الدورة</span><b>${type==='normal'?'عادية شهرية':'سريعة'}</b></div><div><span>السعر</span><b>${cash(price)}</b></div><div><span>المدفوع</span><b>${cash(Math.min(paid,price||paid))}</b></div><div><span>المتبقي</span><b>${cash(remaining)}</b></div>`:'';}
+  function updateSummary(){
+    const {item,type,price,paid,remaining}=values();label.childNodes[0].textContent=type==='normal'?'سعر الشهر':'سعر الدورة كاملة';
+    const visible=Boolean(item&&price>0);summary.hidden=!visible;summary.innerHTML=visible?`<div><span>نوع الدورة</span><b>${type==='normal'?'عادية شهرية':'سريعة'}</b></div><div><span>السعر</span><b>${cash(price)}</b></div><div><span>المدفوع</span><b>${cash(Math.min(paid,price||paid))}</b></div><div><span>المتبقي</span><b>${cash(remaining)}</b></div>`:'';
+  }
   scheduleRoot.querySelectorAll('[data-day-time]').forEach(input=>input.addEventListener('change',()=>{const key=input.dataset.dayTime,check=scheduleRoot.querySelector(`[data-day-check="${key}"]`);if(input.value&&check&&!check.disabled)check.checked=true;}));
   spEl.onchange=()=>{syncScheduleCourse();updateSummary();setDebtVisibility();};priceEl.oninput=()=>{updateSummary();setDebtVisibility();};paidEl.oninput=()=>{paidTouched=true;updateSummary();setDebtVisibility();};paidEl.onblur=setDebtVisibility;
   syncScheduleCourse();updateSummary();setDebtVisibility();window.EFC_AUTOCOMPLETE_OFF_V13?.(form);
@@ -87,7 +160,7 @@ window.renderRegister=function(){
 };
 
 const style=document.createElement('style');style.textContent=`
-.registration-schedule-layout-v13{display:grid;grid-template-columns:minmax(0,500px) minmax(0,500px);gap:14px;align-items:start;justify-content:start;direction:rtl;max-width:1014px}.registration-form-compact-v13{width:100%;max-width:500px;padding:18px;border-radius:16px}.registration-fields-v13{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}.registration-fields-v13 label{margin:0;min-width:0}.registration-fields-v13 .input,.registration-fields-v13 select{width:100%;min-width:0;height:36px}.registration-inline-summary-v13{margin-top:10px;grid-template-columns:repeat(4,minmax(0,1fr));padding:9px;gap:6px}.registration-submit-v13{width:100%;margin-top:10px}.registration-schedule-card-v13{background:#fff1a8;border:1.5px solid #18201d;border-radius:16px;padding:10px 11px;box-shadow:0 8px 24px #18231f12;min-width:0;max-width:500px;width:100%}.schedule-title-v13{display:flex;justify-content:space-between;align-items:end;gap:10px;margin-bottom:5px}.schedule-title-v13 h2{margin:2px 0 0;font-size:14px;line-height:1.25}.schedule-title-v13 h2:before{content:'▦';color:var(--primary);font-size:16px;margin-inline-end:6px}.schedule-title-v13 small,.schedule-title-v13 span{font-size:7px;color:#4d5a55}.schedule-top-note-v13{margin:0 0 7px;text-align:center;font-size:8px;font-weight:800}.schedule-table-wrap-v13{overflow:hidden;border:1px solid #18201d;border-radius:8px;background:#fff0a0}.schedule-table-v13{width:100%;min-width:0;border-collapse:collapse;table-layout:fixed;direction:rtl}.schedule-table-v13 th,.schedule-table-v13 td{border:1px solid #18201d;text-align:center;padding:3px 2px;height:34px}.schedule-table-v13 thead th{background:#f7e58a}.schedule-table-v13 thead th b,.schedule-table-v13 thead th small{display:block;white-space:nowrap}.schedule-table-v13 thead th b{font-size:8px}.schedule-table-v13 thead th small{font-size:7px;margin-top:1px}.schedule-course-head-v13,.schedule-table-v13 tbody th{width:70px;min-width:70px}.schedule-time-row-v13 th{font-size:8px;background:#fbefaa}.schedule-time-row-v13 input[type=time]{width:100%;min-width:0;height:28px;border:1px solid #7c817f;border-radius:5px;background:#fff;padding:1px;font:700 9px Tahoma;text-align:center;direction:ltr;cursor:pointer}.schedule-course-row-v13 th{font-size:8px;background:#f7e58a;white-space:normal;line-height:1.25}.schedule-check-v13{display:inline-grid;place-items:center;cursor:pointer}.schedule-check-v13 input{position:absolute;opacity:0;pointer-events:none}.schedule-check-v13 span{width:20px;height:20px;border:2px solid #18201d;border-radius:4px;background:#fff;display:block}.schedule-check-v13 input:checked+span{background:#111}.schedule-check-v13 input:disabled+span{opacity:.38;cursor:not-allowed}.schedule-notes-v13{border-top:1px solid #18201d;margin-top:8px;padding-top:6px;font-size:7px;line-height:1.7}.schedule-notes-v13 p{margin:1px 0}.debt-slot-v13{min-height:57px}.debt-slot-v13.debt-slot-hidden{visibility:hidden;pointer-events:none}input[type=date],input[type=time]{cursor:pointer}input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{opacity:0;width:0;height:0;margin:0;padding:0;pointer-events:none}@media(max-width:1120px){.registration-schedule-layout-v13{grid-template-columns:minmax(0,470px) minmax(0,1fr);max-width:none}.registration-schedule-card-v13{max-width:none}}@media(max-width:900px){.registration-schedule-layout-v13{grid-template-columns:1fr}.registration-form-compact-v13{max-width:none}.registration-schedule-card-v13{order:2;max-width:none}.registration-fields-v13{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.registration-schedule-layout-v13{display:grid;grid-template-columns:minmax(0,470px) minmax(0,1fr);gap:14px;align-items:start;direction:rtl;width:100%;max-width:none}.registration-form-compact-v13{width:100%;max-width:470px;padding:18px;border-radius:16px}.registration-fields-v13{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}.registration-fields-v13 label{margin:0;min-width:0}.registration-fields-v13 .input,.registration-fields-v13 select{width:100%;min-width:0;height:36px}.registration-inline-summary-v13{margin-top:10px;grid-template-columns:repeat(4,minmax(0,1fr));padding:9px;gap:6px}.registration-inline-summary-v13[hidden]{display:none!important}.registration-submit-v13{width:100%;margin-top:10px}.registration-schedule-card-v13{background:#fff1a8;border:1.5px solid #18201d;border-radius:16px;padding:10px 8px;box-shadow:0 8px 24px #18231f12;min-width:0;max-width:none;width:100%}.schedule-title-v13{display:flex;justify-content:space-between;align-items:end;gap:10px;margin:0 4px 5px}.schedule-title-v13 h2{margin:2px 0 0;font-size:14px;line-height:1.25}.schedule-title-v13 h2:before{content:'▦';color:var(--primary);font-size:16px;margin-inline-end:6px}.schedule-title-v13 small,.schedule-title-v13 span{font-size:7px;color:#4d5a55}.schedule-top-note-v13{margin:0 4px 7px;text-align:center;font-size:8px;font-weight:800}.schedule-table-wrap-v13{overflow:hidden;border:1px solid #18201d;border-radius:8px;background:#fff0a0}.schedule-table-v13{width:100%;min-width:0;border-collapse:collapse;table-layout:fixed;direction:rtl}.schedule-table-v13 th,.schedule-table-v13 td{border:1px solid #18201d;text-align:center;padding:4px 3px;height:35px}.schedule-table-v13 thead th{background:#f7e58a}.schedule-table-v13 thead th b,.schedule-table-v13 thead th small{display:block;white-space:nowrap}.schedule-table-v13 thead th b{font-size:8px}.schedule-table-v13 thead th small{font-size:7px;margin-top:1px}.schedule-course-head-v13,.schedule-table-v13 tbody th{width:70px;min-width:70px}.schedule-time-row-v13 th{font-size:8px;background:#fbefaa}.schedule-time-row-v13 input[type=time]{width:100%;min-width:0;height:27px;border:1px solid #7c817f;border-radius:5px;background:#fff;padding:1px 3px;font:700 9px Tahoma;text-align:center}.schedule-course-row-v13 th{font-size:8px;background:#f7e58a;white-space:normal;line-height:1.35}.schedule-check-v13{display:inline-grid;place-items:center;cursor:pointer}.schedule-check-v13 input{position:absolute;opacity:0;pointer-events:none}.schedule-check-v13 span{width:20px;height:20px;border:2px solid #18201d;border-radius:4px;background:#fff;display:block}.schedule-check-v13 input:checked+span{background:#111}.schedule-check-v13 input:disabled+span{opacity:.38;cursor:not-allowed}.schedule-notes-v13{border-top:1px solid #18201d;margin:8px 4px 0;padding-top:6px;font-size:7px;line-height:1.7}.schedule-notes-v13 p{margin:1px 0}.debt-slot-v13{min-height:67px}.debt-slot-v13.debt-slot-hidden{visibility:hidden;pointer-events:none}input[type=date],input[type=time]{cursor:pointer}input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{opacity:0;width:0;height:0;margin:0;padding:0;pointer-events:none}.centers-section-v13{margin:0 0 16px}.centers-head-v13{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.centers-head-v13 h2{margin:0 0 3px}.centers-head-v13 p{margin:0;color:#72827c;font-size:10px}.centers-grid-v13{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}.center-card-v13{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px}.center-card-v13 h3{margin:2px 0 4px;font-size:14px}.center-card-v13 small,.center-card-v13 span{font-size:9px;color:#72827c}.centers-empty-v13{font-size:10px;color:#72827c;padding:14px}@media(max-width:1120px){.registration-schedule-layout-v13{grid-template-columns:minmax(0,430px) minmax(0,1fr)}.registration-form-compact-v13{max-width:430px}}@media(max-width:900px){.registration-schedule-layout-v13{grid-template-columns:1fr}.registration-form-compact-v13{max-width:none}.registration-schedule-card-v13{order:2}.centers-head-v13{align-items:flex-start;flex-direction:column}}
 `;document.head.appendChild(style);
-window.EFC_REGISTRATION_SCHEDULE_V13=Object.freeze({ready:true,authoritativeRegistrationRenderer:true,scheduleStoredWithStudent:true,receiptScheduleData:true,compactRegistrationCard:true,twoColumnRegistration:true,compactTimetable:true,noHorizontalTimetableOverflow:true,wholeInputDateTimePicker:true,courseTerminology:true,dynamicCourseTerminology:true,noSideSummary:true,notesFromPaper:true});
+window.EFC_REGISTRATION_SCHEDULE_V13=Object.freeze({ready:true,authoritativeRegistrationRenderer:true,scheduleStoredWithStudent:true,receiptScheduleData:true,compactRegistrationCard:true,compactTimetable:true,noHorizontalTimetableOverflow:true,noSideSummary:true,notesFromPaper:true,twoColumnRegistration:true,wholeInputDateTimePicker:true,courseTerminology:true,expandedTimetable:true,financialSummaryOnly:true,centersManagedInUi:true,centersPersisted:true,coursesAndCenters:true});
 })();
