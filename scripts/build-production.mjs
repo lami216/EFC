@@ -28,6 +28,7 @@ const runtimeFiles = [
   'assets/production-courses-centers-redesign-v23.js',
   'assets/production-brand-polish-v24.js',
   'assets/production-courses-centers-compact-v25.js',
+  'assets/production-courses-centers-order-fix-v26.js',
   'assets/production-security-ui-v13.js',
   'assets/production-login-ui-v13.js'
 ];
@@ -88,4 +89,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders/cache-safe schedule preview/schedule polish/registration receipt schedule/courses and centers redesign/sidebar brand polish/compact specialties sizing, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
+console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders/cache-safe schedule preview/schedule polish/registration receipt schedule/courses and centers redesign/sidebar brand polish/compact specialties sizing/order-safe compact override, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
