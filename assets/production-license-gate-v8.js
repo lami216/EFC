@@ -15,6 +15,7 @@ const RUNTIME=[
   './assets/production-registration-schedule-v13.js',
   './assets/production-finance-ui-v13.js',
   './assets/production-monthly-prepayment-ui-v14.js',
+  './assets/production-registration-redesign-v15.js',
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
@@ -66,9 +67,12 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready,'واجهة الدفعات الشهرية');
 
     await loadScript(RUNTIME[11]);
-    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+    await waitUntil(()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready,'التصميم الجديد لتسجيل الطالب');
 
     await loadScript(RUNTIME[12]);
+    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
+    await loadScript(RUNTIME[13]);
     await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');
 
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');
@@ -97,5 +101,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,loginUiV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,loginUiV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
 })();
