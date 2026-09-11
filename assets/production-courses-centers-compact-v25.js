@@ -62,12 +62,15 @@ body.efc-specialties-redesign-v23 .spec-card{
 body.efc-specialties-redesign-v23 .center-card-v13{height:136px!important;min-height:136px!important;max-height:136px!important;gap:7px!important}
 body.efc-specialties-redesign-v23 .center-card-v13 h3{
   height:40px!important;min-height:40px!important;max-height:40px!important;
-  padding:0 11px!important;padding-left:86px!important;border-radius:8px!important;gap:7px!important;
+  margin:0 84px 0 0!important;padding:0 11px!important;border-radius:8px!important;gap:7px!important;
   font-size:16px!important;line-height:1!important;overflow:hidden!important;white-space:nowrap!important;
+  direction:rtl!important;text-align:right!important;justify-content:flex-start!important;box-sizing:border-box!important;
+  border:1px solid rgba(20,31,27,.28)!important;
 }
 body.efc-specialties-redesign-v23 .center-card-v13>div>span{
   height:70px!important;min-height:70px!important;max-height:70px!important;
   padding:7px 11px!important;border-radius:8px!important;font-size:16px!important;overflow:hidden!important;
+  border:1px solid rgba(20,31,27,.22)!important;box-sizing:border-box!important;
 }
 body.efc-specialties-redesign-v23 .efc-card-count-label-v23{font-size:10px!important}
 body.efc-specialties-redesign-v23 .efc-card-count-icon-v23 svg{width:27px!important;height:27px!important}
@@ -80,12 +83,15 @@ body.efc-specialties-redesign-v23 .spec-card .edit-spec-v13{
 
 body.efc-specialties-redesign-v23 .spec-card{height:160px!important;min-height:160px!important;max-height:160px!important}
 body.efc-specialties-redesign-v23 .spec-top{
-  height:41px!important;min-height:41px!important;max-height:41px!important;padding-left:84px!important;overflow:hidden!important;
+  height:45px!important;min-height:45px!important;max-height:45px!important;
+  padding-left:84px!important;overflow:visible!important;align-items:flex-start!important;box-sizing:border-box!important;
 }
+body.efc-specialties-redesign-v23 .spec-top>div{height:100%!important;overflow:visible!important;box-sizing:border-box!important}
 body.efc-specialties-redesign-v23 .spec-top h3{
-  height:40px!important;min-height:40px!important;max-height:40px!important;
-  padding:0 11px!important;border-radius:8px!important;gap:7px!important;font-size:16px!important;line-height:1!important;
-  overflow:hidden!important;white-space:nowrap!important;
+  width:100%!important;height:41px!important;min-height:41px!important;max-height:41px!important;
+  margin:0!important;padding:0 11px!important;border-radius:8px!important;gap:7px!important;font-size:16px!important;line-height:1!important;
+  overflow:hidden!important;white-space:nowrap!important;direction:rtl!important;text-align:right!important;justify-content:flex-start!important;
+  box-sizing:border-box!important;border:1px solid rgba(20,31,27,.28)!important;
 }
 body.efc-specialties-redesign-v23 .spec-top>div>span{font-size:8.5px!important;margin-top:1px!important;line-height:1!important}
 body.efc-specialties-redesign-v23 .spec-facts{
@@ -93,8 +99,9 @@ body.efc-specialties-redesign-v23 .spec-facts{
 }
 body.efc-specialties-redesign-v23 .spec-facts>div:not(.efc-hidden-fact-v23){
   width:128px!important;max-width:128px!important;min-width:128px!important;
-  height:77px!important;min-height:77px!important;max-height:77px!important;
+  height:73px!important;min-height:73px!important;max-height:73px!important;
   padding:8px 8px!important;border-radius:8px!important;box-sizing:border-box!important;overflow:hidden!important;
+  border:1px solid rgba(20,31,27,.22)!important;
 }
 body.efc-specialties-redesign-v23 .spec-facts small{font-size:9px!important;line-height:1!important}
 body.efc-specialties-redesign-v23 .spec-facts b{font-size:13px!important;margin-top:1px!important;line-height:1!important}
@@ -106,6 +113,8 @@ body.efc-specialties-redesign-v23 .efc-fact-icon-v23 svg{width:20px!important;he
 `;
 document.head.appendChild(style);
 window.EFC_COURSES_CENTERS_COMPACT_V25=Object.freeze({
-  ready:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,noStretch:true,fixedCardWidths:true,fixedCardHeights:true,mainUntouched:true
+  ready:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,
+  rightAlignedCardTitles:true,centerTitleStopsBeforeEdit:true,naturalCourseTitleTop:true,subtleInternalBorders:true,
+  noStretch:true,fixedCardWidths:true,fixedCardHeights:true,mainUntouched:true
 });
 })();
