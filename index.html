@@ -1,26 +1,28 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="efc-booting">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0d3558" />
   <title>مركز EFC للغات والمعلوماتية</title>
-  <link rel="stylesheet" href="./demo.css" />
+  <link rel="stylesheet" href="./assets/production-ui-v13.css" />
+  <style>
+    html.efc-booting #app{visibility:hidden}
+  </style>
 </head>
 <body>
-  <div id="app"><div style="max-width:620px;margin:90px auto;text-align:center;font-family:Tahoma,Arial;color:#49635a">جاري تشغيل مركز EFC…</div></div>
+  <div id="app"></div>
   <script src="./assets/production-license-gate-v8.js" defer></script>
-  <!-- Runtime order is owned by production-license-gate-v8.js after a valid license:
+  <!-- Clean v13 runtime order is owned by production-license-gate-v8.js after a valid license:
        ./production-loader.js
-       ./assets/production-student-profile-v3.js
-       ./assets/production-registration-receipt-v4.js
-       ./assets/production-ledger-finance-ui-v5.js
-       ./assets/production-ledger-pdf-v6.js
-       ./assets/production-certificates-v7.js
-       ./assets/production-certificate-filters-v8.js
+       ./assets/production-foundation-v13.js
+       ./assets/production-receipts-v13.js
+       ./assets/production-certificates-v13.js
+       ./assets/production-domain-v13.js
        ./assets/production-receipt-sequences-v10.js
-       ./assets/production-center-ops-v11.js
-       ./assets/production-center-ops-v11-fix1.js
+       ./assets/production-student-ui-v13.js
+       ./assets/production-finance-ui-v13.js
+       ./assets/production-security-ui-v13.js
   -->
 </body>
 </html>
