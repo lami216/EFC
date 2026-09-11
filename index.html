@@ -13,16 +13,9 @@
 <body>
   <div id="app"></div>
   <script src="./assets/production-license-gate-v8.js" defer></script>
-  <!-- Clean v13 runtime order is owned by production-license-gate-v8.js after a valid license:
-       ./production-loader.js
-       ./assets/production-foundation-v13.js
-       ./assets/production-receipts-v13.js
-       ./assets/production-certificates-v13.js
-       ./assets/production-domain-v13.js
-       ./assets/production-receipt-sequences-v10.js
-       ./assets/production-student-ui-v13.js
-       ./assets/production-finance-ui-v13.js
-       ./assets/production-security-ui-v13.js
-  -->
+  <script src="./assets/production-registration-select-overlay-v18.js" defer></script>
+  <!-- Clean v13 runtime order is owned by production-license-gate-v8.js after a valid license.
+       The v18 select overlay waits for the registration matrix runtime, then adds visual-only
+       placeholders for registration selects without adding selectable list entries. -->
 </body>
 </html>
