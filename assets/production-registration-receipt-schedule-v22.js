@@ -82,35 +82,74 @@ function installSubmitCapture(){
   },true);
 }
 
-function selectedEntries(schedule){
+function selectedCourses(schedule){
   const courses=Array.isArray(schedule?.courses)?schedule.courses:[];
-  const entries=[];
-  courses.forEach(course=>{
-    (Array.isArray(course?.days)?course.days:[]).forEach(day=>{
-      if(!day?.selected)return;
-      entries.push({course:String(course.specialtyName||'الدورة'),day:String(day.ar||''),time:String(day.time||'')});
-    });
+  return courses.map(course=>({
+    specialtyId:String(course?.specialtyId||''),
+    specialtyName:String(course?.specialtyName||'الدورة'),
+    days:Array.isArray(course?.days)?course.days:[]
+  })).filter(course=>course.days.some(day=>Boolean(day?.selected)));
+}
+
+function usedTimes(courses){
+  const result={};
+  DAYS.forEach(day=>{
+    const selectedDay=courses.map(course=>course.days.find(item=>String(item?.key||'')===day.key)).find(item=>Boolean(item?.selected));
+    result[day.key]=String(selectedDay?.time||'');
   });
-  return entries;
+  return result;
 }
 
-function compactMarkup(entries){
-  const rows=entries.map(item=>`<tr><td><b>${esc(item.course)}</b></td><td>${esc(item.day)}</td><td><b>${esc(item.time||'—')}</b></td></tr>`).join('');
-  return`<h3>جدول الطالب الأسبوعي</h3><table class="scheduleTable12 efcScheduleCompact22"><thead><tr><th>الدورة</th><th>اليوم</th><th>الوقت</th></tr></thead><tbody>${rows}</tbody></table>`;
+function gridMarkup(courses){
+  const times=usedTimes(courses);
+  const header=DAYS.map(day=>`<th><b>${day.ar}</b><small>${day.fr}</small></th>`).join('');
+  const timeCells=DAYS.map(day=>`<td>${times[day.key]?`<b>${esc(times[day.key])}</b>`:'<span class="efcScheduleDash22">—</span>'}</td>`).join('');
+  const rows=courses.map(course=>{
+    const byKey=new Map(course.days.map(day=>[String(day?.key||''),day]));
+    const cells=DAYS.map(day=>{
+      const item=byKey.get(day.key)||{};
+      return`<td>${item.selected?'<span class="efcScheduleBox22 is-checked"></span>':'<span class="efcScheduleBox22"></span>'}</td>`;
+    }).join('');
+    return`<tr class="efcScheduleCourseRow22"><th>${esc(course.specialtyName||'الدورة')}</th>${cells}</tr>`;
+  }).join('');
+  return`<h3 class="efcScheduleTitle22">جدول الطالب الأسبوعي</h3><table class="efcScheduleGrid22"><thead><tr><th>الدورة</th>${header}</tr></thead><tbody><tr class="efcScheduleTimeRow22"><th>الوقت</th>${timeCells}</tr>${rows}</tbody></table>`;
 }
 
-function patchReceipt(frame,entries,autoPrint){
+function installReceiptStyle(doc){
+  if(!doc||doc.getElementById('efc-registration-receipt-schedule-style-v22'))return;
+  const style=doc.createElement('style');
+  style.id='efc-registration-receipt-schedule-style-v22';
+  style.textContent=`
+    .efcScheduleTitle22{margin:8px 0 5px!important;text-align:center!important;font-size:12px!important;font-weight:900!important;color:#111!important}
+    .efcScheduleGrid22{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;direction:rtl!important;background:#fff7bf!important;border:1.4px solid #17352d!important;font-family:Arial,Tahoma,sans-serif!important}
+    .efcScheduleGrid22 th,.efcScheduleGrid22 td{border:1px solid #17352d!important;text-align:center!important;padding:3px 2px!important;height:26px!important;color:#111!important;font-size:8px!important;vertical-align:middle!important}
+    .efcScheduleGrid22 thead th{background:#006a58!important;color:#fff!important;font-weight:900!important}
+    .efcScheduleGrid22 thead th b,.efcScheduleGrid22 thead th small{display:block!important;color:#fff!important;line-height:1.15!important;white-space:nowrap!important}
+    .efcScheduleGrid22 thead th b{font-size:8px!important}.efcScheduleGrid22 thead th small{font-size:6px!important;margin-top:1px!important}
+    .efcScheduleGrid22 thead th:first-child,.efcScheduleGrid22 tbody th{width:76px!important;min-width:76px!important}
+    .efcScheduleGrid22 tbody th{background:#eef2ef!important;color:#111!important;font-weight:900!important}
+    .efcScheduleTimeRow22 td{background:#fffdf0!important;font-weight:900!important;color:#111!important}
+    .efcScheduleCourseRow22 td{background:#fffdf0!important}
+    .efcScheduleBox22{display:inline-block!important;width:14px!important;height:14px!important;border:1.7px solid #394a44!important;border-radius:3px!important;background:#fff!important;vertical-align:middle!important}
+    .efcScheduleBox22.is-checked{background:#111!important;border-color:#111!important}
+    .efcScheduleDash22{color:#8b9692!important;font-weight:600!important}
+  `;
+  doc.head?.appendChild(style);
+}
+
+function patchReceipt(frame,courses,autoPrint){
   const apply=()=>{
     const doc=frame?.contentDocument;if(!doc)return;
+    installReceiptStyle(doc);
     let section=doc.querySelector('.studentSchedule12');
-    if(entries.length){
+    if(courses.length){
       if(!section){
         section=doc.createElement('section');
         section.className='studentSchedule12';
         const anchor=doc.querySelector('.receiptNotes12,.notes12,footer');
         if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor);else doc.body.appendChild(section);
       }
-      section.innerHTML=compactMarkup(entries);
+      section.innerHTML=gridMarkup(courses);
     }else if(section){section.remove();}
     if(autoPrint)setTimeout(()=>frame.contentWindow?.print?.(),100);
   };
@@ -122,9 +161,9 @@ window.receiptWindowV4=function(model,autoPrint=false){
   let normalized=model;
   let schedule=model?.schedule||null;
   if(model?.registrationReceipt&&pendingSchedule){schedule=pendingSchedule;normalized={...model,schedule};}
-  const entries=model?.registrationReceipt?selectedEntries(schedule):[];
+  const courses=model?.registrationReceipt?selectedCourses(schedule):[];
   const viewer=baseReceiptWindow(normalized,false);
-  if(model?.registrationReceipt&&viewer?.frame){patchReceipt(viewer.frame,entries,autoPrint);pendingSchedule=null;}
+  if(model?.registrationReceipt&&viewer?.frame){patchReceipt(viewer.frame,courses,autoPrint);pendingSchedule=null;}
   else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),100);
   return viewer;
 };
@@ -134,8 +173,10 @@ installSubmitCapture();
 
 window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   ready:true,
-  selectedCourseDaysOnly:true,
-  compactReceiptSchedule:true,
+  selectedCourseRowsOnly:true,
+  registrationMatrixLayout:true,
+  sharedDayTimeRow:true,
+  selectedCellsRenderedBlack:true,
   liveScheduleCapturedBeforeReceipt:true,
   savedScheduleMatchesBlackBoxes:true,
   checkboxSelectionPersistsWithoutTime:true,
