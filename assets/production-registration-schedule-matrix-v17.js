@@ -18,10 +18,21 @@ const NOTE='ملاحظة: لا يسمح بتأخر الطالب عن 20 دقيق
 const baseRenderRegister=window.renderRegister;
 const baseReceiptWindow=window.receiptWindowV4;
 
-function removePromptOption(select){
+function installBlankSelection(select,{required=false}={}){
   if(!select)return;
   [...select.options].filter(option=>String(option.value||'')==='').forEach(option=>option.remove());
-  if(!select.value&&select.options.length)select.selectedIndex=0;
+  const blank=new Option('','',true,true);
+  blank.disabled=true;
+  blank.hidden=true;
+  blank.dataset.efcBlankChoice='1';
+  select.insertBefore(blank,select.firstChild);
+  [...select.options].forEach(option=>{
+    const isBlank=option===blank;
+    option.selected=isBlank;
+    option.defaultSelected=isBlank;
+  });
+  select.selectedIndex=0;
+  select.required=required;
 }
 
 function matrixRow(course){
@@ -88,10 +99,25 @@ function enhanceRegister(){
   const form=document.getElementById('regFormV13');
   const scheduleRoot=document.querySelector('.registration-schedule-card-v13');
   if(!form||!scheduleRoot)return;
-  removePromptOption(form.elements.branch);
-  removePromptOption(form.elements.specialty);
-  if(form.elements.specialty?.value)form.elements.specialty.dispatchEvent(new Event('change',{bubbles:true}));
+  const branchSelect=form.elements.branch;
+  const specialtySelect=form.elements.specialty;
+  const methodSelect=form.elements.method;
+  const paidInput=form.elements.paid;
+  installBlankSelection(branchSelect,{required:true});
+  installBlankSelection(specialtySelect,{required:true});
+  installBlankSelection(methodSelect);
   installMatrix(form,scheduleRoot);
+  const syncMethodRequired=()=>{if(methodSelect)methodSelect.required=Number(paidInput?.value||0)>0;};
+  paidInput?.addEventListener('input',syncMethodRequired);
+  form.addEventListener('reset',()=>queueMicrotask(()=>{
+    installBlankSelection(branchSelect,{required:true});
+    installBlankSelection(specialtySelect,{required:true});
+    installBlankSelection(methodSelect);
+    syncMethodRequired();
+    specialtySelect?.dispatchEvent(new Event('change',{bubbles:true}));
+  }));
+  syncMethodRequired();
+  specialtySelect?.dispatchEvent(new Event('change',{bubbles:true}));
   attachSubmitCapture(form,scheduleRoot);
 }
 
@@ -166,6 +192,9 @@ document.head.appendChild(style);
 window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   ready:true,
   noPromptOptions:true,
+  noDefaultSelections:true,
+  paymentMethodStartsBlank:true,
+  paymentMethodRequiredWhenPaid:true,
   registrationCourseIsSource:true,
   noIndependentScheduleCoursePicker:true,
   allCoursesVisible:true,
