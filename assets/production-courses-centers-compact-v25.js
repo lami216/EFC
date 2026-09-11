@@ -12,7 +12,7 @@ body.efc-specialties-redesign-v23 .content{
 body.efc-specialties-redesign-v23 .page-title{
   width:365px!important;max-width:365px!important;min-width:365px!important;
   height:54px!important;min-height:54px!important;max-height:54px!important;
-  margin:0 auto 12px!important;padding:0 16px!important;border-radius:13px!important;box-sizing:border-box!important;flex:0 0 auto!important;
+  margin:0 0 12px auto!important;padding:0 16px!important;border-radius:13px!important;box-sizing:border-box!important;flex:0 0 auto!important;
 }
 body.efc-specialties-redesign-v23 .page-title>div{gap:13px!important;flex:0 0 auto!important}
 body.efc-specialties-redesign-v23 .page-title h1{font-size:25px!important;line-height:1!important;white-space:nowrap!important}
@@ -21,7 +21,7 @@ body.efc-specialties-redesign-v23 .efc-page-icon-v23 svg{width:30px!important;he
 body.efc-specialties-redesign-v23 .efc-centers-panel-v23,
 body.efc-specialties-redesign-v23 .efc-courses-panel-v23{
   width:900px!important;max-width:900px!important;min-width:900px!important;
-  padding:10px 11px 13px!important;margin:0 0 12px!important;border-radius:13px!important;
+  padding:10px 11px 18px!important;margin:0 0 12px!important;border-radius:13px!important;
   box-sizing:border-box!important;align-self:auto!important;flex:0 0 auto!important;
 }
 body.efc-specialties-redesign-v23 .centers-head-v13,
@@ -59,14 +59,14 @@ body.efc-specialties-redesign-v23 .spec-card{
   padding:10px 11px!important;border-radius:11px!important;box-sizing:border-box!important;
   justify-self:start!important;align-self:start!important;flex:0 0 286px!important;overflow:hidden!important;
 }
-body.efc-specialties-redesign-v23 .center-card-v13{height:122px!important;min-height:122px!important;max-height:122px!important;gap:7px!important}
+body.efc-specialties-redesign-v23 .center-card-v13{height:136px!important;min-height:136px!important;max-height:136px!important;gap:7px!important}
 body.efc-specialties-redesign-v23 .center-card-v13 h3{
   height:40px!important;min-height:40px!important;max-height:40px!important;
   padding:0 11px!important;padding-left:86px!important;border-radius:8px!important;gap:7px!important;
   font-size:16px!important;line-height:1!important;overflow:hidden!important;white-space:nowrap!important;
 }
 body.efc-specialties-redesign-v23 .center-card-v13>div>span{
-  height:56px!important;min-height:56px!important;max-height:56px!important;
+  height:70px!important;min-height:70px!important;max-height:70px!important;
   padding:7px 11px!important;border-radius:8px!important;font-size:16px!important;overflow:hidden!important;
 }
 body.efc-specialties-redesign-v23 .efc-card-count-label-v23{font-size:10px!important}
@@ -78,7 +78,7 @@ body.efc-specialties-redesign-v23 .spec-card .edit-spec-v13{
   padding:0 10px!important;border-radius:8px!important;font-size:11px!important;line-height:1!important;white-space:nowrap!important;
 }
 
-body.efc-specialties-redesign-v23 .spec-card{height:144px!important;min-height:144px!important;max-height:144px!important}
+body.efc-specialties-redesign-v23 .spec-card{height:160px!important;min-height:160px!important;max-height:160px!important}
 body.efc-specialties-redesign-v23 .spec-top{
   height:41px!important;min-height:41px!important;max-height:41px!important;padding-left:84px!important;overflow:hidden!important;
 }
@@ -93,8 +93,8 @@ body.efc-specialties-redesign-v23 .spec-facts{
 }
 body.efc-specialties-redesign-v23 .spec-facts>div:not(.efc-hidden-fact-v23){
   width:128px!important;max-width:128px!important;min-width:128px!important;
-  height:61px!important;min-height:61px!important;max-height:61px!important;
-  padding:6px 8px!important;border-radius:8px!important;box-sizing:border-box!important;overflow:hidden!important;
+  height:77px!important;min-height:77px!important;max-height:77px!important;
+  padding:8px 8px!important;border-radius:8px!important;box-sizing:border-box!important;overflow:hidden!important;
 }
 body.efc-specialties-redesign-v23 .spec-facts small{font-size:9px!important;line-height:1!important}
 body.efc-specialties-redesign-v23 .spec-facts b{font-size:13px!important;margin-top:1px!important;line-height:1!important}
@@ -106,6 +106,6 @@ body.efc-specialties-redesign-v23 .efc-fact-icon-v23 svg{width:20px!important;he
 `;
 document.head.appendChild(style);
 window.EFC_COURSES_CENTERS_COMPACT_V25=Object.freeze({
-  ready:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,noStretch:true,fixedCardWidths:true,fixedCardHeights:true,mainUntouched:true
+  ready:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,noStretch:true,fixedCardWidths:true,fixedCardHeights:true,mainUntouched:true
 });
 })();
