@@ -18,10 +18,10 @@ const NOTE='ملاحظة: لا يسمح بتأخر الطالب عن 20 دقيق
 const baseRenderRegister=window.renderRegister;
 const baseReceiptWindow=window.receiptWindowV4;
 
-function installBlankSelection(select,{required=false}={}){
+function installBlankSelection(select,label,{required=false}={}){
   if(!select)return;
   [...select.options].filter(option=>String(option.value||'')==='').forEach(option=>option.remove());
-  const blank=new Option('','',true,true);
+  const blank=new Option(label,'',true,true);
   blank.disabled=true;
   blank.hidden=true;
   blank.dataset.efcBlankChoice='1';
@@ -33,6 +33,12 @@ function installBlankSelection(select,{required=false}={}){
   });
   select.selectedIndex=0;
   select.required=required;
+  const sync=()=>select.classList.toggle('efc-select-placeholder-v17',!select.value);
+  if(select.dataset.efcPlaceholderBound!=='1'){
+    select.dataset.efcPlaceholderBound='1';
+    select.addEventListener('change',sync);
+  }
+  sync();
 }
 
 function matrixRow(course){
@@ -103,16 +109,16 @@ function enhanceRegister(){
   const specialtySelect=form.elements.specialty;
   const methodSelect=form.elements.method;
   const paidInput=form.elements.paid;
-  installBlankSelection(branchSelect,{required:true});
-  installBlankSelection(specialtySelect,{required:true});
-  installBlankSelection(methodSelect);
+  installBlankSelection(branchSelect,'اختر المركز',{required:true});
+  installBlankSelection(specialtySelect,'اختر الدورة',{required:true});
+  installBlankSelection(methodSelect,'اختر وسيلة الدفع');
   installMatrix(form,scheduleRoot);
   const syncMethodRequired=()=>{if(methodSelect)methodSelect.required=Number(paidInput?.value||0)>0;};
   paidInput?.addEventListener('input',syncMethodRequired);
   form.addEventListener('reset',()=>queueMicrotask(()=>{
-    installBlankSelection(branchSelect,{required:true});
-    installBlankSelection(specialtySelect,{required:true});
-    installBlankSelection(methodSelect);
+    installBlankSelection(branchSelect,'اختر المركز',{required:true});
+    installBlankSelection(specialtySelect,'اختر الدورة',{required:true});
+    installBlankSelection(methodSelect,'اختر وسيلة الدفع');
     syncMethodRequired();
     specialtySelect?.dispatchEvent(new Event('change',{bubbles:true}));
   }));
@@ -174,6 +180,8 @@ window.receiptWindowV4=function(model,autoPrint=false){
 const style=document.createElement('style');
 style.id='efc-registration-schedule-matrix-style-v17';
 style.textContent=`
+body.efc-registration-redesign-v15 #regFormV13 select.efc-select-placeholder-v17{color:#9aa8a3!important;font-weight:600!important}
+body.efc-registration-redesign-v15 #regFormV13 select:not(.efc-select-placeholder-v17){color:#17352d!important}
 body.efc-registration-redesign-v15 .schedule-title-v13{justify-content:flex-start!important}
 body.efc-registration-redesign-v15 .schedule-title-v13 .efc-schedule-course-mirror-v15{display:none!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th{width:112px!important;min-width:112px!important;padding:6px 7px!important;background:#eef3ef!important;font-size:11px!important;line-height:1.3!important}
@@ -193,6 +201,8 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   ready:true,
   noPromptOptions:true,
   noDefaultSelections:true,
+  visualPlaceholders:true,
+  placeholdersHiddenFromOptionLists:true,
   paymentMethodStartsBlank:true,
   paymentMethodRequiredWhenPaid:true,
   registrationCourseIsSource:true,
