@@ -6,7 +6,7 @@ if(!window.EFC_RECEIPTS_V13?.ready||typeof allPayments!=='function'||typeof shel
 const STORAGE_KEY='efc-certificate-state-v1';
 const CERTIFICATE_SUBTITLE='للغات والمعلوماتية';
 const invoke=window.__TAURI__?.core?.invoke;
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const pad2=value=>String(value).padStart(2,'0');
 const padReceipt=value=>String(Math.max(0,Number(value||0))).padStart(5,'0');
 const today=()=>typeof deviceTodayV3==='function'?deviceTodayV3():DEMO_TODAY;
