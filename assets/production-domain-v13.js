@@ -294,7 +294,7 @@ function notificationsForStudent(student){
       }
       const opens=addDays(month.dueDate,-3),course=spec(student.specialty)?.name||'الدورة';
       if(month.number>1&&asOf>=opens&&asOf<month.dueDate){
-        const message=`عزيزي الطالب ${student.name}، نود تذكيركم بأن رسوم الشهر ${month.number} من دورة ${course} ستصبح مستحقة بتاريخ ${showDate(month.dueDate)}، وقيمة الشهر ${cash(month.fee)}. يمكنكم السداد ابتداءً من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي محدثًا دون مستحقات متأخرة.`;
+        const message=`عزيزي الطالب ${student.name}، نود تذكيركم بأن رسوم الشهر ${month.number} من دورة ${course} ستصبح مستحقة بتاريخ ${showDate(month.dueDate)}، وقيمة تجديد الشهر القادم ${cash(month.fee)}. يمكنكم السداد ابتداءً من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي محدثًا دون مستحقات متأخرة.`;
         out.push(reminderNote(student,{kind:'monthly-upcoming',title:`تذكير بتجديد الشهر ${month.number}`,message,amount:month.fee,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:'upcoming'}));
       }else if(asOf>=month.dueDate){
         const partial=month.remaining<month.fee,overdue=asOf>month.dueDate,amountText=partial?`المتبقي من رسوم الشهر ${month.number} هو ${cash(month.remaining)} من أصل ${cash(month.fee)}`:`رسوم الشهر ${month.number} وقدرها ${cash(month.remaining)}`;
