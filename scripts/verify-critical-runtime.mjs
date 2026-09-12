@@ -76,14 +76,17 @@ forbidText(certificates,'activeStudentId','duplicate certificate student state')
 forbidText(certificates,'.click();','visible certificate control forwarding to a hidden control');
 
 const domain=read('assets/production-domain-v13.js');
-for(const token of ['function reminderNote(','kind:\'monthly-upcoming\'','kind:overdue?\'debt-overdue\':\'debt-due\'','تفاصيل الرصيد','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);
+for(const token of ['function reminderNote(','kind:\'monthly-upcoming\'','kind:overdue?\'debt-overdue\':\'debt-due\'','contextLabel','contextValue','هذا تذكير بتجديد الشهر القادم','موعد الاستحقاق','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);
 
 const studentUi=read('assets/production-student-ui-v13.js');
 for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminder-actions-v13','حفظ PDF'])requireText(studentUi,token,`student reminder action ${token}`);
 
 const securityUi=read('assets/production-security-ui-v13.js');
-for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','Rappel'])requireText(securityUi,token,`reminder document ${token}`);
+for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\"official12\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);
 forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
+forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');
+const receiptsUi=read('assets/production-receipts-v13.js');
+requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
 
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
