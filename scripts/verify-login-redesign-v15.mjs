@@ -18,7 +18,9 @@ for(const token of [
   'functionalRecoveryLinks:true',
   'functionalPinReveal:true',
   'responsiveLogin:true',
-  "const observer=new MutationObserver(queueEnhance)",
+  'loginScopedObserver:true',
+  'noBodyObserver:true',
+  'new MutationObserver(queueEnhance).observe(overlay',
   "toggle.onclick=()=>",
   "event.formData.set('pin'",
   "#forgotV13",
@@ -42,6 +44,7 @@ for(const token of [
 ])requireText(security,token,`security flow ${token}`);
 
 forbidText(login,'data:image','embedded replacement logo/image');
+forbidText(login,'observer.observe(document.body','wide login observer');
 forbidText(login,'منصة الإدارة الموحدة لنظام المركز','removed login intro headline');
 forbidText(login,'يرجى تسجيل الدخول للمتابعة إلى النظام','removed login intro instruction');
 requireText(build,"'assets/production-login-ui-v13.js'",'login UI packaged in production build');

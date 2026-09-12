@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 const sequence=await readFile('assets/production-receipt-sequences-v10.js','utf8');
 const certificates=await readFile('assets/production-certificates-v13.js','utf8');
 const gate=await readFile('assets/production-license-gate-v8.js','utf8');
-const index=await readFile('index.html','utf8');
 const license=await readFile('src-tauri/src/license.rs','utf8');
 const generator=await readFile('tools/license-generator/efc-license-generator.html','utf8');
 const generatorRust=await readFile('tools/license-generator/src/main.rs','utf8');
@@ -41,7 +40,6 @@ if(certificates.includes('new MutationObserver('))throw new Error('Certificates 
 if(!gate.includes("'./assets/production-certificates-v13.js'"))throw new Error('Certificates v13 are not loaded by the license gate.');
 if(!gate.includes("'./assets/production-receipt-sequences-v10.js'"))throw new Error('Receipt sequencing is not loaded by the license gate.');
 if(gate.indexOf('production-receipt-sequences-v10.js')<gate.indexOf('production-certificates-v13.js'))throw new Error('Receipt sequencing must load after native certificates v13.');
-if(!index.includes('./assets/production-certificates-v13.js')||!index.includes('./assets/production-receipt-sequences-v10.js'))throw new Error('Runtime documentation is missing certificate/receipt sequence layers.');
 
 const publicKey='BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0';
 for(const [name,source] of [['license.rs',license],['HTML generator template',generator],['legacy generator',generatorRust]]){

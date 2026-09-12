@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 const read=path=>readFileSync(path,'utf8');
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Production v13 missing: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Production v13 forbidden: ${label}`);};
+const requireMatch=(text,pattern,label)=>{if(!pattern.test(text))throw new Error(`Production v13 missing: ${label}`);};
 
 const packageJson=JSON.parse(read('package.json'));
 const index=read('index.html');
@@ -44,8 +45,9 @@ for(const path of obsoleteSourceFiles)if(existsSync(path))throw new Error(`Obsol
 if(!existsSync('assets/production-ui-v13.css'))throw new Error('Production v13 stylesheet is missing.');
 
 requireText(index,'<div id="app"></div>','empty startup root');
-requireText(index,'<script src="./assets/production-license-gate-v8.js" defer></script>','single direct production bootstrap');
-requireText(index,'<link rel="stylesheet" href="./assets/production-ui-v13.css" />','production stylesheet');
+requireMatch(index,/<script src="\.\/assets\/production-license-gate-v8\.js(?:\?[^"']*)?" defer><\/script>/,'single direct production bootstrap');
+requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-ui-v13\.css(?:\?[^"']*)?"\s*\/>/,'production stylesheet');
+requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-certificates-ui-v13\.css(?:\?[^"']*)?"\s*\/>/,'consolidated certificate stylesheet');
 requireText(index,'html.efc-booting #app{visibility:hidden}','silent boot guard');
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'demo.css','demo stylesheet reference');
@@ -95,8 +97,11 @@ if(hashOwners.length!==1||hashOwners[0]!==securityUi)throw new Error(`Expected e
 
 const runtimeBlock=build.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
 if(!runtimeBlock)throw new Error('Could not inspect production runtime file list.');
+const packagedRuntime=[...runtimeBlock.matchAll(/'([^']+)'/g)].map(match=>match[1]);
+for(const path of packagedRuntime.filter(path=>path.endsWith('.js')))execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+for(const ref of [...index.matchAll(/(?:src|href)="\.\/([^?"']+)/g)].map(match=>match[1]).filter(path=>path!=='efc-logo.svg'))if(!packagedRuntime.includes(ref))throw new Error(`Index runtime is not packaged: ${ref}`);
 for(const legacy of obsoleteSourceFiles)forbidText(runtimeBlock,`'${legacy}'`,`obsolete packaged runtime ${legacy}`);
-for(const required of ['assets/production-ui-v13.css','assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-security-ui-v13.js'])requireText(runtimeBlock,required,`clean packaged runtime ${required}`);
+for(const required of ['assets/production-ui-v13.css','assets/production-certificates-ui-v13.css','assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-security-ui-v13.js'])requireText(runtimeBlock,required,`clean packaged runtime ${required}`);
 requireText(build,'forbiddenProductionFiles','obsolete source/dist guard');
 forbidText(build,"await cp('assets', 'dist/assets', { recursive: true });",'recursive assets copy');
 requireText(tauri,'"frontendDist": "../dist"','Tauri packaged frontend');
