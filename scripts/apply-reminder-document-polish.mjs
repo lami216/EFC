@@ -167,17 +167,24 @@ replaceRegexRequired(
 );
 
 const TEST='scripts/verify-critical-runtime.mjs';
-const testAnchor="const certificates=read('assets/production-certificates-v13.js');";
-const reminderChecks=String.raw`const domain=read('assets/production-domain-v13.js');
-for(const token of ['contextLabel','contextValue','هذا تذكير بتجديد الشهر القادم','موعد الاستحقاق'])requireText(domain,token,\`structured reminder domain \${token}\`);
-const securityUi=read('assets/production-security-ui-v13.js');
-for(const token of ['reminder-facts12','grid-template-columns:repeat(8','class="official12">للغات والمعلوماتية','contextValue'])requireText(securityUi,token,\`compact reminder document \${token}\`);
-forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');
-const receiptsUi=read('assets/production-receipts-v13.js');
-requireText(receiptsUi,'class="official12">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
-
-`;
-replaceRequired(TEST,testAnchor,`${reminderChecks}${testAnchor}`,'critical reminder verification anchor');
+replaceRequired(
+  TEST,
+  "for(const token of ['function reminderNote(','kind:\\'monthly-upcoming\\'','kind:overdue?\\'debt-overdue\\':\\'debt-due\\'','تفاصيل الرصيد','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);",
+  "for(const token of ['function reminderNote(','kind:\\'monthly-upcoming\\'','kind:overdue?\\'debt-overdue\\':\\'debt-due\\'','contextLabel','contextValue','هذا تذكير بتجديد الشهر القادم','موعد الاستحقاق','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);",
+  'critical domain reminder assertions'
+);
+replaceRequired(
+  TEST,
+  "for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','Rappel'])requireText(securityUi,token,`reminder document ${token}`);",
+  "for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\\\"official12\\\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);",
+  'critical reminder document assertions'
+);
+replaceRequired(
+  TEST,
+  "forbidText(securityUi,\"stage.innerHTML=`<div class=\\\"reminder-paper-v13\\\"\",'legacy reminder-only PDF stage without preview document');",
+  "forbidText(securityUi,\"stage.innerHTML=`<div class=\\\"reminder-paper-v13\\\"\",'legacy reminder-only PDF stage without preview document');\nforbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');\nconst receiptsUi=read('assets/production-receipts-v13.js');\nrequireText(receiptsUi,'class=\\\"official12\\\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');",
+  'critical reminder legacy guard'
+);
 
 for(const path of ['index.html','assets/production-license-gate-v8.js']){
   const source=read(path);
