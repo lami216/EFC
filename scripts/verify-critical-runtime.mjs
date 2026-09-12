@@ -81,6 +81,12 @@ for(const token of ['function reminderNote(','kind:\'monthly-upcoming\'','kind:o
 const studentUi=read('assets/production-student-ui-v13.js');
 for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminder-actions-v13','حفظ PDF'])requireText(studentUi,token,`student reminder action ${token}`);
 
+const financeUi=read('assets/production-finance-ui-v13.js');
+requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero language');
+requireText(financeUi,'height=230','finance chart is compact enough for the fixed workspace');
+requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
+forbidText(financeUi,"pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.')",'legacy finance title notes');
+
 const securityUi=read('assets/production-security-ui-v13.js');
 for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\"official12\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);
 forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
