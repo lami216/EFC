@@ -88,6 +88,13 @@ forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt
 const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
 
+const indexHtml=read('index.html');
+const licenseGate=read('assets/production-license-gate-v8.js');
+const runtimeVersion=licenseGate.match(/const RUNTIME_VERSION='([^']+)'/)?.[1]||'';
+const indexVersions=[...indexHtml.matchAll(/\?v=([^"'&\s]+)/g)].map(match=>match[1]);
+if(!runtimeVersion)throw new Error('Critical runtime missing: license gate cache version.');
+if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))throw new Error('Preview cache versions are not synchronized between index.html and the license gate runtime.');
+
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
 for(const obsolete of [
@@ -98,6 +105,7 @@ for(const obsolete of [
   'production-certificates-student-results-panel-v39.js',
   'production-certificates-student-layout-v40.js'
 ])forbidText(runtimeBlock,obsolete,`obsolete certificate patch ${obsolete}`);
+for(const leftover of ['scripts/apply-reminder-document-polish.mjs','.github/workflows/reminder-document-polish.yml'])requireText(runtimeManifest,leftover,`temporary reminder patch guard ${leftover}`);
 
 await verifyPersistenceCompletes();
-console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, and reminders provide structured messages with receipt-style preview/PDF actions.');
+console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, reminder documents stay consolidated, and preview cache versions remain synchronized.');
