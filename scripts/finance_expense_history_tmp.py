@@ -1,0 +1,108 @@
+from pathlib import Path
+import re
+
+path=Path('assets/production-finance-ui-v13.js')
+text=path.read_text(encoding='utf-8')
+
+new_chart=r'''function axisStep(maxAbs){
+  const value=Math.max(0,Number(maxAbs||0));
+  if(value<=4000)return 1000;
+  if(value<=20000)return 5000;
+  if(value<=50000)return 10000;
+  if(value<=125000)return 25000;
+  if(value<=250000)return 50000;
+  const target=value/4,magnitude=10**Math.floor(Math.log10(Math.max(1,target))),scaled=target/magnitude;
+  return(scaled<=1?1:scaled<=2?2:scaled<=5?5:10)*magnitude;
+}
+function axisNumber(value){return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Math.round(Number(value||0)));}
+function chart(data,kind='income'){
+  if(!data.length)return'<div class="empty small">لا توجد فترة مستحقة للعرض بعد.</div>';
+  const width=1120,height=235,left=86,right=26,top=17,bottom=38,values=data.map(item=>Number(item.value||0)),rawMin=kind==='profit'?Math.min(0,...values):0,rawMax=Math.max(0,...values),stepValue=axisStep(Math.max(Math.abs(rawMin),Math.abs(rawMax))),min=kind==='profit'?Math.floor(rawMin/stepValue)*stepValue:0;
+  let max=Math.ceil(rawMax/stepValue)*stepValue;if(max<=min)max=min+stepValue*4;if((max-min)/stepValue<3)max=min+stepValue*3;
+  const range=Math.max(stepValue,max-min),x=index=>left+(data.length===1?(width-left-right)/2:index*(width-left-right)/(data.length-1)),y=value=>height-bottom-((value-min)/range)*(height-top-bottom),points=data.map((item,index)=>`${x(index)},${y(item.value)}`).join(' '),labelStep=Math.max(1,Math.ceil(data.length/10)),gridValues=[];
+  for(let value=max;value>=min-0.0001;value-=stepValue)gridValues.push(value);
+  const grid=gridValues.map(value=>{const yy=y(value);return`<line x1="${left}" y1="${yy}" x2="${width-right}" y2="${yy}" class="finance-gridline-v13"/><text x="${left-16}" y="${yy+4}" text-anchor="end" class="axis">${esc(axisNumber(value))}</text>`;}).join('');
+  return`<div class="chart-wrap finance-chart-wrap-v13"><svg viewBox="0 0 ${width} ${height}" role="img">${grid}${data.length>1?`<polyline points="${points}" class="finance-line-v13 ${kind}" fill="none"/>`:''}${data.map((item,index)=>`<circle cx="${x(index)}" cy="${y(item.value)}" r="5" class="finance-dot-v13" tabindex="0" data-chart-label="${esc(item.label)}" data-chart-value="${esc(cash(item.value))}"><title>${esc(item.label)}: ${esc(cash(item.value))}</title></circle>${index%labelStep===0||index===data.length-1?`<text x="${x(index)}" y="${height-15}" text-anchor="middle" class="axis">${esc(item.label)}</text>`:''}`).join('')}</svg><div class="finance-hover-tip-v13" hidden></div></div>`;
+}'''
+text,n=re.subn(r"function chart\(data,kind='income'\)\{.*?\n\}\n(?=function bindChartTooltips)",new_chart+'\n',text,count=1,flags=re.S)
+if n!=1: raise SystemExit('chart replacement failed')
+
+new_controls=r'''  function controls(){
+    const previous=specEl.value;
+    specEl.innerHTML=`<option value="">كل التخصصات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}${section!=='income'?`<option value="${GENERAL_EXPENSE}">مصروف عام</option>`:''}`;
+    if([...specEl.options].some(option=>option.value===previous))specEl.value=previous;
+    monthWrap.hidden=mode!=='daily';yearWrap.hidden=mode==='yearly';
+    if(section==='expenses')action.innerHTML=`${canEdit('finance')?'<button class="button" id="addExpenseV13">＋ تسجيل مصروف</button>':''}<button class="button secondary" id="viewExpenseHistoryV13">عرض سجل المصاريف</button>`;else action.innerHTML='';
+    document.getElementById('addExpenseV13')?.addEventListener('click',()=>openExpenseEditor(null,draw));
+    document.getElementById('viewExpenseHistoryV13')?.addEventListener('click',renderExpenseHistory);
+  }'''
+text,n=re.subn(r"  function controls\(\)\{.*?\n  function bounds",new_controls+'\n  function bounds',text,count=1,flags=re.S)
+if n!=1: raise SystemExit('controls replacement failed')
+
+old_income='''      html=`<div class="kpis"><div class="card"><small>دخل الفترة</small><b>${cash(incomeTotal)}</b><span>${period}</span></div><div class="card"><small>عدد العمليات</small><b>${income.length}</b></div><div class="card"><small>متوسط الدفعة</small><b>${cash(income.length?Math.round(incomeTotal/income.length):0)}</b></div><div class="card"><small>مستحقات النشطين</small><b>${cash(due)}</b></div></div><div class="card chart-card">${chart(series(income,mode,year,month),'income')}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(income,row=>branchName(row.student.branch)),incomeTotal)}</div><div class="card"><h3>حسب التخصص</h3>${breakdown(groupRows(income,row=>spec(row.student.specialty)?.name||row.student.specialty),incomeTotal)}</div><div class="card"><h3>حسب وسيلة الدفع</h3>${breakdown(groupRows(income,row=>row.method),incomeTotal)}</div></div>`;'''
+new_income='''      html=`<div class="kpis"><div class="card"><div class="finance-kpi-line-v13"><small>إجمالي دخل الفترة</small><b>${cash(incomeTotal)}</b></div><span>${period}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>عدد عمليات التحصيل</small><b>${income.length}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>متوسط قيمة الدفعة</small><b>${cash(income.length?Math.round(incomeTotal/income.length):0)}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>إجمالي مستحقات النشطين</small><b>${cash(due)}</b></div></div></div><div class="card chart-card">${chart(series(income,mode,year,month),'income')}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(income,row=>branchName(row.student.branch)),incomeTotal)}</div><div class="card"><h3>حسب التخصص</h3>${breakdown(groupRows(income,row=>spec(row.student.specialty)?.name||row.student.specialty),incomeTotal)}</div><div class="card"><h3>حسب وسيلة الدفع</h3>${breakdown(groupRows(income,row=>row.method),incomeTotal)}</div></div>`;'''
+if old_income not in text: raise SystemExit('income KPI pattern not found')
+text=text.replace(old_income,new_income,1)
+
+old_expense='''      html=`<div class="kpis"><div class="card"><small>مصاريف الفترة</small><b class="expense-total-v13">${cash(expenseTotal)}</b><span>${period}</span></div><div class="card"><small>عدد العمليات</small><b>${costs.length}</b></div><div class="card"><small>متوسط المصروف</small><b>${cash(costs.length?Math.round(expenseTotal/costs.length):0)}</b></div><div class="card"><small>أكبر مصروف</small><b>${cash(Math.max(0,...costs.map(row=>row.amount)))}</b></div></div><div class="card chart-card">${chart(series(costs,mode,year,month),'expense')}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(costs,row=>branchName(row.branch)),expenseTotal,true)}</div><div class="card"><h3>حسب التخصص</h3>${breakdown(groupRows(costs,row=>expenseSpecialtyName(row.specialty)),expenseTotal,true)}</div><div class="card"><h3>حسب الوسيلة</h3>${breakdown(groupRows(costs,row=>row.method),expenseTotal,true)}</div></div><div class="card expense-list-v13">${table(['التاريخ','الاسم','الفرع','التخصص','الوسيلة','المبلغ',''],[...costs].sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time))).map(row=>`<tr><td>${showDate(row.date)}</td><td>${esc(row.name)}</td><td>${esc(branchName(row.branch))}</td><td>${esc(expenseSpecialtyName(row.specialty))}</td><td>${esc(row.method)}</td><td>${cash(row.amount)}</td><td>${canEdit('finance')?`<button class="mini edit-expense-v13" data-id="${esc(row.id)}">تعديل</button>`:''}</td></tr>`).join(''))}</div>`;'''
+new_expense='''      html=`<div class="kpis"><div class="card"><div class="finance-kpi-line-v13"><small>إجمالي مصاريف الفترة</small><b class="expense-total-v13">${cash(expenseTotal)}</b></div><span>${period}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>عدد عمليات الصرف</small><b>${costs.length}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>متوسط قيمة المصروف</small><b>${cash(costs.length?Math.round(expenseTotal/costs.length):0)}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>أعلى مصروف مسجل</small><b>${cash(Math.max(0,...costs.map(row=>row.amount)))}</b></div></div></div><div class="card chart-card">${chart(series(costs,mode,year,month),'expense')}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(costs,row=>branchName(row.branch)),expenseTotal,true)}</div><div class="card"><h3>حسب التخصص</h3>${breakdown(groupRows(costs,row=>expenseSpecialtyName(row.specialty)),expenseTotal,true)}</div><div class="card"><h3>حسب الوسيلة</h3>${breakdown(groupRows(costs,row=>row.method),expenseTotal,true)}</div></div>`;'''
+if old_expense not in text: raise SystemExit('expense KPI/list pattern not found')
+text=text.replace(old_expense,new_expense,1)
+
+old_profit='''      html=`<div class="kpis"><div class="card"><small>المداخيل</small><b>${cash(incomeTotal)}</b></div><div class="card"><small>المصاريف</small><b class="expense-total-v13">${cash(expenseTotal)}</b></div><div class="card"><small>صافي الربح</small><b class="${net<0?'negative-v13':''}">${cash(net)}</b></div><div class="card"><small>هامش الربح</small><b>${(incomeTotal?net/incomeTotal*100:0).toFixed(1)}%</b></div></div><div class="card chart-card"><h3>صافي الربح التراكمي</h3>${chart(profitSeries,'profit')}</div><div class="card profitability-explorer-v13"><div class="segmented profitability-mode-v13" id="profitDimensionV13"><button class="${profitView==='branch'?'active':''}" data-profit-view="branch">الفرع</button><button class="${profitView==='specialty'?'active':''}" data-profit-view="specialty">التخصص</button><button class="${profitView==='method'?'active':''}" data-profit-view="method">وسيلة الدفع</button></div><div id="profitabilityListV13">${profitabilityTable(profitView,income,costs)}</div></div>`;'''
+new_profit='''      html=`<div class="kpis"><div class="card"><div class="finance-kpi-line-v13"><small>إجمالي المداخيل</small><b>${cash(incomeTotal)}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>إجمالي المصاريف</small><b class="expense-total-v13">${cash(expenseTotal)}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>صافي الربح</small><b class="${net<0?'negative-v13':''}">${cash(net)}</b></div></div><div class="card"><div class="finance-kpi-line-v13"><small>هامش الربح</small><b>${(incomeTotal?net/incomeTotal*100:0).toFixed(1)}%</b></div></div></div><div class="card chart-card"><h3>صافي الربح التراكمي</h3>${chart(profitSeries,'profit')}</div><div class="card profitability-explorer-v13"><div class="segmented profitability-mode-v13" id="profitDimensionV13"><button class="${profitView==='branch'?'active':''}" data-profit-view="branch">الفرع</button><button class="${profitView==='specialty'?'active':''}" data-profit-view="specialty">التخصص</button><button class="${profitView==='method'?'active':''}" data-profit-view="method">وسيلة الدفع</button></div><div id="profitabilityListV13">${profitabilityTable(profitView,income,costs)}</div></div>`;'''
+if old_profit not in text: raise SystemExit('profit KPI pattern not found')
+text=text.replace(old_profit,new_profit,1)
+
+marker='function openExpenseEditor(id=null,onSave)'
+if marker not in text: raise SystemExit('expense editor marker not found')
+history=r'''function renderExpenseHistory(){
+  currentPage='finance';expenses=D.getExpenses();const rows=[...expenses].sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
+  shell(`<section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16M7 3v3M7 9v3M7 15v3"/></g></svg><h1>سجل المصاريف</h1></section><div class="expense-history-toolbar-v13"><button class="button secondary" id="backToFinanceV13">العودة للمالية</button><span>${rows.length} عملية</span></div><div class="card expense-history-v13">${table(['التاريخ','الوقت','اسم المصروف','الفرع','التخصص','الوسيلة','المبلغ','الإجراءات'],rows.map(row=>`<tr><td>${showDate(row.date)}</td><td>${esc(row.time||'—')}</td><td>${esc(row.name)}</td><td>${esc(branchName(row.branch))}</td><td>${esc(expenseSpecialtyName(row.specialty))}</td><td>${esc(row.method)}</td><td><b>${cash(row.amount)}</b></td><td>${canEdit('finance')?`<div class="expense-history-actions-v13"><button class="mini edit-expense-history-v13" data-id="${esc(row.id)}">تعديل</button><button class="mini danger delete-expense-v13" data-id="${esc(row.id)}">حذف</button></div>`:'—'}</td></tr>`).join(''))}</div>`);
+  document.getElementById('backToFinanceV13')?.addEventListener('click',renderFinance);
+  document.querySelectorAll('.edit-expense-history-v13').forEach(button=>button.onclick=()=>openExpenseEditor(button.dataset.id,renderExpenseHistory));
+  document.querySelectorAll('.delete-expense-v13').forEach(button=>button.onclick=()=>{const item=expenses.find(row=>row.id===button.dataset.id);if(!item||!canEdit('finance'))return;if(!confirm(`حذف المصروف «${item.name}» بقيمة ${cash(item.amount)}؟`))return;expenses=expenses.filter(row=>row.id!==item.id);D.saveExpenses(expenses);renderExpenseHistory();});
+}
+
+'''
+text=text.replace(marker,history+marker,1)
+
+text=text.replace('.content:has(.finance-switch-v13) .finance-primary-action-row-v13{width:900px!important;margin:0 0 7px!important}.content:has(.finance-switch-v13) .finance-primary-action-row-v13 .button{height:38px!important;border-radius:9px!important;padding:0 15px!important;box-shadow:0 6px 14px rgba(8,99,79,.11)!important}',
+'.content:has(.finance-switch-v13) .finance-primary-action-row-v13{width:900px!important;margin:0 0 7px!important}.content:has(.finance-switch-v13) #financePrimaryActionV13{display:flex!important;align-items:center!important;gap:8px!important}.content:has(.finance-switch-v13) .finance-primary-action-row-v13 .button{height:36px!important;border-radius:9px!important;padding:0 14px!important;box-shadow:0 6px 14px rgba(8,99,79,.11)!important}',1)
+
+old_kpi=re.search(r'\.content:has\(\.finance-switch-v13\) #financeBodyV13>\.kpis\{.*?\.content:has\(\.finance-switch-v13\) #financeBodyV13>\.kpis span\{[^\n]+\}',text)
+if not old_kpi: raise SystemExit('KPI CSS block not found')
+new_kpi='''.content:has(.finance-switch-v13) #financeBodyV13>.kpis{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:9px!important;margin:0 0 8px!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis>.card{min-height:54px!important;margin:0!important;padding:8px 12px!important;border:1px solid #d8e5e0!important;border-radius:12px!important;box-shadow:0 7px 18px rgba(22,75,61,.04)!important;display:flex!important;flex-direction:column!important;justify-content:center!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis>.card:nth-child(1){background:linear-gradient(135deg,#f1fbf7,#e9f8f1)!important;border-color:#cbe9dc!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis>.card:nth-child(2){background:linear-gradient(135deg,#f5f1ff,#f0ebff)!important;border-color:#ded3f6!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis>.card:nth-child(3){background:linear-gradient(135deg,#fff9ee,#fff3df)!important;border-color:#f0dfba!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis>.card:nth-child(4){background:linear-gradient(135deg,#eef7ff,#e8f3fb)!important;border-color:#cfdfec!important}.content:has(.finance-switch-v13) .finance-kpi-line-v13{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;min-width:0!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis small{font-size:9px!important;color:#526e65!important;font-weight:780!important;margin:0!important;white-space:nowrap!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis b{font-size:16px!important;line-height:1.1!important;color:#111d19!important;white-space:nowrap!important}.content:has(.finance-switch-v13) #financeBodyV13>.kpis span{font-size:7.5px!important;color:#7b8d87!important;margin-top:2px!important}'''
+text=text[:old_kpi.start()]+new_kpi+text[old_kpi.end():]
+
+text=text.replace('max-height:174px!important','max-height:205px!important',1)
+text=text.replace('max-height:158px!important','max-height:188px!important',1)
+text=text.replace('.content:has(.finance-switch-v13) .expense-list-v13,.content:has(.finance-switch-v13) .profitability-explorer-v13{', '.content:has(.finance-switch-v13) .profitability-explorer-v13{',1)
+text=re.sub(r'\.content:has\(\.finance-switch-v13\) \.expense-list-v13\{[^\n]+\}','',text,count=1)
+
+history_css=r'''
+.content:has(.expense-history-v13){width:900px!important;max-width:900px!important;min-width:900px!important;margin:0 0 0 auto!important;margin-right:22px!important;padding:12px 0 24px!important;box-sizing:border-box!important;overflow:visible!important}
+.content:has(.expense-history-v13) .finance-hero-v13{width:470px!important;height:76px!important;margin:0 auto 14px!important}
+.expense-history-toolbar-v13{width:900px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}.expense-history-toolbar-v13>span{height:32px;padding:0 11px;border:1px solid #75a9d6;border-radius:9px;background:#e6f2ff;color:#174a71;display:inline-flex;align-items:center;font-size:10px;font-weight:800}.expense-history-v13{width:900px!important;margin:0!important;padding:12px!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:#fff!important;box-shadow:0 10px 28px rgba(22,83,64,.045)!important;box-sizing:border-box!important}.expense-history-v13 .table-wrap{max-height:520px!important;overflow:auto!important;border:1.2px solid rgba(0,0,0,.72)!important;border-radius:9px!important}.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:9.5px!important}.expense-history-v13 th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;padding:6px 7px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;border:1px solid rgba(0,0,0,.55)!important}.expense-history-v13 td{height:35px!important;padding:5px 7px!important;border:1px solid rgba(0,0,0,.35)!important;text-align:center!important}.expense-history-actions-v13{display:flex;align-items:center;justify-content:center;gap:5px}.expense-history-actions-v13 .danger{border-color:#d9a2a2!important;color:#9b2929!important;background:#fff7f7!important}
+'''
+insert='@media(max-height:650px) and (min-width:1050px)'
+if insert not in text: raise SystemExit('CSS media marker not found')
+text=text.replace(insert,history_css+'\n'+insert,1)
+
+text=text.replace('window.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;',"window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;\nwindow.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;",1)
+path.write_text(text,encoding='utf-8')
+
+verifier=Path('scripts/verify-critical-runtime.mjs')
+verify=verifier.read_text(encoding='utf-8')
+anchor="requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');"
+additions="""\nrequireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');\nrequireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');\nrequireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');\nrequireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');\nforbidText(financeUi,'expense-list-v13','expense history is no longer embedded under the expense dashboard');"""
+if additions.strip() not in verify:
+    if anchor not in verify: raise SystemExit('verifier finance anchor not found')
+    verify=verify.replace(anchor,anchor+additions,1)
+    verifier.write_text(verify,encoding='utf-8')
+
+old='20260912-finance-redesign-3';new='20260912-finance-redesign-4'
+for name in ['index.html','assets/production-license-gate-v8.js']:
+    p=Path(name);data=p.read_text(encoding='utf-8')
+    if old not in data: raise SystemExit(f'cache token not found in {name}')
+    p.write_text(data.replace(old,new),encoding='utf-8')
