@@ -38,6 +38,16 @@ jobs:
       - name: Apply canonical source changes
         run: node scripts/apply-reminder-document-polish.mjs
 
+      - name: Preserve established reminder wording contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('assets/production-domain-v13.js')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace('حتى يبقى ملفكم المالي محدثًا', 'لتحديث ملفكم المالي والمحافظة على انتظامه')
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
