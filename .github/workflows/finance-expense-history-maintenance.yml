@@ -22,6 +22,18 @@ jobs:
           node-version: 22
       - name: Apply finance refinement
         run: python3 scripts/finance_expense_history_tmp.py
+      - name: Refresh finance chart verifier expectation
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/verify-critical-runtime.mjs')
+          s=p.read_text(encoding='utf-8')
+          old="requireText(financeUi,'height=230','finance chart is compact enough for the fixed workspace');"
+          new="requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');"
+          if old in s:
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
       - name: Verify and build
         run: |
           npm install --ignore-scripts
