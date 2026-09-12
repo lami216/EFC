@@ -17,7 +17,6 @@ const DAYS=[
 ];
 const baseRenderRegister=window.renderRegister;
 const baseReceiptWindow=window.receiptWindowV4;
-let pendingSchedule=null;
 const studentList=()=>typeof students!=='undefined'&&Array.isArray(students)?students:[];
 
 function sharedTime(root,day){
@@ -71,7 +70,6 @@ function installSubmitCapture(){
   form.dataset.efcReceiptScheduleV22='1';
   form.addEventListener('submit',()=>{
     const snapshot=captureSchedule();
-    pendingSchedule=snapshot;
     const before=new Set(studentList().map(student=>String(student.id)));
     queueMicrotask(()=>{
       const created=studentList().find(student=>!before.has(String(student.id)));
@@ -158,12 +156,10 @@ function patchReceipt(frame,courses,autoPrint){
 }
 
 window.receiptWindowV4=function(model,autoPrint=false){
-  let normalized=model;
-  let schedule=model?.schedule||null;
-  if(model?.registrationReceipt&&pendingSchedule){schedule=pendingSchedule;normalized={...model,schedule};}
+  const schedule=model?.schedule||null;
   const courses=model?.registrationReceipt?selectedCourses(schedule):[];
-  const viewer=baseReceiptWindow(normalized,false);
-  if(model?.registrationReceipt&&viewer?.frame){patchReceipt(viewer.frame,courses,autoPrint);pendingSchedule=null;}
+  const viewer=baseReceiptWindow(model,false);
+  if(model?.registrationReceipt&&viewer?.frame)patchReceipt(viewer.frame,courses,autoPrint);
   else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),100);
   return viewer;
 };
@@ -180,6 +176,7 @@ window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   liveScheduleCapturedBeforeReceipt:true,
   savedScheduleMatchesBlackBoxes:true,
   checkboxSelectionPersistsWithoutTime:true,
+  noCrossRegistrationPendingState:true,
   mainUntouched:true
 });
 })();
