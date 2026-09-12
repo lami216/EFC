@@ -101,10 +101,12 @@ function enhanceOverlay(overlay){
   card.classList.add('efc-login-card-redesign-v15');
   if(!enhanceMainLogin(card))enhanceRecoveryCard(card);
 }
-function enhanceAll(){document.querySelectorAll('.login-overlay-v13').forEach(enhanceOverlay);document.querySelectorAll(PIN_SELECTOR).forEach(prepare);}
+const observedOverlays=new WeakSet();
 let enhanceQueued=false;
 function queueEnhance(){if(enhanceQueued)return;enhanceQueued=true;requestAnimationFrame(()=>{enhanceQueued=false;enhanceAll();});}
-const observer=new MutationObserver(queueEnhance);observer.observe(document.body,{childList:true,subtree:true});
+function observeOverlay(overlay){if(observedOverlays.has(overlay))return;observedOverlays.add(overlay);new MutationObserver(queueEnhance).observe(overlay,{childList:true,subtree:true});}
+function enhanceAll(){document.querySelectorAll('.login-overlay-v13').forEach(overlay=>{enhanceOverlay(overlay);observeOverlay(overlay);});document.querySelectorAll(PIN_SELECTOR).forEach(prepare);}
+window.EFC_ENHANCE_LOGIN_UI_V13=enhanceAll;
 enhanceAll();
 
 const style=document.createElement('style');style.id='efc-login-redesign-style-v15';style.textContent=`
@@ -114,5 +116,5 @@ const style=document.createElement('style');style.id='efc-login-redesign-style-v
 @media(max-height:760px){.login-overlay-v13.efc-login-redesign-v15{padding-top:54px!important;padding-bottom:52px!important}.login-card-v13.efc-login-card-redesign-v15{max-height:calc(100vh - 104px);padding-top:16px!important;padding-bottom:18px!important}.efc-login-logo-v15{width:104px!important;height:84px!important;margin-bottom:10px!important}.login-card-v13 .efc-login-title-v15{font-size:23px!important;margin:2px 0 17px!important;padding:10px 16px 13px!important}.efc-login-field-v15,.efc-login-field-v15 .input{height:56px!important;min-height:56px!important}.efc-login-field-v15 .input{padding-top:23px!important}.login-card-v13 .efc-login-submit-v15{min-height:52px!important;font-size:18px!important}.efc-login-divider-v15{margin:12px 0 8px}}
 `;document.head.appendChild(style);
 
-window.EFC_LOGIN_UI_V13=Object.freeze({ready:true,normalReadableSize:true,largerLoginCard:true,oldHalfScaleOverridden:true,pinStars:true,pinDigitsNotDisplayed:true,noBackgroundImage:true,referenceRedesignV15:true,existingLogoReused:true,functionalRecoveryLinks:true,functionalPinReveal:true,responsiveLogin:true,mainUntouched:true,arabicFont:LOGIN_FONT,introRemoved:true,largerLogo:true});
+window.EFC_LOGIN_UI_V13=Object.freeze({ready:true,loginScopedObserver:true,noBodyObserver:true,normalReadableSize:true,largerLoginCard:true,oldHalfScaleOverridden:true,pinStars:true,pinDigitsNotDisplayed:true,noBackgroundImage:true,referenceRedesignV15:true,existingLogoReused:true,functionalRecoveryLinks:true,functionalPinReveal:true,responsiveLogin:true,mainUntouched:true,arabicFont:LOGIN_FONT,introRemoved:true,largerLogo:true});
 })();

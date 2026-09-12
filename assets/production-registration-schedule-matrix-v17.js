@@ -50,18 +50,6 @@ function courseRow(course){
 }
 
 function bindMatrixBehavior(scheduleRoot){
-  scheduleRoot.querySelectorAll('[data-matrix-course][data-matrix-day]').forEach(check=>{
-    check.addEventListener('change',()=>{
-      if(!check.checked)return;
-      const day=String(check.dataset.matrixDay||'');
-      const time=scheduleRoot.querySelector(`[data-schedule-day-time="${CSS.escape(day)}"]`);
-      if(time?.value)return;
-      check.checked=false;
-      const label=DAYS.find(item=>item.key===day)?.ar||'اليوم';
-      alert(`حدد وقت ${label} أولًا، ثم اختر الدورة.`);
-      time?.focus();
-    });
-  });
   scheduleRoot.querySelectorAll('[data-schedule-day-time]').forEach(input=>{
     input.addEventListener('change',()=>{
       if(input.value)return;
@@ -231,6 +219,14 @@ body.efc-registration-redesign-v15 .schedule-course-check-v17 input{position:abs
 body.efc-registration-redesign-v15 .schedule-course-check-v17 span{display:block;width:22px;height:22px;border:2px solid #50625b;border-radius:5px;background:#fff;box-shadow:inset 0 0 0 2px #fff;transition:.12s ease}
 body.efc-registration-redesign-v15 .schedule-course-check-v17 input:checked+span{background:#111;border-color:#111;box-shadow:inset 0 0 0 3px #111}
 body.efc-registration-redesign-v15 .schedule-course-check-v17 input:focus-visible+span{outline:2px solid #118063;outline-offset:2px}
+body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,
+body.efc-registration-redesign-v15 .schedule-table-v13 tbody th span,
+body.efc-registration-redesign-v15 .schedule-time-row-v17 th{color:#111!important;opacity:1!important;font-weight:800!important}
+body.efc-registration-redesign-v15 .schedule-day-time-v17,
+body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit,
+body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-fields-wrapper,
+body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-hour-field,
+body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-minute-field{color:#111!important;opacity:1!important;font-weight:800!important;-webkit-text-fill-color:#111!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:112px!important;min-width:112px!important}
 @media(max-width:1180px){
   body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:98px!important;min-width:98px!important}
@@ -246,6 +242,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   noDefaultSelections:true,
   visualPlaceholders:true,
   placeholdersHiddenFromOptionLists:true,
+  checkboxCanBeSelectedBeforeTime:true,
   paymentMethodStartsBlank:true,
   paymentMethodRequiredWhenPaid:true,
   registrationCourseIsSource:true,

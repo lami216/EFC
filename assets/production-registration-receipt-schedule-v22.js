@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Registration receipt schedule v22 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_POLISH_V21?.ready&&window.EFC_DOMAIN_V13?.ready&&typeof window.renderRegister==='function'&&typeof window.receiptWindowV4==='function');
+await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready&&window.EFC_DOMAIN_V13?.ready&&typeof window.renderRegister==='function'&&typeof window.receiptWindowV4==='function');
 
 const D=window.EFC_DOMAIN_V13;
 const esc=D.esc;

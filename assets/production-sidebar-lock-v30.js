@@ -2,23 +2,7 @@
 'use strict';
 if(window.EFC_SIDEBAR_LOCK_V30?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Sidebar lock v30 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_UNIFIED_LAYOUT_V29?.ready&&window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&typeof window.shell==='function');
-
-const BRAND_HTML='<span>مركز EFC</span><span>للغات و المعلوماتية</span>';
-function normalizeBrand(){
-  const brand=document.querySelector('.shell.shell-v13 aside .brand');
-  if(!brand)return;
-  const title=brand.querySelector('b');
-  if(title&&title.innerHTML!==BRAND_HTML)title.innerHTML=BRAND_HTML;
-  const logo=brand.querySelector('.logo img');
-  if(logo){
-    if(logo.style.objectPosition!=='center center')logo.style.objectPosition='center center';
-    if(logo.style.margin!=='auto')logo.style.margin='auto';
-  }
-}
-const baseShell=window.shell;
-window.shell=function(content){const result=baseShell(content);normalizeBrand();return result;};
-normalizeBrand();
+await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&typeof window.shell==='function');
 
 const style=document.createElement('style');
 style.id='efc-sidebar-lock-style-v30';
@@ -104,13 +88,9 @@ html body.efc-period-redesign-v28 .efc-period-hero-v28::after{content:''!importa
 `;
 document.head.appendChild(style);
 
-const keepLast=()=>{const node=document.getElementById('efc-sidebar-lock-style-v30');if(node&&node!==document.head.lastElementChild)document.head.appendChild(node);normalizeBrand();};
-window.addEventListener('hashchange',()=>setTimeout(keepLast,40));
-window.addEventListener('load',()=>setTimeout(keepLast,80));
-
 window.EFC_SIDEBAR_LOCK_V30=Object.freeze({
-  ready:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
+  ready:true,singleSidebarDesignSource:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
   redesignedPagesUseRegistrationGap:true,redesignedTitlesMatchRegistrationHero:true,
-  centeredBrandLogo:true,normalizedBrandCopy:true,noMutationObserverLoop:true,mainUntouched:true
+  centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,mainUntouched:true
 });
 })();

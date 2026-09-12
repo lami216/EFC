@@ -26,31 +26,36 @@ function installPlaceholder(select,label,{required=false}={}){
   select.required=required;
   select.dataset.efcPlaceholderActive='1';
 
+  if(select.dataset.efcNativePlaceholderBound==='1')return;
+  select.dataset.efcNativePlaceholderBound='1';
+  const currentPlaceholder=()=>select.querySelector('option[data-efc-native-placeholder="1"]');
   const detach=()=>{
-    if(select.value||!placeholder.isConnected)return;
-    placeholder.remove();
+    const current=currentPlaceholder();
+    if(select.value||!current)return;
+    current.remove();
     select.selectedIndex=-1;
     select.dataset.efcPlaceholderActive='0';
   };
   const restore=()=>{
     if(select.value)return;
-    if(!placeholder.isConnected)select.insertBefore(placeholder,select.firstChild);
-    placeholder.selected=true;
+    let current=currentPlaceholder();
+    if(!current){
+      current=new Option(select.dataset.efcPlaceholderLabel||label,'',true,true);
+      current.disabled=true;
+      current.dataset.efcNativePlaceholder='1';
+      select.insertBefore(current,select.firstChild);
+    }
+    current.selected=true;
     select.selectedIndex=0;
     select.dataset.efcPlaceholderActive='1';
   };
-  const sync=()=>{
-    if(select.value)select.dataset.efcPlaceholderActive='0';
-    else restore();
-  };
-
-  select.onpointerdown=detach;
-  select.onmousedown=detach;
-  select.onkeydown=event=>{
-    if(!select.value&&['ArrowDown','ArrowUp','Enter',' ','F4'].includes(event.key))detach();
-  };
-  select.onchange=sync;
-  select.onblur=()=>setTimeout(sync,0);
+  const sync=()=>{if(select.value)select.dataset.efcPlaceholderActive='0';else restore();};
+  select.dataset.efcPlaceholderLabel=label;
+  select.addEventListener('pointerdown',detach);
+  select.addEventListener('mousedown',detach);
+  select.addEventListener('keydown',event=>{if(!select.value&&['ArrowDown','ArrowUp','Enter',' ','F4'].includes(event.key))detach();});
+  select.addEventListener('change',sync);
+  select.addEventListener('blur',()=>setTimeout(sync,0));
 }
 
 function enhance(){

@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 const runtimeFiles = [
   'index.html',
   'assets/production-ui-v13.css',
+  'assets/production-certificates-ui-v13.css',
   'production-loader.js',
   'efc-logo.svg',
   'assets/production-license-gate-v8.js',
@@ -22,27 +23,16 @@ const runtimeFiles = [
   'assets/production-registration-responsive-v16.js',
   'assets/production-registration-schedule-matrix-v17.js',
   'assets/production-registration-select-native-v19.js',
-  'assets/production-registration-schedule-compat-v20.js',
-  'assets/production-registration-schedule-polish-v21.js',
   'assets/production-registration-receipt-schedule-v22.js',
   'assets/production-courses-centers-redesign-v23.js',
-  'assets/production-brand-polish-v24.js',
   'assets/production-courses-centers-compact-v25.js',
-  'assets/production-courses-centers-order-fix-v26.js',
   'assets/production-courses-centers-detail-fix-v27.js',
   'assets/production-period-search-redesign-v28.js',
-  'assets/production-unified-layout-v29.js',
   'assets/production-sidebar-lock-v30.js',
   'assets/production-student-search-redesign-v31.js',
   'assets/production-search-detail-polish-v32.js',
   'assets/production-period-count-and-grid-polish-v33.js',
   'assets/production-search-title-grid-unify-v34.js',
-  'assets/production-certificates-redesign-v35.js',
-  'assets/production-certificates-workspace-v36.js',
-  'assets/production-certificates-date-control-fix-v37.js',
-  'assets/production-certificates-student-picker-v38.js',
-  'assets/production-certificates-student-results-panel-v39.js',
-  'assets/production-certificates-student-layout-v40.js',
   'assets/production-security-ui-v13.js',
   'assets/production-login-ui-v13.js'
 ];
@@ -72,7 +62,20 @@ const forbiddenProductionFiles = [
   'scripts/build-demo.mjs',
   'scripts/harden-production.mjs',
   'scripts/verify-center-ops-v11.mjs',
-  'scripts/verify-production.mjs'
+  'scripts/verify-production.mjs',
+  'assets/production-registration-select-overlay-v18.js',
+  'assets/production-brand-polish-v24.js',
+  'assets/production-courses-centers-order-fix-v26.js',
+  'assets/production-unified-layout-v29.js',
+  'assets/production-certificates-redesign-v35.js',
+  'assets/production-certificates-workspace-v36.js',
+  'assets/production-certificates-date-control-fix-v37.js',
+  'assets/production-certificates-student-picker-v38.js',
+  'assets/production-certificates-student-results-panel-v39.js',
+  'assets/production-certificates-student-layout-v40.js',
+  'assets/efc-logo-inline.txt',
+  'assets/production-registration-schedule-compat-v20.js',
+  'assets/production-registration-schedule-polish-v21.js'
 ];
 
 for (const file of forbiddenProductionFiles) {
@@ -103,4 +106,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC clean v13 production runtime copied to dist with monthly prepayment v14, registration redesign/responsive sizing/schedule matrix/native select placeholders/cache-safe schedule preview/schedule polish/registration receipt schedule/courses and centers redesign/sidebar brand polish/compact specialties sizing/order-safe compact override/detail polish v27/period search redesign v28/unified layout v29/global sidebar lock v30/student search redesign v31/search detail polish v32/period count and grid polish v33/search title and grid unify v34/certificates redesign v35/certificates workspace v36/certificate date control fix v37/certificate student picker v38/fixed certificate results panel v39/certificate student layout v40, login UI and offline PDF libraries; obsolete demo-era sources are absent.');
+console.log('EFC production runtime copied to dist with monthly prepayment v14, registration schedule and receipt support, courses/centers/search refinements, one sidebar design source, one consolidated certificate renderer and stylesheet, login UI, and offline PDF libraries; obsolete runtime sources are absent.');

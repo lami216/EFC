@@ -21,11 +21,12 @@ const RUNTIME=[
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
+const RUNTIME_VERSION='20260912-runtime-audit';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
 
-function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));document.head.appendChild(script);});}
+function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=`${src}${src.includes('?')?'&':'?'}v=${RUNTIME_VERSION}`;script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));document.head.appendChild(script);});}
 function waitUntil(check,label,timeout=15000){const startedAt=Date.now();return new Promise((resolve,reject)=>{const poll=()=>{try{if(check()){resolve();return;}}catch{}if(Date.now()-startedAt>=timeout){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}setTimeout(poll,20);};poll();});}
 function reveal(){document.documentElement.classList.remove('efc-booting');}
 

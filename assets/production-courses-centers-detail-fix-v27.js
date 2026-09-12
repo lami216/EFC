@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Courses/centers detail fix v27 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_COURSES_CENTERS_ORDER_FIX_V26?.ready&&document.getElementById('efc-courses-centers-compact-style-v25'));
+await waitUntil(()=>window.EFC_COURSES_CENTERS_COMPACT_V25?.ready&&document.getElementById('efc-courses-centers-compact-style-v25'));
 const style=document.createElement('style');
 style.id='efc-courses-centers-detail-fix-style-v27';
 style.textContent=`

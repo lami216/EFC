@@ -13,22 +13,7 @@ const ICONS={
   clock:icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   eye:icon('<path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/>')
 };
-const baseShell=window.shell;
 const baseRenderSpecialties=window.renderSpecialties;
-
-function enhanceBrand(){
-  const brand=document.querySelector('.shell-v13 .brand');
-  if(!brand)return;
-  const logo=brand.querySelector('.logo img');
-  if(logo){logo.style.padding='0';logo.style.width='46px';logo.style.height='46px';logo.style.maxWidth='100%';logo.style.maxHeight='100%';}
-  const title=brand.querySelector('b');
-  if(title&&!title.dataset.efcBrandV23){
-    title.dataset.efcBrandV23='1';
-    title.innerHTML='<span>مركز EFC</span><span>للمعلوماتية واللغات</span>';
-  }
-}
-window.shell=function(content){const result=baseShell(content);enhanceBrand();return result;};
-enhanceBrand();
 
 function makeViewAllButton(id){
   const button=document.createElement('button');
@@ -123,14 +108,12 @@ function enhanceSpecialtiesPage(){
 
 window.renderSpecialties=function(){
   baseRenderSpecialties();
-  enhanceBrand();
   enhanceSpecialtiesPage();
 };
 
 window.addEventListener('hashchange',()=>{
   const page=location.hash.replace('#','');
   document.body.classList.toggle('efc-specialties-redesign-v23',page==='specialties');
-  setTimeout(enhanceBrand,0);
 });
 if((location.hash.replace('#','')||window.currentPage)==='specialties')enhanceSpecialtiesPage();
 
