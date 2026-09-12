@@ -88,6 +88,14 @@ requireText(financeUi,'#financeModeV13 button.active','finance period buttons ha
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
 requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');
+requireText(financeUi,'justify-content:flex-start!important','finance KPI cards align their primary rows consistently at the top');
+const periodUi=read('assets/production-period-search-redesign-v28.js');
+const studentSearchUi=read('assets/production-student-search-redesign-v31.js');
+const baseUi=read('assets/production-ui-v13.css');
+requireText(periodUi,'max-height:calc(100vh - 405px)!important','period search results scroll internally');
+requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
+requireText(studentSearchUi,'max-height:calc(100vh - 260px)!important','student search results scroll internally');
+requireText(baseUi,'.content .table-wrap{max-height:min(520px,calc(100vh - 250px))','long app tables have a global internal-scroll safety cap');
 requireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');
 requireText(financeUi,'viewProfitabilityDetailsV13','profitability dashboard exposes a dedicated details action');
 requireText(financeUi,'function renderProfitabilityDetails','profitability detail table lives on its own page');

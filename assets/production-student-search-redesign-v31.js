@@ -77,7 +77,7 @@ html body.efc-student-search-redesign-v31 #studentsTableV13.efc-student-search-r
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
   width:900px!important;max-width:900px!important;min-width:900px!important;
-  overflow:auto!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
+  max-height:calc(100vh - 260px)!important;min-height:220px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
   background:#fff!important;box-shadow:none!important;
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 table{
@@ -85,6 +85,7 @@ html body.efc-student-search-redesign-v31 #studentsTableV13 table{
   font-size:10px!important;color:#111!important;background:#fff!important;
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 th{
+  position:sticky!important;top:0!important;z-index:3!important;
   height:43px!important;padding:8px 9px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;
   color:#fff!important;border:1px solid rgba(0,0,0,.65)!important;font-size:10.5px!important;font-weight:800!important;
   text-align:center!important;vertical-align:middle!important;
