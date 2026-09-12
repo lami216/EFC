@@ -76,20 +76,20 @@ async function hydrateCenters(){
 }
 await hydrateCenters();
 
-const baseForcePersist=window.EFC_FORCE_PERSIST;
 const baseApplyRestored=window.EFC_APPLY_RESTORED_STATE;
 let centerPersistTimer=null;
 async function persistCentersNow(){
-  const state=typeof baseForcePersist==='function'?await baseForcePersist():{};
+  return typeof window.EFC_FORCE_PERSIST==='function'?window.EFC_FORCE_PERSIST():{};
+}
+function contributeCenters(state){
   state.branches=branches.map(item=>({id:String(item.id),name:String(item.name)}));
-  if(invoke)await invoke('save_app_state',{state:JSON.stringify(state)});
   return state;
 }
 function saveCenters(){
   localStorage.setItem(CENTER_KEY,JSON.stringify(branches));
   clearTimeout(centerPersistTimer);centerPersistTimer=setTimeout(()=>window.EFC_FORCE_PERSIST?.().catch?.(error=>console.error('EFC center save failed.',error)),140);
 }
-if(typeof baseForcePersist==='function')window.EFC_FORCE_PERSIST=persistCentersNow;
+window.EFC_REGISTER_STATE_CONTRIBUTOR?.('centers',contributeCenters);
 if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
   const result=await baseApplyRestored(incoming);
   if(Array.isArray(incoming?.branches))applyCenters(incoming.branches);

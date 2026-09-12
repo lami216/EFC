@@ -105,6 +105,7 @@ const iso=date=>`${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getD
 const addDuration=(start,value,unit)=>{const date=dateOnly(start);if(unit==='day')date.setDate(date.getDate()+Number(value));if(unit==='month'){const day=date.getDate();date.setDate(1);date.setMonth(date.getMonth()+Number(value));const last=new Date(date.getFullYear(),date.getMonth()+1,0).getDate();date.setDate(Math.min(day,last));}return iso(date);};
 const money=value=>`${Number(value||0)} أوقية`;
 const fmtDate=value=>String(value||'');
+const contributors=new Map();
 const context={
   console,Date,setTimeout,clearTimeout,structuredClone,crypto:webcrypto,TextEncoder,TextDecoder,Uint8Array,atob:globalThis.atob,btoa:globalThis.btoa,
   localStorage,students,specialties,methods,DEMO_TODAY:'2026-09-09',dateOnly,iso,addDuration,money,fmtDate,
@@ -113,7 +114,7 @@ const context={
   remainingOf:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),courseStatus:student=>student.active===false?'موقوف':'نشطة',financialStatus:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0))?'دفع جزئي':'مدفوع كامل',
   installmentPlanV3:()=>[],monthlyFocusV3:()=>null,dueNowV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),suggestedPaymentV3:student=>Math.max(0,Number(student.required||0)-Number(student.paid||0)),allocV4:()=>({desc:'',before:0,after:0,months:[]}),
   receiptModelV4:(student,index)=>index===null?{amount:0,remaining:student.required}:{amount:Number(student.payments[index][1]),remaining:Math.max(0,student.required-Number(student.payments[index][1]))},
-  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_FORCE_PERSIST:async()=>({students,specialties,paymentMethods:methods}),EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
+  window:{EFC_RECEIPTS_V13:{ready:true},EFC_RECEIPT_SEQUENCES_V10:true,EFC_REGISTER_STATE_CONTRIBUTOR:(name,contribute)=>contributors.set(name,contribute),EFC_FORCE_PERSIST:async()=>{let state={students,specialties,paymentMethods:methods};for(const contribute of contributors.values())state=await contribute(state)||state;return state;},EFC_APPLY_RESTORED_STATE:async()=>({}),EFC_CODES:{newTransactionCode:()=>`tx-${Date.now()}`,ensureStudentRecord:()=> 'record'}}
 };
 context.window.window=context.window;
 vm.createContext(context);

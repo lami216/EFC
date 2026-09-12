@@ -67,19 +67,19 @@ function syncActiveMethods(){
 normalizeExpenses();
 syncActiveMethods();
 
-const baseForcePersist=window.EFC_FORCE_PERSIST;
 const baseApplyRestored=window.EFC_APPLY_RESTORED_STATE;
 let extraSaveTimer=null;
 function localExtraUpdatedAt(){return Math.max(0,Number(readJson(STORAGE.meta,{updatedAt:0})?.updatedAt||0));}
 function markExtrasChanged(){writeJson(STORAGE.meta,{updatedAt:Date.now()});}
 async function persistExtrasNow(){
-  if(typeof baseForcePersist!=='function')return null;
-  const state=await baseForcePersist();
+  if(typeof window.EFC_FORCE_PERSIST!=='function')return null;
+  return window.EFC_FORCE_PERSIST();
+}
+function contributeExtras(state){
   state.expenses=expenses;
   state.paymentMethodRecords=methodRecords;
   state.security=securityState;
   state.centerOpsMeta={updatedAt:localExtraUpdatedAt()||Date.now(),version:13};
-  if(invoke)await invoke('save_app_state',{state:JSON.stringify(state)});
   return state;
 }
 function persistExtrasSoon(){
@@ -107,7 +107,7 @@ async function hydrateExtrasFromDesktop(){
     if(nativeUpdated>localUpdated)writeJson(STORAGE.meta,{updatedAt:nativeUpdated});
   }catch(error){console.error('EFC v13 extra-state hydration failed; local state kept.',error);}
 }
-if(typeof baseForcePersist==='function')window.EFC_FORCE_PERSIST=persistExtrasNow;
+window.EFC_REGISTER_STATE_CONTRIBUTOR?.('center-operations',contributeExtras);
 if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
   const result=await baseApplyRestored(incoming);
   if(Array.isArray(incoming?.expenses))expenses=incoming.expenses;

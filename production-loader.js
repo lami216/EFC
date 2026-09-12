@@ -13,6 +13,7 @@ const DEFAULT_METHODS=['نقداً','Bankily','Masrvi','السداد'];
 const invoke=window.__TAURI__?.core?.invoke;
 let writeChain=Promise.resolve();
 let persistTimer=null;
+const stateContributors=new Map();
 
 const parseArray=(raw,fallback=[])=>{try{const value=JSON.parse(raw??'null');return Array.isArray(value)?value:fallback;}catch{return fallback;}};
 const safeClone=value=>JSON.parse(JSON.stringify(value??null));
@@ -35,7 +36,20 @@ function chooseNewestState(localState,desktopState){if(!desktopState)return loca
 function applyState(state,{freshTimestamp=false}={}){const localInstallationId=ensureLocalInstallationId(),normalized=normalizeState(state,localInstallationId);normalized.installationId=localInstallationId;if(!normalized.sourceCenters.includes(localInstallationId))normalized.sourceCenters.push(localInstallationId);const updatedAt=freshTimestamp?Date.now():(normalized.updatedAt||Date.now());LEGACY_KEYS.forEach(key=>localStorage.removeItem(key));localStorage.setItem(KEYS.students,JSON.stringify(normalized.students));localStorage.setItem(KEYS.specialties,JSON.stringify(normalized.specialties));localStorage.setItem(KEYS.methods,JSON.stringify(normalized.paymentMethods));writeMeta({version:3,updatedAt,installationId:localInstallationId,sourceCenters:normalized.sourceCenters});return{...normalized,updatedAt,installationId:localInstallationId};}
 async function persistCoreNow(state=null){if(!invoke)return state||stateFromLocalStorage();const payload=normalizeState(state||stateFromLocalStorage(),ensureLocalInstallationId());payload.installationId=ensureLocalInstallationId();if(!payload.updatedAt)payload.updatedAt=Date.now();await invoke('save_app_state',{state:JSON.stringify(payload)});return payload;}
 function markLocalChange(){const meta=readMeta(),installationId=ensureLocalInstallationId();writeMeta({version:3,updatedAt:Date.now(),installationId,sourceCenters:Array.isArray(meta.sourceCenters)&&meta.sourceCenters.length?meta.sourceCenters:[installationId]});}
-function scheduleCurrentPersist(){clearTimeout(persistTimer);persistTimer=setTimeout(()=>{writeChain=writeChain.catch(()=>undefined).then(()=>Promise.resolve(window.EFC_FORCE_PERSIST?.())).catch(error=>console.error('EFC state save failed.',error));},120);return writeChain;}
+async function currentSnapshot(){
+  let snapshot=stateFromLocalStorage();
+  for(const contribute of stateContributors.values())snapshot=await contribute(snapshot)||snapshot;
+  return snapshot;
+}
+function enqueueCurrentPersist(){
+  const pending=writeChain.catch(()=>undefined).then(async()=>persistCoreNow(await currentSnapshot()));
+  writeChain=pending.catch(error=>{console.error('EFC state save failed.',error);throw error;});
+  return pending;
+}
+function scheduleCurrentPersist(){
+  clearTimeout(persistTimer);
+  persistTimer=setTimeout(()=>{persistTimer=null;enqueueCurrentPersist().catch(()=>undefined);},120);
+}
 
 const ready=(async()=>{
   const localState=stateFromLocalStorage(),desktopState=await loadDesktopState(),activeState=applyState(chooseNewestState(localState,desktopState));
@@ -45,11 +59,15 @@ const ready=(async()=>{
     ensurePaymentCode(student,payment,index){const recordCode=this.ensureStudentRecord(student),normalized=ensurePaymentCode(payment,recordCode,index);payment.splice(0,payment.length,...normalized);return payment[6];},
     newTransactionCode(student){const recordCode=this.ensureStudentRecord(student);return`tx-${stableHash(recordCode)}-${Date.now().toString(36)}-${globalThis.crypto?.randomUUID?.().slice(0,8)||Math.random().toString(36).slice(2,10)}`;}
   });
-  window.EFC_FORCE_PERSIST=async()=>{const snapshot=stateFromLocalStorage();await writeChain.catch(()=>undefined);await persistCoreNow(snapshot);return snapshot;};
+  window.EFC_REGISTER_STATE_CONTRIBUTOR=(name,contribute)=>{
+    if(typeof contribute!=='function')throw new TypeError('EFC state contributor must be a function.');
+    stateContributors.set(String(name||`contributor-${stateContributors.size+1}`),contribute);
+  };
+  window.EFC_FORCE_PERSIST=()=>{clearTimeout(persistTimer);persistTimer=null;return enqueueCurrentPersist();};
   window.EFC_CORE_CHANGED=()=>{markLocalChange();scheduleCurrentPersist();};
   window.EFC_MERGE_IMPORTED_STATE=async incoming=>{const current=stateFromLocalStorage(),{state:merged,stats}=mergeStates(current,incoming),applied=applyState(merged,{freshTimestamp:true});await persistCoreNow(applied);return{state:applied,stats};};
   window.EFC_APPLY_RESTORED_STATE=window.EFC_MERGE_IMPORTED_STATE;
-  window.EFC_CORE_STORAGE_V13=Object.freeze({ready:true,explicitPersistence:true,noStoragePrototypePatch:true,noRuntimeScriptChain:true,installationId:activeState.installationId,sourceCenters:activeState.sourceCenters?.length||1});
+  window.EFC_CORE_STORAGE_V13=Object.freeze({ready:true,explicitPersistence:true,serializedNativeWrites:true,stateContributors:true,noStoragePrototypePatch:true,noRuntimeScriptChain:true,installationId:activeState.installationId,sourceCenters:activeState.sourceCenters?.length||1});
   return window.EFC_CORE_STORAGE_V13;
 })().catch(error=>{console.error('EFC core storage bootstrap failed.',error);throw error;});
 window.EFC_CORE_STORAGE_READY=ready;
