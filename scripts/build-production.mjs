@@ -63,6 +63,8 @@ const forbiddenProductionFiles = [
   'scripts/harden-production.mjs',
   'scripts/verify-center-ops-v11.mjs',
   'scripts/verify-production.mjs',
+  'scripts/apply-reminder-document-polish.mjs',
+  '.github/workflows/reminder-document-polish.yml',
   'assets/production-registration-select-overlay-v18.js',
   'assets/production-brand-polish-v24.js',
   'assets/production-courses-centers-order-fix-v26.js',
