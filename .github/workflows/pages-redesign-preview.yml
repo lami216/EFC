@@ -29,6 +29,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
+      - name: Verify production runtime
+        run: npm run check
+
       - name: Build browser preview
         run: npm run build
 
