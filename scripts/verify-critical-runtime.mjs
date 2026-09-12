@@ -75,6 +75,16 @@ forbidText(certificates,'new MutationObserver(','certificate renderer observer')
 forbidText(certificates,'activeStudentId','duplicate certificate student state');
 forbidText(certificates,'.click();','visible certificate control forwarding to a hidden control');
 
+const domain=read('assets/production-domain-v13.js');
+for(const token of ['function reminderNote(','kind:\'monthly-upcoming\'','kind:overdue?\'debt-overdue\':\'debt-due\'','تفاصيل الرصيد','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);
+
+const studentUi=read('assets/production-student-ui-v13.js');
+for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminder-actions-v13','حفظ PDF'])requireText(studentUi,token,`student reminder action ${token}`);
+
+const securityUi=read('assets/production-security-ui-v13.js');
+for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','Rappel'])requireText(securityUi,token,`reminder document ${token}`);
+forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
+
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
 for(const obsolete of [
@@ -87,4 +97,4 @@ for(const obsolete of [
 ])forbidText(runtimeBlock,obsolete,`obsolete certificate patch ${obsolete}`);
 
 await verifyPersistenceCompletes();
-console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, and certificates reset completed work safely without duplicate-submit or draft-loss behavior.');
+console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, and reminders provide structured messages with receipt-style preview/PDF actions.');
