@@ -181,8 +181,8 @@ replaceRequired(TEST,testAnchor,`${reminderChecks}${testAnchor}`,'critical remin
 
 for(const path of ['index.html','assets/production-license-gate-v8.js']){
   const source=read(path);
-  if(!source.includes('20260912-workflow-fixes'))throw new Error(`Cache token not found in ${path}`);
-  write(path,source.replaceAll('20260912-workflow-fixes','20260912-reminder-polish-2'));
+  if(!source.includes('20260912-reminder-docs'))throw new Error(`Cache token not found in ${path}`);
+  write(path,source.replaceAll('20260912-reminder-docs','20260912-reminder-polish-2'));
 }
 
 console.log('Applied reminder document polish to canonical v13 sources.');
