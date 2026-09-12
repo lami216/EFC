@@ -62,9 +62,14 @@ const registration=read('assets/production-registration-select-native-v19.js');
 forbidText(registration,'select.onchange=','registration placeholder replacing the base onchange handler');
 requireText(registration,"select.addEventListener('change',sync)",'registration placeholder preserves the base onchange handler');
 
+const registrationReceipt=read('assets/production-registration-receipt-schedule-v22.js');
+forbidText(registrationReceipt,'pendingSchedule','registration receipt global state leaking between registrations');
+requireText(registrationReceipt,'noCrossRegistrationPendingState:true','registration receipts use the saved student schedule without cross-operation pending state');
+
 const certificates=read('assets/production-certificates-v13.js');
 for(const token of ['selectStudent(id)','clearStudentSelection()','renderStudentPicker()','renderHistoryRows()','resetTransientIssueState()','issueInFlight','addBranchOption(branch)'])requireText(certificates,token,`certificate controller ${token}`);
 requireText(certificates,'state.certificateReceipts=state.certificateReceipts.filter','certificate issue rollback after persistence failure');
+requireText(certificates,"'\"':'&quot;'",'certificate HTML quote escaping');
 forbidText(certificates,'persist().then(renderCertificates)','certificate branch add rerendering and discarding the external form draft');
 forbidText(certificates,'new MutationObserver(','certificate renderer observer');
 forbidText(certificates,'activeStudentId','duplicate certificate student state');
@@ -82,4 +87,4 @@ for(const obsolete of [
 ])forbidText(runtimeBlock,obsolete,`obsolete certificate patch ${obsolete}`);
 
 await verifyPersistenceCompletes();
-console.log('Critical runtime verification passed: persistence completes with contributed state intact, registration preserves its base change handler, and certificates reset completed work safely without observer patches or draft-destroying rerenders.');
+console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, and certificates reset completed work safely without duplicate-submit or draft-loss behavior.');
