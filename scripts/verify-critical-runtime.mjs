@@ -89,6 +89,9 @@ requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicat
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
 requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');
 requireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');
+requireText(financeUi,'viewProfitabilityDetailsV13','profitability dashboard exposes a dedicated details action');
+requireText(financeUi,'function renderProfitabilityDetails','profitability detail table lives on its own page');
+requireText(financeUi,'compactFinanceKpis:true','finance KPI titles stay compact');
 forbidText(financeUi,'expense-list-v13','expense history is no longer embedded under the expense dashboard');
 requireText(financeUi,'margin-right:22px!important','finance workspace keeps certificate-page sidebar spacing');
 forbidText(financeUi,'zoom:.92','finance page should not shrink the entire workspace on short screens');
