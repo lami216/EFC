@@ -6,7 +6,7 @@ if(!window.EFC_RECEIPTS_V13?.ready||typeof allPayments!=='function'||typeof shel
 const STORAGE_KEY='efc-certificate-state-v1';
 const CERTIFICATE_SUBTITLE='للغات والمعلوماتية';
 const invoke=window.__TAURI__?.core?.invoke;
-const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[ch]));
 const pad2=value=>String(value).padStart(2,'0');
 const padReceipt=value=>String(Math.max(0,Number(value||0))).padStart(5,'0');
 const today=()=>typeof deviceTodayV3==='function'?deviceTodayV3():DEMO_TODAY;
@@ -25,6 +25,8 @@ let state={certificateBranches:[],certificateReceipts:[]};
 let mode='internal';
 let selectedStudentId=null;
 let historyOpen=false;
+let issueInFlight=false;
+let branchSaveInFlight=false;
 let saveChain=Promise.resolve();
 
 function normalizeBranch(item){
@@ -155,19 +157,32 @@ async function savePdf(receipt){
 }
 
 function isOperationalStudent(student){return Boolean(student&&student.active!==false&&student.status!=='inactive');}
-function addBranch(){
+function syncBranchButtonBusy(){const button=document.getElementById('certAddBranchV13');if(button)button.disabled=branchSaveInFlight||!canEditCertificates();}
+function addBranchOption(branch){
+  const select=document.getElementById('certExternalBranchV13');if(!select)return;
+  let option=[...select.options].find(item=>item.value===branch.id);
+  if(!option){option=document.createElement('option');option.value=branch.id;option.textContent=branch.name;select.appendChild(option);}
+  select.value=branch.id;
+}
+async function addBranch(){
+  if(branchSaveInFlight)return;
   if(!canEditCertificates())return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');
   const name=String(prompt('اسم فرع الشهادة الجديد:')||'').trim();if(!name)return;
   if(state.certificateBranches.some(item=>item.name.trim().toLowerCase()===name.toLowerCase()))return alert('هذا الفرع موجود مسبقًا.');
-  state.certificateBranches.push({id:uid('cert-branch'),recordCode:uid('cert-branch-record'),name,createdAt:Date.now()});mode='external';persist().then(renderCertificates);
+  const branch={id:uid('cert-branch'),recordCode:uid('cert-branch-record'),name,createdAt:Date.now()};
+  state.certificateBranches.push(branch);branchSaveInFlight=true;syncBranchButtonBusy();
+  try{await persist();addBranchOption(branch);}
+  catch(error){state.certificateBranches=state.certificateBranches.filter(item=>item.id!==branch.id);writeLocal();console.error('EFC certificate branch save failed.',error);alert('تعذر حفظ فرع الشهادة. لم يتم تغيير البيانات المدخلة.');}
+  finally{branchSaveInFlight=false;syncBranchButtonBusy();}
 }
 function historyRows(){return[...state.certificateReceipts].sort((a,b)=>b.date.localeCompare(a.date)||Number(b.timestamp)-Number(a.timestamp)).map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}" data-date="${esc(receipt.date)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${receipt.studentType==='internal'?'مسجل':'خارجي'}</td><td>${esc(receipt.branchName)}</td><td>${esc(receipt.specialtyName)}</td><td>${cash(receipt.amount)}</td><td>${esc(receipt.method)}</td><td>${showDate(receipt.date)}</td></tr>`).join('');}
 function renderHistoryRows(){return historyRows();}
-function syncIssueButton(){const issue=document.getElementById('certIssueV13');if(issue)issue.disabled=!canEditCertificates()||(mode==='internal'&&!selectedStudentId);}
+function syncIssueButton(){const issue=document.getElementById('certIssueV13');if(issue)issue.disabled=issueInFlight||!canEditCertificates()||(mode==='internal'&&!selectedStudentId);}
 function selectedStudent(){const student=students.find(item=>String(item.id)===String(selectedStudentId));if(!isOperationalStudent(student))selectedStudentId=null;return isOperationalStudent(student)?student:null;}
 function selectedStudentMarkup(student){const reg=String(student.reg??'').padStart(4,'0');return`<div class="efc-cert-selected-main-v38"><span class="efc-cert-selected-kicker-v38">الطالب المختار</span><strong>${esc(student.name||'—')}</strong><div class="efc-cert-selected-facts-v38"><span><small>الهاتف</small><b>${esc(student.phone||'—')}</b></span><span><small>رقم السجل</small><b>${esc(reg)}</b></span><span><small>الفرع</small><b>${esc(branchName(student.branch))}</b></span><span><small>الدورة</small><b>${esc(spec(student.specialty)?.name||student.specialty||'—')}</b></span></div></div><button type="button" class="efc-cert-cancel-student-v38" aria-label="إلغاء اختيار الطالب">${X_ICON}<span>إلغاء الاختيار</span></button>`;}
 function selectStudent(id){const student=students.find(item=>String(item.id)===String(id));selectedStudentId=isOperationalStudent(student)?String(student.id):null;renderStudentPicker();}
 function clearStudentSelection(){selectedStudentId=null;renderStudentPicker();}
+function resetTransientIssueState(){selectedStudentId=null;historyOpen=false;}
 function renderStudentPicker(){
   const root=document.getElementById('certStudentResultsV13'),host=document.querySelector('.efc-cert-selected-host-v40'),filters=document.querySelector('.efc-cert-student-filters-v38');
   if(!root||!host||!filters)return;
@@ -195,7 +210,7 @@ function switchMode(next){
   if(internal)internal.hidden=historyOpen||mode!=='internal';if(external)external.hidden=historyOpen||mode==='internal';
   placePaymentControls();
   const payment=document.querySelector('.cert-payment-v13'),issue=document.getElementById('certIssueV13');if(payment)payment.hidden=historyOpen;if(issue)issue.hidden=historyOpen;
-  syncIssueButton();
+  syncIssueButton();syncBranchButtonBusy();
 }
 function formatHistoryDate(value){const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return match?`${match[3]}/${match[2]}/${match[1]}`:'اختر التاريخ';}
 function applyHistoryDateFilter(){
@@ -211,6 +226,7 @@ function setHistoryMode(show){
   switchMode(mode);if(historyOpen)applyHistoryDateFilter();
 }
 async function issueReceipt(){
+  if(issueInFlight)return;
   if(!canEditCertificates())return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');
   const amount=Math.max(0,Number(document.getElementById('certAmountV13')?.value||0)),method=String(document.getElementById('certMethodV13')?.value||'').trim();
   if(amount<=0)return alert('أدخل مبلغًا صحيحًا.');if(!method)return alert('اختر وسيلة الدفع.');
@@ -224,10 +240,14 @@ async function issueReceipt(){
     data={studentType:'external',studentId:null,studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:branch.id,branchName:branch.name};
   }
   const receipt=normalizeReceipt({...data,id:uid('certificate'),recordCode:uid('certificate-record'),transactionCode:uid('certificate-tx'),receiptNo:nextReceiptNo(),amount,method,date:today(),time:nowTime(),timestamp:Date.now(),createdAt:Date.now()});
-  state.certificateReceipts.unshift(receipt);await persist();renderCertificates();openReceipt(receipt);
+  issueInFlight=true;syncIssueButton();state.certificateReceipts.unshift(receipt);
+  try{await persist();}
+  catch(error){state.certificateReceipts=state.certificateReceipts.filter(item=>item.id!==receipt.id);writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate issue failed.',error);alert('تعذر حفظ الشهادة. لم يتم اعتماد العملية، ويمكنك المحاولة مجددًا.');return;}
+  issueInFlight=false;renderCertificates();openReceipt(receipt);
 }
 
 function renderCertificates(){
+  resetTransientIssueState();
   currentPage='certificates';document.body.classList.add('efc-certificates-redesign-v35','efc-certificates-workspace-v36');
   const branchOptions=state.certificateBranches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join(''),editable=canEditCertificates(),date=today();
   const title=`<div class="page-title efc-cert-hero-v35 efc-cert-hero-v36"><div><span class="efc-cert-title-icon-v36">${CERT_ICON}</span><h1>روسي الشهادة</h1></div></div>`;
@@ -258,7 +278,7 @@ async function boot(){
   window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;
   window.EFC_FIND_CERTIFICATE_V13=id=>state.certificateReceipts.find(item=>String(item.id)===String(id))||null;
   window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;
-  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,separateCertificateFinance:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:true,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
+  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:true,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }
 
 boot().catch(error=>{console.error('EFC certificates v13 failed to initialize.',error);throw error;});
