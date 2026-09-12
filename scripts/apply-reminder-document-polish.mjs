@@ -121,8 +121,8 @@ const reminderModelBlock=String.raw`function reminderModel(note){
 }`;
 replaceRegexRequired(
   SECURITY,
-  /function reminderModel\(note\)\{[\s\S]*?\n\}/,
-  reminderModelBlock,
+  /function reminderModel\(note\)\{[\s\S]*?\n\}\nfunction reminderCss\(\)/,
+  `${reminderModelBlock}\nfunction reminderCss()`,
   'reminder preview model'
 );
 
@@ -161,8 +161,8 @@ const reminderBodyBlock=String.raw`function reminderBody(note){
 }`;
 replaceRegexRequired(
   SECURITY,
-  /function reminderBody\(note\)\{[\s\S]*?\n\}/,
-  reminderBodyBlock,
+  /function reminderBody\(note\)\{[\s\S]*?\n\}\nfunction reminderDocument\(/,
+  `${reminderBodyBlock}\nfunction reminderDocument(`,
   'reminder compact fact row'
 );
 
