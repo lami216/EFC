@@ -22,7 +22,7 @@ jobs:
         run: python3 scripts/finance_redesign_tmp.py
       - name: Verify and build
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run check
           npm run build
       - name: Commit source changes
