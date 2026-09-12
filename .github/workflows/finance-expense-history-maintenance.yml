@@ -28,11 +28,11 @@ jobs:
           from pathlib import Path
           p=Path('scripts/verify-critical-runtime.mjs')
           s=p.read_text(encoding='utf-8')
-          old="requireText(financeUi,'height=230','finance chart is compact enough for the fixed workspace');"
+          old="requireText(financeUi,'height=205','finance chart is compact enough for the fixed workspace');"
           new="requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');"
-          if old in s:
-              s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
+          if old not in s:
+              raise SystemExit('old finance chart verifier token not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
           PY
       - name: Verify and build
         run: |
