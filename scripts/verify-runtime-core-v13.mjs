@@ -79,7 +79,7 @@ requireText(source.student,'.quick-days-v13[hidden]','quick duration hidden rule
 requireText(source.student,"typeEl.value==='quick'",'quick duration conditional');
 requireText(source.student,"form.setAttribute('autocomplete','off')",'global form autocomplete disable');
 requireText(source.finance,'financePrimaryActionV13','expense primary action slot');
-requireText(source.finance,"section==='expenses'&&canEdit('finance')",'expense action only on expense page');
+requireText(source.finance,"if(section==='expenses')action.innerHTML=",'expense actions only render on the expense page');
 requireText(source.finance,'historicalExpenseMethodPreserved:true','historical expense method preservation');
 requireText(source.finance,'certificateLedgerReceiptNavigation:true','certificate ledger receipt navigation');
 

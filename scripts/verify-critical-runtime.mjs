@@ -83,8 +83,13 @@ for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminde
 
 const financeUi=read('assets/production-finance-ui-v13.js');
 requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero language');
-requireText(financeUi,'height=205','finance chart is compact enough for the fixed workspace');
+requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
+requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
+requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
+requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');
+requireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');
+forbidText(financeUi,'expense-list-v13','expense history is no longer embedded under the expense dashboard');
 requireText(financeUi,'margin-right:22px!important','finance workspace keeps certificate-page sidebar spacing');
 forbidText(financeUi,'zoom:.92','finance page should not shrink the entire workspace on short screens');
 forbidText(financeUi,'zoom:.86','finance page should not shrink the entire workspace on short screens');
