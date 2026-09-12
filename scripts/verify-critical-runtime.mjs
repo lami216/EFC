@@ -83,8 +83,11 @@ for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminde
 
 const financeUi=read('assets/production-finance-ui-v13.js');
 requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero language');
-requireText(financeUi,'height=230','finance chart is compact enough for the fixed workspace');
+requireText(financeUi,'height=205','finance chart is compact enough for the fixed workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
+requireText(financeUi,'margin-right:22px!important','finance workspace keeps certificate-page sidebar spacing');
+forbidText(financeUi,'zoom:.92','finance page should not shrink the entire workspace on short screens');
+forbidText(financeUi,'zoom:.86','finance page should not shrink the entire workspace on short screens');
 forbidText(financeUi,"pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.')",'legacy finance title notes');
 
 const securityUi=read('assets/production-security-ui-v13.js');
