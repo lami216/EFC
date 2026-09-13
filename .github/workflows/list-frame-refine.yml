@@ -1,0 +1,91 @@
+name: Refine fixed list frames
+
+on:
+  push:
+    branches:
+      - redesign/efc-ui-2026
+    paths:
+      - .github/workflows/list-frame-refine.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply fixed list frame refinement
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Global table behavior: do not reserve scrollbar space before a scrollbar exists.
+          p=Path('assets/production-ui-v13.css')
+          s=p.read_text(encoding='utf-8')
+          old='scrollbar-gutter:stable}'
+          if old not in s:
+              raise SystemExit('global scrollbar gutter token missing')
+          s=s.replace(old,'scrollbar-gutter:auto}',1)
+          p.write_text(s,encoding='utf-8')
+
+          # Search pages: same dynamic gutter behavior inside their bounded result lists.
+          for name in ['assets/production-period-search-redesign-v28.js','assets/production-student-search-redesign-v31.js']:
+              p=Path(name); s=p.read_text(encoding='utf-8')
+              if 'scrollbar-gutter:stable!important' not in s:
+                  raise SystemExit(f'stable gutter token missing in {name}')
+              s=s.replace('scrollbar-gutter:stable!important','scrollbar-gutter:auto!important',1)
+              p.write_text(s,encoding='utf-8')
+
+          # Expense history: keep a full-height list frame even with only a few rows.
+          p=Path('assets/production-finance-ui-v13.js')
+          s=p.read_text(encoding='utf-8')
+          old='.expense-history-v13 .table-wrap{max-height:520px!important;overflow:auto!important;border:1.2px solid rgba(0,0,0,.72)!important;border-radius:9px!important}'
+          new='.expense-history-v13 .table-wrap{height:min(520px,calc(100dvh - 205px))!important;max-height:min(520px,calc(100dvh - 205px))!important;overflow:auto!important;scrollbar-gutter:auto!important;border:1.2px solid rgba(0,0,0,.72)!important;border-radius:9px!important}'
+          if old not in s:
+              raise SystemExit('expense history table-wrap token missing')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          # Runtime verification for both requested layout invariants.
+          p=Path('scripts/verify-critical-runtime.mjs')
+          s=p.read_text(encoding='utf-8')
+          anchor="requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');"
+          addition="\nrequireText(financeUi,'height:min(520px,calc(100dvh - 205px))!important','expense history keeps a fixed full-height list frame');\nrequireText(financeUi,'scrollbar-gutter:auto!important','expense history only gives space to a scrollbar when it exists');"
+          if 'expense history keeps a fixed full-height list frame' not in s:
+              s=s.replace(anchor,anchor+addition,1)
+          base_anchor="requireText(baseUi,'.content .table-wrap{max-height:min(520px,calc(100dvh - 250px))','long app tables have a global internal-scroll safety cap');"
+          base_add="\nrequireText(baseUi,'scrollbar-gutter:auto','table lists do not reserve an empty scrollbar gutter');"
+          if 'table lists do not reserve an empty scrollbar gutter' not in s:
+              s=s.replace(base_anchor,base_anchor+base_add,1)
+          p.write_text(s,encoding='utf-8')
+
+          # Cache bust for browser preview/runtime-loaded assets.
+          old_token='20260913-list-scroll-1'
+          new_token='20260913-list-scroll-2'
+          for name in ['index.html','assets/production-license-gate-v8.js']:
+              p=Path(name); s=p.read_text(encoding='utf-8')
+              if old_token not in s:
+                  raise SystemExit(f'cache token missing in {name}')
+              p.write_text(s.replace(old_token,new_token),encoding='utf-8')
+          PY
+      - name: Verify and build
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm run build
+      - name: Commit source changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-ui-v13.css assets/production-period-search-redesign-v28.js assets/production-student-search-redesign-v31.js assets/production-finance-ui-v13.js scripts/verify-critical-runtime.mjs index.html assets/production-license-gate-v8.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix list frame height and scrollbar gutter"
+          git push origin HEAD:redesign/efc-ui-2026
