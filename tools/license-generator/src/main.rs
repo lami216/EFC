@@ -15,10 +15,10 @@ use std::{
 
 const LICENSE_SCHEMA: &str = "efc-license";
 const LICENSE_VERSION: u8 = 1;
-const LICENSE_KEY_ID: &str = "efc-license-v2";
+const LICENSE_KEY_ID: &str = "efc-license-v3";
 const LICENSE_ALGORITHM: &str = "ECDSA_P256_SHA256";
-const DEFAULT_KEY_FILE: &str = "EFC-license-master-private.pem";
-const PUBLIC_KEY_SEC1_B64: &str = "BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0";
+const DEFAULT_KEY_FILE: &str = "EFC-license-master-private-v3.pem";
+const PUBLIC_KEY_SEC1_B64: &str = "BDDLo6mYqhmQbaUyS_xmMkebb3Nz28ZmWU3bF6alhqeXt7mxLrk_pxDc4vaz9RXV5mICatMtADIQvkF4EdLM8LY";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -83,7 +83,7 @@ fn load_signing_key() -> Result<SigningKey, String> {
     } else if default.is_file() {
         default
     } else {
-        let entered = prompt("مسار المفتاح الخاص EFC-license-master-private.pem")?;
+        let entered = prompt("مسار المفتاح الخاص EFC-license-master-private-v3.pem")?;
         clean_path(&entered)
     };
     let pem = fs::read_to_string(&path)
