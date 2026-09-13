@@ -124,6 +124,10 @@ forbidText(financeUi,'zoom:.86','finance page should not shrink the entire works
 forbidText(financeUi,"pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.')",'legacy finance title notes');
 
 const securityUi=read('assets/production-security-ui-v13.js');
+const foundationUi=read('assets/production-foundation-v13.js');
+requireText(foundationUi,'grid-template-rows:155px 300px auto auto!important','settings gives more height to payment methods and users than backup cards');
+requireText(foundationUi,'max-height:188px!important;overflow:auto!important','settings payment and user lists scroll internally when needed');
+requireText(securityUi,'settings-empty-row-v13','settings user list has an explicit empty state and renders account rows when present');
 for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\"official12\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);
 forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
 forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');
