@@ -41,12 +41,13 @@ if(!gate.includes("'./assets/production-certificates-v13.js'"))throw new Error('
 if(!gate.includes("'./assets/production-receipt-sequences-v10.js'"))throw new Error('Receipt sequencing is not loaded by the license gate.');
 if(gate.indexOf('production-receipt-sequences-v10.js')<gate.indexOf('production-certificates-v13.js'))throw new Error('Receipt sequencing must load after native certificates v13.');
 
-const publicKey='BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0';
+const publicKey='BDDLo6mYqhmQbaUyS_xmMkebb3Nz28ZmWU3bF6alhqeXt7mxLrk_pxDc4vaz9RXV5mICatMtADIQvkF4EdLM8LY';
 for(const [name,source] of [['license.rs',license],['HTML generator template',generator],['legacy generator',generatorRust]]){
-  if(!source.includes('efc-license-v2'))throw new Error(`${name} is not on key id v2.`);
-  if(!source.includes(publicKey))throw new Error(`${name} does not use the v2 public key.`);
+  if(!source.includes('efc-license-v3'))throw new Error(`${name} is not on key id v3.`);
+  if(!source.includes(publicKey))throw new Error(`${name} does not use the v3 public key.`);
 }
 if(license.includes('BK_2ws4TMDStsDqV7HokicMC814XtpAu00YZtUZ8KYBZfnzVXY0GB0ufHBUp9--5Ixb8DbgNUyoenXAQ3To6shI'))throw new Error('Old v1 public key still present in native verifier.');
+if(license.includes('BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0'))throw new Error('Old v2 public key still present in native verifier.');
 if(/R-\$\{|S-\$\{/.test(sequence))throw new Error('Receipt v10 must not generate letter-prefixed receipt numbers.');
 
-console.log('V10 checks passed: numeric receipt sequence, native certificate registration, no DOM patch, license key v2.');
+console.log('V10 checks passed: numeric receipt sequence, native certificate registration, no DOM patch, license key v3.');
