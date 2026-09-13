@@ -1,0 +1,88 @@
+name: Refine settings space
+
+on:
+  push:
+    branches:
+      - redesign/efc-ui-2026
+    paths:
+      - .github/workflows/settings-space-refine.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Refine settings proportions and user list
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('assets/production-foundation-v13.js')
+          s=p.read_text(encoding='utf-8')
+          replacements=[
+            ('grid-template-rows:225px 225px auto auto!important','grid-template-rows:155px 300px auto auto!important'),
+            ('height:225px!important;min-height:0!important','height:auto!important;min-height:0!important'),
+            ('.settings-card-prod.backup-prod{grid-column:1!important;grid-row:1!important;background:', '.settings-card-prod.backup-prod{grid-column:1!important;grid-row:1!important;height:155px!important;background:'),
+            ('.settings-card-prod.restore-prod{grid-column:2!important;grid-row:1!important;background:', '.settings-card-prod.restore-prod{grid-column:2!important;grid-row:1!important;height:155px!important;background:'),
+            ('.settings-card-prod.methods-settings-v13{grid-column:1!important;grid-row:2!important;background:', '.settings-card-prod.methods-settings-v13{grid-column:1!important;grid-row:2!important;height:300px!important;background:'),
+            ('.settings-card-prod.security-settings-v13{grid-column:2!important;grid-row:2!important;background:', '.settings-card-prod.security-settings-v13{grid-column:2!important;grid-row:2!important;height:300px!important;background:'),
+            ('max-height:112px!important;overflow:auto!important','max-height:188px!important;overflow:auto!important'),
+            ('@media(max-height:690px){.content:has(.settings-grid-prod) .settings-grid-prod{grid-template-rows:205px 205px auto auto!important}.content:has(.settings-grid-prod) .settings-card-prod{height:205px!important;padding:13px 15px!important}.content:has(.settings-grid-prod) .methods-list-v13,.content:has(.settings-grid-prod) .users-list-v13{max-height:94px!important}}',
+             '@media(max-height:690px){.content:has(.settings-grid-prod) .settings-grid-prod{grid-template-rows:145px 275px auto auto!important}.content:has(.settings-grid-prod) .settings-card-prod.backup-prod,.content:has(.settings-grid-prod) .settings-card-prod.restore-prod{height:145px!important;padding:12px 15px!important}.content:has(.settings-grid-prod) .settings-card-prod.methods-settings-v13,.content:has(.settings-grid-prod) .settings-card-prod.security-settings-v13{height:275px!important;padding:13px 15px!important}.content:has(.settings-grid-prod) .methods-list-v13,.content:has(.settings-grid-prod) .users-list-v13{max-height:164px!important}}')
+          ]
+          for old,new in replacements:
+              if old not in s: raise SystemExit(f'foundation settings anchor missing: {old[:80]}')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('assets/production-security-ui-v13.js')
+          s=p.read_text(encoding='utf-8')
+          old="${admin?`<div class=\"users-list-v13\">${securityState.users.map(user=>`<div class=\"user-row-v13\"><div><b>${esc(user.username)}</b><small>${user.role==='admin'?'Admin':'مستخدم'}</small></div><button class=\"mini edit-user-v13\" data-id=\"${esc(user.id)}\">تعديل / PIN</button></div>`).join('')}</div><button class=\"button\" id=\"addUserV13\">${securityState.users.length?'＋ إضافة مستخدم':'إنشاء Admin الأول'}</button>`:'<div class=\"info-box\">الإدارة متاحة للـ Admin فقط.</div>'}"
+          new="${admin?`<div class=\"users-list-v13\">${securityState.users.length?securityState.users.map(user=>`<div class=\"user-row-v13\"><div><b>${esc(user.username)}</b><small>${user.role==='admin'?'Admin':'مستخدم'}</small></div><button class=\"mini edit-user-v13\" data-id=\"${esc(user.id)}\">تعديل / PIN</button></div>`).join(''):'<div class=\"settings-empty-row-v13\">لا يوجد مستخدمون مسجلون</div>'}</div><button class=\"button\" id=\"addUserV13\">${securityState.users.length?'＋ إضافة مستخدم':'إنشاء Admin الأول'}</button>`:'<div class=\"info-box\">الإدارة متاحة للـ Admin فقط.</div>'}"
+          if old not in s: raise SystemExit('security user-list anchor missing')
+          s=s.replace(old,new,1)
+          css_anchor='.users-list-v13{display:grid;gap:7px}.user-row-v13{display:flex;justify-content:space-between;align-items:center;padding:9px;border:1px solid var(--border);border-radius:8px}'
+          css_new='.users-list-v13{display:grid;gap:7px}.user-row-v13{display:flex;justify-content:space-between;align-items:center;padding:9px;border:1px solid var(--border);border-radius:8px}.settings-empty-row-v13{min-height:34px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:9px;background:#ffffff90}'
+          if css_anchor not in s: raise SystemExit('security user-list css anchor missing')
+          s=s.replace(css_anchor,css_new,1)
+          p.write_text(s,encoding='utf-8')
+
+          old_token='20260913-settings-redesign-1'
+          new_token='20260913-settings-redesign-2'
+          for name in ['index.html','assets/production-license-gate-v8.js']:
+              p=Path(name); text=p.read_text(encoding='utf-8')
+              if old_token not in text: raise SystemExit(f'cache token missing in {name}')
+              p.write_text(text.replace(old_token,new_token),encoding='utf-8')
+
+          p=Path('scripts/verify-critical-runtime.mjs')
+          s=p.read_text(encoding='utf-8')
+          anchor="const securityUi=read('assets/production-security-ui-v13.js');"
+          checks="\nconst foundationUi=read('assets/production-foundation-v13.js');\nrequireText(foundationUi,'grid-template-rows:155px 300px auto auto!important','settings gives more height to payment methods and users than backup cards');\nrequireText(foundationUi,'max-height:188px!important;overflow:auto!important','settings payment and user lists scroll internally when needed');\nrequireText(securityUi,'settings-empty-row-v13','settings user list has an explicit empty state and renders account rows when present');"
+          if 'settings gives more height to payment methods and users than backup cards' not in s:
+              if anchor not in s: raise SystemExit('critical settings verification anchor missing')
+              s=s.replace(anchor,anchor+checks,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Verify and build
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm run build
+      - name: Commit settings refinement
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-foundation-v13.js assets/production-security-ui-v13.js scripts/verify-critical-runtime.mjs index.html assets/production-license-gate-v8.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Refine settings card proportions"
+          git push origin HEAD:redesign/efc-ui-2026
