@@ -48,6 +48,9 @@ for(const [name,source] of [['license.rs',license],['HTML generator template',ge
 }
 if(license.includes('BK_2ws4TMDStsDqV7HokicMC814XtpAu00YZtUZ8KYBZfnzVXY0GB0ufHBUp9--5Ixb8DbgNUyoenXAQ3To6shI'))throw new Error('Old v1 public key still present in native verifier.');
 if(license.includes('BAbRmaYeE4aeAI09ADkpDXreSynMo3LY9GTgQti1ava5MPqzOld4EKamVj2pnzAR5h1ypeOVjOQ9fcIEzCzzgr0'))throw new Error('Old v2 public key still present in native verifier.');
+const preparedLicense=license.indexOf('fs::rename(&prepared, &path)');
+const committedLicenseLedger=license.indexOf('persist_ledger(&ledger)',preparedLicense);
+if(preparedLicense<0||committedLicenseLedger<preparedLicense)throw new Error('A license must be installed before its id is committed as consumed, so a file-install failure remains retryable.');
 if(/R-\$\{|S-\$\{/.test(sequence))throw new Error('Receipt v10 must not generate letter-prefixed receipt numbers.');
 
 console.log('V10 checks passed: numeric receipt sequence, native certificate registration, no DOM patch, license key v3.');

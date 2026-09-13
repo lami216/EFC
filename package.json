@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "html2canvas": "1.4.1",
-    "jspdf": "2.5.2"
+    "jspdf": "4.2.1"
   },
   "devDependencies": {
     "@tauri-apps/cli": "2.11.4"

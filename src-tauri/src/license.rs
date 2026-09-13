@@ -601,10 +601,15 @@ fn install_bytes(content: &[u8]) -> Result<LicenseInfo, String> {
         expired: false,
         clock_rollback_detected: false,
     });
-    persist_ledger(&ledger).inspect_err(|_| {
-        let _ = fs::remove_file(&prepared);
-    })?;
-    fs::rename(&prepared, &path).map_err(|e| format!("تعذر تثبيت ملف التفعيل: {e}"))?;
+    fs::rename(&prepared, &path)
+        .inspect_err(|_| {
+            let _ = fs::remove_file(&prepared);
+        })
+        .map_err(|e| format!("تعذر تثبيت ملف التفعيل: {e}"))?;
+    // Commit the license id only after the file is installed. If the file move
+    // fails, the same valid activation remains retryable instead of being
+    // permanently recorded as consumed without an installed license.
+    persist_ledger(&ledger)?;
     let mut guard = runtime()
         .lock()
         .map_err(|_| "تعذر تهيئة عداد التفعيل.".to_string())?;

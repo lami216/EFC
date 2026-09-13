@@ -108,6 +108,10 @@ requireText(financeUi,'justify-content:flex-start!important','finance KPI cards 
 const periodUi=read('assets/production-period-search-redesign-v28.js');
 const studentSearchUi=read('assets/production-student-search-redesign-v31.js');
 const baseUi=read('assets/production-ui-v13.css');
+const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
+const mainWindow=tauriConfig?.app?.windows?.[0]||{};
+if(Number(mainWindow.minWidth||0)<1160)throw new Error('Critical runtime missing: desktop minimum width must contain the 900px workspace, 230px sidebar, and page gap without clipping.');
+requireText(read('index.html'),'body{min-width:1160px}','browser preview minimum width matches the fixed desktop workspace');
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
@@ -125,6 +129,16 @@ forbidText(financeUi,"pageTitle('الإدارة المالية','المالية'
 
 const securityUi=read('assets/production-security-ui-v13.js');
 const foundationUi=read('assets/production-foundation-v13.js');
+forbidText(securityUi,"document.getElementById('addUserV13')?.addEventListener",'settings user button must not accumulate duplicate click listeners across rerenders');
+forbidText(financeUi,"document.getElementById('addMethodV13')?.addEventListener",'payment-method button must not accumulate duplicate click listeners across rerenders');
+for(const token of [
+  'function activeSubviewOpen()',
+  ".expense-history-v13,.profitability-details-v13",
+  '[data-efc-history-open-v36="1"]',
+  "target.closest('.shell nav a.active')",
+  'activeSubviewNavigationReset:true'
+])requireText(securityUi,token,`active sidebar navigation resets nested view ${token}`);
+if((securityUi.match(/#addCenterV13/g)||[]).length<2||(securityUi.match(/\.edit-center-v13/g)||[]).length<2)throw new Error('Critical runtime missing: center add/edit controls must be covered by both permission disabling and click guards.');
 requireText(foundationUi,'grid-template-rows:155px 300px auto auto!important','settings gives more height to payment methods and users than backup cards');
 requireText(foundationUi,'max-height:188px!important;overflow:auto!important','settings payment and user lists scroll internally when needed');
 requireText(securityUi,'settings-empty-row-v13','settings user list has an explicit empty state and renders account rows when present');
