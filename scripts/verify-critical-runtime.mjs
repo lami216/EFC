@@ -87,6 +87,8 @@ requireText(financeUi,'height=235','finance chart keeps a larger readable worksp
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
+requireText(financeUi,'height:min(520px,calc(100dvh - 205px))!important','expense history keeps a fixed full-height list frame');
+requireText(financeUi,'scrollbar-gutter:auto!important','expense history only gives space to a scrollbar when it exists');
 requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');
 requireText(financeUi,'finance-kpi-align-v13','finance KPI rows stay top-aligned even when one card has a period subtitle');
 requireText(financeUi,'justify-content:flex-start!important','finance KPI cards align their primary rows consistently at the top');
@@ -97,6 +99,7 @@ requireText(periodUi,'height:calc(100vh - 392px)!important','period search resul
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
 requireText(baseUi,'.content .table-wrap{max-height:min(520px,calc(100dvh - 250px))','long app tables have a global internal-scroll safety cap');
+requireText(baseUi,'scrollbar-gutter:auto','table lists do not reserve an empty scrollbar gutter');
 requireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');
 requireText(financeUi,'viewProfitabilityDetailsV13','profitability dashboard exposes a dedicated details action');
 requireText(financeUi,'function renderProfitabilityDetails','profitability detail table lives on its own page');

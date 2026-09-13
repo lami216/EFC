@@ -77,7 +77,7 @@ html body.efc-student-search-redesign-v31 #studentsTableV13.efc-student-search-r
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
   width:900px!important;max-width:900px!important;min-width:900px!important;
-  height:calc(100vh - 205px)!important;max-height:calc(100vh - 205px)!important;min-height:180px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
+  height:calc(100vh - 205px)!important;max-height:calc(100vh - 205px)!important;min-height:180px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:auto!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
   background:#fff!important;box-shadow:none!important;
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 table{
