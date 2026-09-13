@@ -21,7 +21,7 @@ const RUNTIME=[
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260913-finance-readability-1';
+const RUNTIME_VERSION='20260913-ledger-expense-flow-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';

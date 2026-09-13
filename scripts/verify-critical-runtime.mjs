@@ -96,6 +96,11 @@ requireText(financeUi,'.ledger-summary-v13 small{font-size:10.5px!important','da
 requireText(financeUi,'.ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:10px!important','daily ledger records use the established table text size');
 requireText(financeUi,'.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important','expense history records match the established table text size');
 requireText(financeUi,'.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important','finance KPI labels remain readable');
+requireText(financeUi,'addLedgerExpenseV13','daily ledger owns new expense registration');
+requireText(financeUi,'expenseLedgerStatement','daily ledger separates expense name from its statement');
+requireText(financeUi,"<td>${esc(item.row.name||'—')}</td><td>${esc(expenseLedgerStatement(item.row))}</td>",'expense name appears in the daily name column');
+requireText(financeUi,'finance-topbar-v13','finance section actions share the tab row');
+forbidText(financeUi,'addExpenseV13','new expense registration no longer lives in finance');
 forbidText(financeUi,"pageTitle('الحركة اليومية','اليومية','اليوم المحدد فقط، وأحدث عملية في الأعلى.')",'legacy daily ledger title notes');
 requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');
 requireText(financeUi,'finance-kpi-align-v13','finance KPI rows stay top-aligned even when one card has a period subtitle');
@@ -122,6 +127,9 @@ const securityUi=read('assets/production-security-ui-v13.js');
 for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\"official12\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);
 forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
 forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');
+requireText(securityUi,"if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true",'registration access also exposes the daily ledger');
+requireText(securityUi,"if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true",'registration edit access can record daily expenses');
+requireText(securityUi,"finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13'",'finance view actions stay usable while daily expense creation has its own guard');
 const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
 
