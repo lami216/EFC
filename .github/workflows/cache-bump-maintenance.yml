@@ -1,0 +1,38 @@
+name: Refresh redesign preview cache
+
+on:
+  push:
+    branches:
+      - redesign/efc-ui-2026
+    paths:
+      - .github/workflows/cache-bump-maintenance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Refresh cache token
+        run: python3 scripts/cache_bump_tmp.py
+      - name: Verify and build
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm run build
+      - name: Commit cache refresh
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html assets/production-license-gate-v8.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Refresh list-scroll preview cache"
+          git push origin HEAD:redesign/efc-ui-2026
