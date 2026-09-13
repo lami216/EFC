@@ -1,0 +1,83 @@
+name: Refine finance readability
+
+on:
+  push:
+    branches:
+      - redesign/efc-ui-2026
+    paths:
+      - .github/workflows/finance-readability-maintenance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Improve finance and ledger text hierarchy
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('assets/production-finance-ui-v13.js')
+          s=p.read_text(encoding='utf-8')
+
+          replacements={
+            '#financeBodyV13>.kpis small{font-size:9px!important;color:#526e65!important;font-weight:780!important': '#financeBodyV13>.kpis small{font-size:10.5px!important;color:#2f4c43!important;font-weight:800!important',
+            '.finance-kpi-line-v13 small{margin:0!important;font-size:9.5px!important;line-height:1.15!important;white-space:nowrap!important;color:#44665d!important;font-weight:760!important}': '.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important;line-height:1.15!important;white-space:nowrap!important;color:#2f4c43!important;font-weight:800!important}',
+            '#financeBodyV13>.kpis span{font-size:7.5px!important;color:#7b8d87!important': '#financeBodyV13>.kpis span{font-size:9px!important;color:#657a73!important',
+            '#financeBodyV13>.kpis span{margin-top:4px!important;font-size:8.4px!important}': '#financeBodyV13>.kpis span{margin-top:4px!important;font-size:9px!important;color:#657a73!important}',
+            '.content:has(.finance-switch-v13) .break-row{grid-template-columns:minmax(0,1fr) auto!important;gap:3px 9px!important;margin:0 0 6px!important;font-size:8.7px!important}': '.content:has(.finance-switch-v13) .break-row{grid-template-columns:minmax(0,1fr) auto!important;gap:3px 9px!important;margin:0 0 6px!important;font-size:9.5px!important}',
+            '.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:9.5px!important}': '.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important}',
+            'background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;border:1px solid rgba(0,0,0,.55)!important}.expense-history-v13 td{height:35px!important;padding:5px 7px!important;border:1px solid rgba(0,0,0,.35)!important;text-align:center!important}': 'background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;border:1px solid rgba(0,0,0,.55)!important;font-size:10.5px!important}.expense-history-v13 td{height:35px!important;padding:5px 7px!important;border:1px solid rgba(0,0,0,.35)!important;text-align:center!important;font-size:10px!important}',
+            '.content:has(#ledgerBodyV13) .ledger-summary-v13 small{font-size:9px!important;font-weight:800!important;color:#526e65!important;white-space:nowrap!important}': '.content:has(#ledgerBodyV13) .ledger-summary-v13 small{font-size:10.5px!important;font-weight:800!important;color:#2f4c43!important;white-space:nowrap!important}',
+            '.content:has(#ledgerBodyV13) .ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:9.5px!important}': '.content:has(#ledgerBodyV13) .ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:10px!important}',
+            'text-align:center!important;font-weight:800!important}.content:has(#ledgerBodyV13) .ledger-scroll-v13 td{height:38px!important': 'text-align:center!important;font-weight:800!important;font-size:10.5px!important}.content:has(#ledgerBodyV13) .ledger-scroll-v13 td{height:38px!important',
+            'text-align:center!important;background:#fff!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}': 'text-align:center!important;background:#fff!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:10px!important}'
+          }
+          for old,new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'missing finance readability token: {old[:90]}')
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('scripts/verify-critical-runtime.mjs')
+          s=p.read_text(encoding='utf-8')
+          anchor="requireText(financeUi,'efc-ledger-redesign-v13','daily ledger styling is consolidated in the finance source');"
+          addition="\nrequireText(financeUi,'.ledger-summary-v13 small{font-size:10.5px!important','daily ledger KPI labels remain readable');\nrequireText(financeUi,'.ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:10px!important','daily ledger records use the established table text size');\nrequireText(financeUi,'.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important','expense history records match the established table text size');\nrequireText(financeUi,'.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important','finance KPI labels remain readable');"
+          if 'daily ledger KPI labels remain readable' not in s:
+              if anchor not in s:
+                  raise SystemExit('verification anchor missing')
+              s=s.replace(anchor,anchor+addition,1)
+          p.write_text(s,encoding='utf-8')
+
+          old_token='20260913-ledger-redesign-1'
+          new_token='20260913-finance-readability-1'
+          for name in ['index.html','assets/production-license-gate-v8.js']:
+              p=Path(name)
+              text=p.read_text(encoding='utf-8')
+              if old_token not in text:
+                  raise SystemExit(f'cache token missing in {name}')
+              p.write_text(text.replace(old_token,new_token),encoding='utf-8')
+          PY
+      - name: Verify and build
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm run build
+      - name: Commit readability refinements
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-finance-ui-v13.js scripts/verify-critical-runtime.mjs index.html assets/production-license-gate-v8.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Improve finance and ledger readability"
+          git push origin HEAD:redesign/efc-ui-2026
