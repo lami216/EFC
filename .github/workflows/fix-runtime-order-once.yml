@@ -1,0 +1,51 @@
+name: Fix Windows runtime parity once
+
+on:
+  push:
+    branches: [redesign/efc-ui-2026]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout redesign branch
+        uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Apply deterministic runtime repair
+        run: node scripts/fix-runtime-order-once.mjs
+
+      - name: Verify production runtime
+        run: npm run check
+
+      - name: Build production dist
+        run: npm run build
+
+      - name: Remove one-shot maintenance files
+        run: |
+          rm -f scripts/fix-runtime-order-once.mjs
+          rm -f .github/workflows/fix-runtime-order-once.yml
+
+      - name: Commit repaired runtime
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-license-gate-v8.js index.html scripts/verify-critical-runtime.mjs scripts/fix-runtime-order-once.mjs .github/workflows/fix-runtime-order-once.yml
+          git commit -m "Fix Windows redesign runtime loading"
+          git push origin HEAD:redesign/efc-ui-2026
