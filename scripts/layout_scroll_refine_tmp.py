@@ -48,7 +48,7 @@ s=s.replace('.content .table-wrap{max-height:min(520px,calc(100vh - 250px));over
 '''.content .table-wrap{max-height:min(520px,calc(100dvh - 250px));overflow:auto;overscroll-behavior:contain;overscroll-behavior-block:contain;scrollbar-gutter:stable}''',1)
 p.write_text(s,encoding='utf-8')
 
-# Verification: record the new invariants.
+# Verification: record the new invariants without redeclaring existing constants.
 p=Path('scripts/verify-critical-runtime.mjs')
 s=p.read_text(encoding='utf-8')
 anchor="requireText(financeUi,'finance-kpi-line-v13','finance KPI labels and values share one compact row');"
@@ -56,11 +56,11 @@ addition="\nrequireText(financeUi,'finance-kpi-align-v13','finance KPI rows stay
 if addition.strip() not in s:
     s=s.replace(anchor,anchor+addition,1)
 period_checks="""
-const periodUi=read('assets/production-period-search-redesign-v28.js');
-requireText(periodUi,'overflow:hidden!important','period search keeps page scrolling disabled');
-requireText(periodUi,'height:calc(100vh - 392px)','period results own their vertical scrolling');
-const studentSearchUi=read('assets/production-student-search-redesign-v31.js');
-requireText(studentSearchUi,'height:calc(100vh - 205px)','student search results own their vertical scrolling');
+const periodScrollUi=read('assets/production-period-search-redesign-v28.js');
+requireText(periodScrollUi,'overflow:hidden!important','period search keeps page scrolling disabled');
+requireText(periodScrollUi,'height:calc(100vh - 392px)','period results own their vertical scrolling');
+const studentSearchScrollUi=read('assets/production-student-search-redesign-v31.js');
+requireText(studentSearchScrollUi,'height:calc(100vh - 205px)','student search results own their vertical scrolling');
 """
 if 'period results own their vertical scrolling' not in s:
     s += '\n'+period_checks
