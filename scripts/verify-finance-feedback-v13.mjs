@@ -7,7 +7,7 @@ const forbidFinance=(needle,label=needle)=>{if(finance.includes(needle))throw ne
 const requireSecurity=(needle,label=needle)=>{if(!security.includes(needle))throw new Error(`Login feedback missing: ${label}`);};
 
 for(const [token,label] of [
-  ['finance-primary-action-row-v13','expense action row above controls'],
+  ['finance-topbar-v13','finance tabs and view actions share one row'],
   ['expenseActionAboveControls:true','expense action placement marker'],
   ['pct-v13','breakdown percentages'],
   ['breakdownPercentages:true','breakdown percentage marker'],
@@ -38,10 +38,11 @@ for(const [token,label] of [
   ['dailySeparateNameAndStatement:true','daily column marker']
 ])requireFinance(token,label);
 
+const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
-const actionPos=finance.indexOf('finance-primary-action-row-v13');
+const actionPos=finance.indexOf('financePrimaryActionV13');
 const controlsPos=finance.indexOf('card finance-controls finance-controls-v13');
-if(!(switchPos>=0&&actionPos>switchPos&&controlsPos>actionPos))throw new Error('Expense action must sit between finance tabs and the white controls card.');
+if(!(topbarPos>=0&&switchPos>topbarPos&&actionPos>switchPos&&controlsPos>actionPos))throw new Error('Finance view action must share the tab row above the controls card.');
 forbidFinance("pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.','<div id=\"financePrimaryActionV13\"></div>')",'expense action returned to page header');
 forbidFinance('profitability-tables-v13','old three profitability cards returned');
 
@@ -53,4 +54,4 @@ for(const [token,label] of [
   ['compactLogin:true','compact login marker']
 ])requireSecurity(token,label);
 
-console.log('User feedback v13 verified: current-only finance charts, single profitability explorer, daily statement column, and compact masked login.');
+console.log('User feedback v13 verified: current-only finance charts, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
