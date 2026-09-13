@@ -1,0 +1,50 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+
+const foundationPath='assets/production-foundation-v13.js';
+let source=readFileSync(foundationPath,'utf8');
+
+const oldRender="function renderSettings(){currentPage='settings';shell(`${pageTitle('إدارة البرنامج','الإعدادات','إدارة النسخ الاحتياطية واستعادة بيانات المركز عند الحاجة.')}<div class=\"settings-grid-prod\"><div class=\"card settings-card-prod\"><h2>إنشاء نسخة بيانات</h2>";
+const newRender="function renderSettings(){currentPage='settings';shell(`<section class=\"settings-hero-v13\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><g fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 7h10M18 7h2M4 12h3M11 12h9M4 17h8M16 17h4\"/><circle cx=\"16\" cy=\"7\" r=\"2\"/><circle cx=\"9\" cy=\"12\" r=\"2\"/><circle cx=\"14\" cy=\"17\" r=\"2\"/></g></svg><h1>الإعدادات</h1></section><div class=\"settings-grid-prod\"><div class=\"card settings-card-prod backup-prod\"><h2>إنشاء نسخة بيانات</h2>";
+if(!source.includes(oldRender))throw new Error('settings render anchor missing');
+source=source.replace(oldRender,newRender);
+
+const anchor='@media(max-width:900px){.settings-grid-prod{grid-template-columns:1fr}}';
+const css=String.raw`
+/* Settings redesign: shared 900px workspace and mint hero, without touching the sidebar. */
+.content:has(.settings-grid-prod){width:900px!important;max-width:900px!important;min-width:900px!important;margin:0 0 0 auto!important;margin-right:22px!important;padding:12px 0 12px!important;box-sizing:border-box!important}
+.settings-hero-v13{width:470px;height:76px;margin:0 auto 12px;border-radius:15px;background:linear-gradient(110deg,#dcf6ee 0%,#e8faf5 68%,#e4f7f2 100%);display:flex;align-items:center;justify-content:center;gap:20px;color:#073f35;box-shadow:0 9px 24px rgba(17,89,70,.045);position:relative}
+.settings-hero-v13::after{content:"";position:absolute;bottom:10px;left:50%;width:48px;height:3px;border-radius:99px;background:#0b7b62;transform:translateX(-50%)}
+.settings-hero-v13 svg{width:39px;height:39px;flex:0 0 39px}.settings-hero-v13 h1{margin:0;font-size:31px;line-height:1;font-weight:850;letter-spacing:-.4px}
+.content:has(.settings-grid-prod) .settings-grid-prod{width:900px!important;max-width:900px!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-template-rows:225px 225px auto auto!important;gap:11px 14px!important;margin:0!important;align-items:stretch!important}
+.content:has(.settings-grid-prod) .settings-card-prod{height:225px!important;min-height:0!important;margin:0!important;padding:15px 17px!important;box-sizing:border-box!important;gap:8px!important;border:1.2px solid #c9dbd5!important;border-radius:13px!important;background:#fff!important;box-shadow:0 8px 22px rgba(25,76,61,.045)!important;overflow:hidden!important}
+.content:has(.settings-grid-prod) .settings-card-prod.backup-prod{grid-column:1!important;grid-row:1!important;background:linear-gradient(145deg,#f3fcf9,#ffffff 64%)!important;border-color:#b7ddcf!important}
+.content:has(.settings-grid-prod) .settings-card-prod.restore-prod{grid-column:2!important;grid-row:1!important;background:linear-gradient(145deg,#fffaf0,#ffffff 64%)!important;border-color:#ead7a8!important}
+.content:has(.settings-grid-prod) .settings-card-prod.methods-settings-v13{grid-column:1!important;grid-row:2!important;background:linear-gradient(145deg,#f3f9ff,#ffffff 64%)!important;border-color:#c9dcec!important}
+.content:has(.settings-grid-prod) .settings-card-prod.security-settings-v13{grid-column:2!important;grid-row:2!important;background:linear-gradient(145deg,#f8f5ff,#ffffff 64%)!important;border-color:#d8cfec!important}
+.content:has(.settings-grid-prod) .settings-card-prod h2{margin:0!important;color:#0a4036!important;font-size:16px!important;line-height:1.25!important;font-weight:850!important}
+.content:has(.settings-grid-prod) .settings-card-prod p{margin:0!important;color:#536a62!important;font-size:10.5px!important;line-height:1.65!important;font-weight:560!important;min-height:34px!important}
+.content:has(.settings-grid-prod) .settings-card-prod .button{height:35px!important;min-height:35px!important;margin-top:auto!important;padding:0 14px!important;border-radius:9px!important;font-size:10.5px!important;font-weight:780!important;box-shadow:0 5px 13px rgba(8,99,79,.10)!important}
+.content:has(.settings-grid-prod) .settings-card-prod .button.secondary{background:#fff!important;color:#17483d!important;border:1px solid #c7d8d2!important;box-shadow:0 4px 12px rgba(28,69,57,.04)!important}
+.content:has(.settings-grid-prod) .settings-note-prod{grid-column:1/-1!important;grid-row:3!important;min-height:38px!important;margin:0!important;padding:9px 13px!important;display:flex!important;align-items:center!important;justify-content:center!important;text-align:center!important;border:1px solid #d5e2de!important;border-radius:10px!important;background:#f8fbfa!important;color:#5e706a!important;font-size:9.5px!important;line-height:1.5!important}
+.content:has(.settings-grid-prod) .settings-result-prod{grid-column:1/-1!important;grid-row:4!important;min-height:0!important;margin:0!important;padding:8px 11px!important;border-radius:9px!important;background:#f6faf8!important;border:1px solid #d8e5e0!important;font-size:10px!important;line-height:1.5!important}
+.content:has(.settings-grid-prod) .settings-result-prod:empty{display:none!important}.content:has(.settings-grid-prod) .settings-result-prod.good{background:#effaf4!important;border-color:#c9e7d6!important}.content:has(.settings-grid-prod) .settings-result-prod.bad{background:#fff3f1!important;border-color:#efd0ca!important}
+.content:has(.settings-grid-prod) .methods-list-v13,.content:has(.settings-grid-prod) .users-list-v13{min-height:0!important;max-height:112px!important;overflow:auto!important;scrollbar-gutter:auto!important;display:grid!important;gap:6px!important;padding:0!important}
+.content:has(.settings-grid-prod) .method-row-v13,.content:has(.settings-grid-prod) .user-row-v13{min-height:32px!important;padding:5px 7px!important;border:1px solid #d8e3df!important;border-radius:8px!important;background:rgba(255,255,255,.78)!important;box-sizing:border-box!important}
+.content:has(.settings-grid-prod) .method-row-v13>div:first-child,.content:has(.settings-grid-prod) .user-row-v13>div:first-child{display:flex!important;align-items:center!important;gap:7px!important;min-width:0!important}
+.content:has(.settings-grid-prod) .method-row-v13 b,.content:has(.settings-grid-prod) .user-row-v13 b{font-size:11px!important;color:#163f35!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.content:has(.settings-grid-prod) .method-row-v13 small,.content:has(.settings-grid-prod) .user-row-v13 small{font-size:8.5px!important;color:#668078!important;font-weight:650!important;white-space:nowrap!important}
+.content:has(.settings-grid-prod) .method-row-v13>div:last-child{gap:5px!important}.content:has(.settings-grid-prod) .method-row-v13 .mini,.content:has(.settings-grid-prod) .user-row-v13 .mini{height:25px!important;padding:0 9px!important;border-radius:7px!important;font-size:8.5px!important;background:#fff!important;border:1px solid #d5e1dd!important;color:#24594b!important}
+@media(max-height:690px){.content:has(.settings-grid-prod) .settings-grid-prod{grid-template-rows:205px 205px auto auto!important}.content:has(.settings-grid-prod) .settings-card-prod{height:205px!important;padding:13px 15px!important}.content:has(.settings-grid-prod) .methods-list-v13,.content:has(.settings-grid-prod) .users-list-v13{max-height:94px!important}}
+@media(max-width:1180px){.content:has(.settings-grid-prod){width:900px!important;max-width:900px!important;min-width:900px!important;margin-right:18px!important}.settings-hero-v13 h1{font-size:29px!important}}
+`;
+if(!source.includes(anchor))throw new Error('settings css anchor missing');
+source=source.replace(anchor,anchor+css);
+writeFileSync(foundationPath,source);
+
+const oldToken='20260913-ledger-expense-flow-1';
+const newToken='20260913-settings-redesign-1';
+for(const path of ['index.html','assets/production-license-gate-v8.js']){
+  const text=readFileSync(path,'utf8');
+  if(!text.includes(oldToken))throw new Error(`cache token missing in ${path}`);
+  writeFileSync(path,text.replaceAll(oldToken,newToken));
+}
