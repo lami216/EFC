@@ -18,10 +18,21 @@ const RUNTIME=[
   './assets/production-registration-redesign-v15.js',
   './assets/production-registration-responsive-v16.js',
   './assets/production-registration-schedule-matrix-v17.js',
+  './assets/production-registration-select-native-v19.js',
+  './assets/production-registration-receipt-schedule-v22.js',
+  './assets/production-courses-centers-redesign-v23.js',
+  './assets/production-courses-centers-compact-v25.js',
+  './assets/production-courses-centers-detail-fix-v27.js',
+  './assets/production-period-search-redesign-v28.js',
+  './assets/production-sidebar-lock-v30.js',
+  './assets/production-student-search-redesign-v31.js',
+  './assets/production-search-detail-polish-v32.js',
+  './assets/production-period-count-and-grid-polish-v33.js',
+  './assets/production-search-title-grid-unify-v34.js',
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260913-settings-redesign-2';
+const RUNTIME_VERSION='20260913-windows-runtime-parity-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -79,9 +90,42 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready,'جدول الدورات في تسجيل الطالب');
 
     await loadScript(RUNTIME[14]);
-    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+    await waitUntil(()=>window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready,'قوائم تسجيل الطالب');
 
     await loadScript(RUNTIME[15]);
+    await waitUntil(()=>window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22?.ready,'جدول إيصال التسجيل');
+
+    await loadScript(RUNTIME[16]);
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready,'تصميم الدورات والمراكز');
+
+    await loadScript(RUNTIME[17]);
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_COMPACT_V25?.ready,'تحجيم الدورات والمراكز');
+
+    await loadScript(RUNTIME[18]);
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready,'تفاصيل الدورات والمراكز');
+
+    await loadScript(RUNTIME[19]);
+    await waitUntil(()=>window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready,'تصميم آلية البحث');
+
+    await loadScript(RUNTIME[20]);
+    await waitUntil(()=>window.EFC_SIDEBAR_LOCK_V30?.ready,'توحيد الشريط الجانبي');
+
+    await loadScript(RUNTIME[21]);
+    await waitUntil(()=>window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready,'تصميم البحث عن طالب');
+
+    await loadScript(RUNTIME[22]);
+    await waitUntil(()=>window.EFC_SEARCH_DETAIL_POLISH_V32?.ready,'تفاصيل صفحات البحث');
+
+    await loadScript(RUNTIME[23]);
+    await waitUntil(()=>window.EFC_PERIOD_COUNT_GRID_POLISH_V33?.ready,'عداد ونتائج آلية البحث');
+
+    await loadScript(RUNTIME[24]);
+    await waitUntil(()=>window.EFC_SEARCH_TITLE_GRID_UNIFY_V34?.ready,'توحيد جداول البحث');
+
+    await loadScript(RUNTIME[25]);
+    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
+    await loadScript(RUNTIME[26]);
     await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');
 
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');

@@ -144,6 +144,30 @@ const indexVersions=[...indexHtml.matchAll(/\?v=([^"'&\s]+)/g)].map(match=>match
 if(!runtimeVersion)throw new Error('Critical runtime missing: license gate cache version.');
 if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))throw new Error('Preview cache versions are not synchronized between index.html and the license gate runtime.');
 
+const deterministicPostLicenseRuntime=[
+  'production-registration-select-native-v19.js',
+  'production-registration-receipt-schedule-v22.js',
+  'production-courses-centers-redesign-v23.js',
+  'production-courses-centers-compact-v25.js',
+  'production-courses-centers-detail-fix-v27.js',
+  'production-period-search-redesign-v28.js',
+  'production-sidebar-lock-v30.js',
+  'production-student-search-redesign-v31.js',
+  'production-search-detail-polish-v32.js',
+  'production-period-count-and-grid-polish-v33.js',
+  'production-search-title-grid-unify-v34.js'
+];
+let lastRuntimeIndex=-1;
+for(const file of deterministicPostLicenseRuntime){
+  forbidText(indexHtml,file,`index must not race-load post-license runtime: ${file}`);
+  requireText(licenseGate,file,`license gate owns post-license runtime: ${file}`);
+  const current=licenseGate.indexOf(file);
+  if(current<=lastRuntimeIndex)throw new Error(`Post-license runtime order is not deterministic at ${file}.`);
+  lastRuntimeIndex=current;
+}
+requireText(licenseGate,"RUNTIME[25]",'security UI loads only after all redesign modules');
+requireText(licenseGate,"RUNTIME[26]",'login UI loads after the consolidated security runtime');
+
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
 for(const obsolete of [
@@ -157,4 +181,4 @@ for(const obsolete of [
 for(const leftover of ['scripts/apply-reminder-document-polish.mjs','.github/workflows/reminder-document-polish.yml'])requireText(runtimeManifest,leftover,`temporary reminder patch guard ${leftover}`);
 
 await verifyPersistenceCompletes();
-console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, reminder documents stay consolidated, and preview cache versions remain synchronized.');
+console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, reminder documents stay consolidated, and preview cache versions remain synchronized, and browser/Windows use one deterministic post-license redesign runtime.');
