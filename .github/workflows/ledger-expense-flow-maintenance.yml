@@ -1,0 +1,148 @@
+name: Refine ledger expense flow
+
+on:
+  push:
+    branches:
+      - redesign/efc-ui-2026
+    paths:
+      - .github/workflows/ledger-expense-flow-maintenance.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: redesign/efc-ui-2026
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply ledger expense and finance toolbar refinements
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('assets/production-finance-ui-v13.js')
+          s=p.read_text(encoding='utf-8')
+
+          old="  return String(row?.description||'دفعة');\n}\nfunction profitabilityTable"
+          new="  return String(row?.description||'دفعة');\n}\nfunction expenseLedgerStatement(row){return row?.specialty===GENERAL_EXPENSE?'مصروف عام':'مصروف تخصص';}\nfunction profitabilityTable"
+          if old not in s: raise SystemExit('dailyStatement anchor missing')
+          s=s.replace(old,new,1)
+
+          old='<div class="finance-switch-v13">'
+          new='<div class="finance-topbar-v13"><div class="finance-switch-v13">'
+          if old not in s: raise SystemExit('finance switch markup missing')
+          s=s.replace(old,new,1)
+
+          old='</div><div class="finance-primary-action-row-v13"><div id="financePrimaryActionV13"></div></div><div class="card finance-controls finance-controls-v13">'
+          new='</div><div id="financePrimaryActionV13"></div></div><div class="card finance-controls finance-controls-v13">'
+          if old not in s: raise SystemExit('finance action row markup missing')
+          s=s.replace(old,new,1)
+
+          old="    if(section==='expenses')action.innerHTML=`${canEdit('finance')?'<button class=\"button\" id=\"addExpenseV13\">＋ تسجيل مصروف</button>':''}<button class=\"button secondary\" id=\"viewExpenseHistoryV13\">عرض سجل المصاريف</button>`;"
+          new="    if(section==='expenses')action.innerHTML='<button class=\"button secondary\" id=\"viewExpenseHistoryV13\">عرض سجل المصاريف</button>';"
+          if old not in s: raise SystemExit('finance expense action markup missing')
+          s=s.replace(old,new,1)
+
+          old="    document.getElementById('addExpenseV13')?.addEventListener('click',()=>openExpenseEditor(null,draw));\n"
+          if old not in s: raise SystemExit('finance add expense listener missing')
+          s=s.replace(old,'',1)
+
+          old='</select></label></div><div id="ledgerBodyV13"></div>`);'
+          new='</select></label>${canEdit(\'ledger\')?\'<div class="ledger-expense-action-v13"><button class="button" id="addLedgerExpenseV13">＋ تسجيل مصروف</button></div>\':\'\'}</div><div id="ledgerBodyV13"></div>`);'
+          if old not in s: raise SystemExit('ledger controls closing markup missing')
+          s=s.replace(old,new,1)
+
+          old='<td>مصروف</td><td>—</td><td>${esc(item.row.name)}</td>'
+          new='<td>مصروف</td><td>${esc(item.row.name||\'—\')}</td><td>${esc(expenseLedgerStatement(item.row))}</td>'
+          if old not in s: raise SystemExit('ledger expense row mapping missing')
+          s=s.replace(old,new,1)
+
+          old="  ['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id).onchange=draw);draw();"
+          new="  document.getElementById('addLedgerExpenseV13')?.addEventListener('click',()=>openExpenseEditor(null,draw));\n  ['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id).onchange=draw);draw();"
+          if old not in s: raise SystemExit('ledger draw binding missing')
+          s=s.replace(old,new,1)
+
+          old='.finance-switch-v13{display:flex;gap:5px;margin-bottom:8px}.finance-switch-v13 button{border:1px solid var(--border);background:#edf1ef;padding:8px 18px;border-radius:8px;cursor:pointer}.finance-switch-v13 button.active{background:#fff;color:var(--primary);font-weight:800}.finance-primary-action-row-v13{display:flex;justify-content:flex-start;direction:ltr;margin:2px 0 8px}.finance-primary-action-row-v13:has(#financePrimaryActionV13:empty){display:none}'
+          new='.finance-switch-v13{display:flex;gap:5px}.finance-switch-v13 button{border:1px solid var(--border);background:#edf1ef;padding:8px 18px;border-radius:8px;cursor:pointer}.finance-switch-v13 button.active{background:#fff;color:var(--primary);font-weight:800}.finance-topbar-v13{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;direction:rtl}'
+          if old not in s: raise SystemExit('legacy finance top action css missing')
+          s=s.replace(old,new,1)
+
+          old='.content:has(.finance-switch-v13) .finance-switch-v13{display:flex!important;justify-content:flex-start!important;direction:rtl!important;gap:7px!important;width:max-content!important;margin:0 0 7px auto!important;padding:0!important}'
+          new='.content:has(.finance-switch-v13) .finance-topbar-v13{width:900px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:0 0 7px!important;direction:rtl!important}.content:has(.finance-switch-v13) .finance-switch-v13{display:flex!important;justify-content:flex-start!important;direction:rtl!important;gap:7px!important;width:max-content!important;margin:0!important;padding:0!important}'
+          if old not in s: raise SystemExit('finance switch redesign css missing')
+          s=s.replace(old,new,1)
+
+          old='.content:has(.finance-switch-v13) .finance-primary-action-row-v13{width:900px!important;margin:0 0 7px!important}.content:has(.finance-switch-v13) #financePrimaryActionV13{display:flex!important;align-items:center!important;gap:8px!important}.content:has(.finance-switch-v13) .finance-primary-action-row-v13 .button{height:36px!important;border-radius:9px!important;padding:0 14px!important;box-shadow:0 6px 14px rgba(8,99,79,.11)!important}'
+          new='.content:has(.finance-switch-v13) #financePrimaryActionV13{display:flex!important;align-items:center!important;gap:8px!important;margin:0!important;direction:ltr!important}.content:has(.finance-switch-v13) #financePrimaryActionV13 .button{height:36px!important;border-radius:9px!important;padding:0 14px!important;box-shadow:0 6px 14px rgba(8,99,79,.11)!important}'
+          if old not in s: raise SystemExit('finance primary action redesign css missing')
+          s=s.replace(old,new,1)
+
+          old='.content:has(#ledgerBodyV13) .ledger-controls{width:900px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;align-items:end!important;margin:0 0 9px!important;padding:10px 13px!important;'
+          new='.content:has(#ledgerBodyV13) .ledger-controls{width:900px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important;align-items:end!important;margin:0 0 9px!important;padding:10px 13px!important;'
+          if old not in s: raise SystemExit('ledger controls css missing')
+          s=s.replace(old,new,1)
+          anchor='.content:has(#ledgerBodyV13) .ledger-controls label{gap:5px!important;'
+          addition='.content:has(#ledgerBodyV13) .ledger-controls:has(.ledger-expense-action-v13){grid-template-columns:repeat(4,minmax(0,1fr)) 132px!important}.content:has(#ledgerBodyV13) .ledger-expense-action-v13{display:flex!important;align-items:flex-end!important;height:100%!important}.content:has(#ledgerBodyV13) .ledger-expense-action-v13 .button{width:132px!important;height:42px!important;border-radius:9px!important;padding:0 11px!important;white-space:nowrap!important;box-shadow:0 6px 14px rgba(8,99,79,.11)!important}\n'
+          if anchor not in s: raise SystemExit('ledger controls label css anchor missing')
+          s=s.replace(anchor,addition+anchor,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('assets/production-security-ui-v13.js')
+          s=p.read_text(encoding='utf-8')
+          old="function canView(section){const user=currentUser();return Boolean(user&&(user.role==='admin'||user.permissions?.[section]?.view===true));}\nfunction canEdit(section){const user=currentUser();return Boolean(user&&(user.role==='admin'||user.permissions?.[section]?.edit===true));}"
+          new="function canView(section){const user=currentUser();if(!user)return false;if(user.role==='admin')return true;if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true;return user.permissions?.[section]?.view===true;}\nfunction canEdit(section){const user=currentUser();if(!user)return false;if(user.role==='admin')return true;if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true;return user.permissions?.[section]?.edit===true;}"
+          if old not in s: raise SystemExit('security permission functions missing')
+          s=s.replace(old,new,1)
+
+          old="finance:'#financePrimaryActionV13 button,.edit-expense-v13',certificates:"
+          new="finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13',certificates:"
+          if old not in s: raise SystemExit('security edit selector missing')
+          s=s.replace(old,new,1)
+
+          old="const mutationClicks={specialties:'#addSpecV13,.edit-spec-v13',finance:'#financePrimaryActionV13 button,.edit-expense-v13',certificates:"
+          new="const mutationClicks={specialties:'#addSpecV13,.edit-spec-v13',finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13',certificates:"
+          if old not in s: raise SystemExit('security mutation selector missing')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('scripts/verify-critical-runtime.mjs')
+          s=p.read_text(encoding='utf-8')
+          anchor="requireText(financeUi,'.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important','finance KPI labels remain readable');"
+          addition="\nrequireText(financeUi,'addLedgerExpenseV13','daily ledger owns new expense registration');\nrequireText(financeUi,'expenseLedgerStatement','daily ledger separates expense name from its statement');\nrequireText(financeUi,\"<td>${esc(item.row.name||'—')}</td><td>${esc(expenseLedgerStatement(item.row))}</td>\",'expense name appears in the daily name column');\nrequireText(financeUi,'finance-topbar-v13','finance section actions share the tab row');\nforbidText(financeUi,'addExpenseV13','new expense registration no longer lives in finance');"
+          if 'daily ledger owns new expense registration' not in s:
+              if anchor not in s: raise SystemExit('finance verification anchor missing')
+              s=s.replace(anchor,anchor+addition,1)
+          anchor2="forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');"
+          addition2="\nrequireText(securityUi,\"if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true\",'registration access also exposes the daily ledger');\nrequireText(securityUi,\"if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true\",'registration edit access can record daily expenses');\nrequireText(securityUi,\"finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13'\",'finance view actions stay usable while daily expense creation has its own guard');"
+          if 'registration access also exposes the daily ledger' not in s:
+              if anchor2 not in s: raise SystemExit('security verification anchor missing')
+              s=s.replace(anchor2,anchor2+addition2,1)
+          p.write_text(s,encoding='utf-8')
+
+          old_token='20260913-finance-readability-1'
+          new_token='20260913-ledger-expense-flow-1'
+          for name in ['index.html','assets/production-license-gate-v8.js']:
+              p=Path(name); text=p.read_text(encoding='utf-8')
+              if old_token not in text: raise SystemExit(f'cache token missing in {name}')
+              p.write_text(text.replace(old_token,new_token),encoding='utf-8')
+          PY
+      - name: Verify and build
+        run: |
+          npm install --ignore-scripts
+          npm run check
+          npm run build
+      - name: Commit ledger expense flow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-finance-ui-v13.js assets/production-security-ui-v13.js scripts/verify-critical-runtime.mjs index.html assets/production-license-gate-v8.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Move expense entry to daily ledger"
+          git push origin HEAD:redesign/efc-ui-2026
