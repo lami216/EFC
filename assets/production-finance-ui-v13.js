@@ -191,5 +191,12 @@ const style=document.createElement('style');style.textContent=`
 `;document.head.appendChild(style);
 window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;
 window.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;
+
+const financeKpiAlignStyle=document.createElement('style');financeKpiAlignStyle.id='finance-kpi-align-v13';financeKpiAlignStyle.textContent=`
+body.efc-finance-redesign-v13 .kpis .card{justify-content:flex-start!important;align-items:stretch!important}
+body.efc-finance-redesign-v13 .finance-kpi-line-v13{min-height:28px!important;align-items:center!important;margin:0!important}
+body.efc-finance-redesign-v13 .kpis .card>span{margin-top:2px!important;min-height:12px!important}
+`;document.head.appendChild(financeKpiAlignStyle);
+
 window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true});
 })();

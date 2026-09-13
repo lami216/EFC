@@ -27,12 +27,12 @@ const style=document.createElement('style');
 style.id='efc-student-search-redesign-style-v31';
 style.textContent=`
 /* Student search uses only visual rules shared with Period Search. No content, controls or behavior are added/removed. */
-html body.efc-student-search-redesign-v31{font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif!important;background:#f5fbf9!important;overflow-x:hidden!important}
+html body.efc-student-search-redesign-v31{font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif!important;background:#f5fbf9!important;overflow:hidden!important}
 html body.efc-student-search-redesign-v31 .shell.shell-v13{background:radial-gradient(circle at 43% 24%,#fbfffe 0,#f4faf7 54%,#edf6f2 100%)!important}
 html body.efc-student-search-redesign-v31 .shell.shell-v13 main>.content{
   width:900px!important;max-width:900px!important;min-width:900px!important;
   margin:0 0 0 auto!important;margin-right:22px!important;
-  padding:18px 0 34px!important;box-sizing:border-box!important;overflow:visible!important;
+  padding:18px 0 12px!important;box-sizing:border-box!important;height:100vh!important;overflow:hidden!important;
 }
 
 /* Same green hero/card language as Period Search, while retaining every original title line. */
@@ -77,7 +77,7 @@ html body.efc-student-search-redesign-v31 #studentsTableV13.efc-student-search-r
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
   width:900px!important;max-width:900px!important;min-width:900px!important;
-  max-height:calc(100vh - 260px)!important;min-height:220px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
+  height:calc(100vh - 205px)!important;max-height:calc(100vh - 205px)!important;min-height:180px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
   background:#fff!important;box-shadow:none!important;
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 table{
