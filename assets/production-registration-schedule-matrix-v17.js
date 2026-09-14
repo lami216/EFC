@@ -75,6 +75,11 @@ function renderSelectedCourseRow(form,scheduleRoot,{clearChecks=false}={}){
 function installMatrix(form,scheduleRoot){
   scheduleRoot.querySelector('.efc-schedule-course-mirror-v15')?.remove();
   const note=scheduleRoot.querySelector('.schedule-top-note-v13');if(note)note.textContent=NOTE;
+  const notes=scheduleRoot.querySelector('.schedule-notes-v13');
+  if(notes){
+    const paragraphs=[...notes.querySelectorAll('p')];
+    paragraphs.slice(1).forEach(paragraph=>paragraph.remove());
+  }
   const tbody=scheduleRoot.querySelector('.schedule-table-v13 tbody');if(!tbody)return;
   tbody.innerHTML=timeRow()+courseRow(null);
   bindMatrixBehavior(scheduleRoot);
@@ -108,6 +113,14 @@ function resetMatrix(scheduleRoot){
   scheduleRoot.querySelectorAll('[data-matrix-course][data-matrix-day]').forEach(input=>{input.checked=false;});
 }
 
+function existingScheduleMatches(schedule,snapshot){
+  return Boolean(
+    schedule&&snapshot&&
+    String(schedule.specialtyId||'')===String(snapshot.specialtyId||'')&&
+    Array.isArray(schedule.days)&&schedule.days.length===DAYS.length
+  );
+}
+
 function attachSubmitCapture(form,scheduleRoot){
   if(form.dataset.efcScheduleMatrixV17==='1')return;
   form.dataset.efcScheduleMatrixV17='1';
@@ -117,8 +130,10 @@ function attachSubmitCapture(form,scheduleRoot){
     queueMicrotask(()=>{
       const created=students.find(student=>!before.has(String(student.id)));
       if(!created)return;
-      created.schedule=snapshot;
-      try{D.saveStudents();}catch(error){console.error('EFC v17 schedule save failed.',error);}
+      if(!existingScheduleMatches(created.schedule,snapshot)){
+        created.schedule=snapshot;
+        try{D.saveStudents();}catch(error){console.error('EFC v17 schedule save failed.',error);}
+      }
       resetMatrix(scheduleRoot);
       renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true});
     });
@@ -207,6 +222,9 @@ body.efc-registration-redesign-v15 #regFormV13 select.efc-select-placeholder-v17
 body.efc-registration-redesign-v15 #regFormV13 select:not(.efc-select-placeholder-v17){color:#17352d!important}
 body.efc-registration-redesign-v15 .schedule-title-v13{justify-content:flex-start!important}
 body.efc-registration-redesign-v15 .schedule-title-v13 .efc-schedule-course-mirror-v15{display:none!important}
+body.efc-registration-redesign-v15 .schedule-top-note-v13{font-size:16px!important;font-weight:850!important;line-height:1.55!important;min-height:54px!important;padding:12px 16px!important}
+body.efc-registration-redesign-v15 .schedule-notes-v13{font-size:15px!important;font-weight:800!important;line-height:1.65!important;padding-top:11px!important;padding-bottom:11px!important}
+body.efc-registration-redesign-v15 .schedule-notes-v13 p{margin:0!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th{width:112px!important;min-width:112px!important;padding:6px 7px!important;background:#eef3ef!important;font-size:11px!important;line-height:1.3!important}
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{font-weight:800!important;background:#e7eee9!important}
 body.efc-registration-redesign-v15 .schedule-time-row-v17 td{height:47px!important;padding:4px!important;background:#fffdf3}
@@ -258,6 +276,9 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   receiptOnlyShowsScheduledCourses:true,
   emptyScheduleVisibleOnReceipt:true,
   longCourseNamesWrapInMatrix:true,
+  directRegistrationSchedulePreferred:true,
+  singleBottomNotice:true,
+  largerScheduleNotices:true,
   lateNoteUpdated:true,
   mainUntouched:true
 });

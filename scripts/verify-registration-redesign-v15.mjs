@@ -46,12 +46,15 @@ forbidText(ui,'.onsubmit=','redesign must not replace the working registration s
 forbidText(ui,'appendPayment(','redesign must not duplicate payment/accounting logic');
 forbidText(ui,'students.unshift(','redesign must not duplicate student creation logic');
 
-for(const token of [
-  'form.onsubmit=event=>',
-  'students.unshift(student)',
-  'appendPayment(student',
-  'readSchedule(scheduleRoot,item)'
-])requireText(monthly,token,`monthly registration behavior ${token}`);
+for(const [token,label] of [
+  ['form.onsubmit=event=>','monthly registration submit owner'],
+  ['students.unshift(student)','monthly registration student creation'],
+  ['appendPayment(student','monthly registration payment creation'],
+  ['readSchedule(scheduleRoot,item)','monthly registration schedule capture'],
+  ['[data-matrix-day="${key}"]','current matrix checkbox values captured synchronously'],
+  ['[data-schedule-day-time="${key}"]','current matrix time values captured synchronously'],
+  ['scheduleDirectFromMatrix:true','monthly registration marks direct matrix schedule persistence']
+])requireText(monthly,token,`monthly registration behavior ${label}`);
 
 for(const token of [
   'بيانات الطالب والتسجيل',
@@ -67,7 +70,14 @@ for(const [token,label] of [
   ["courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]",'single selected course schedule snapshot'],
   ['emptyScheduleVisibleOnReceipt:true','empty registration schedule remains visible in receipt flow'],
   ['longCourseNamesWrapInMatrix:true','long selected course names wrap inside registration timetable'],
-  ['overflow-wrap:anywhere!important','registration timetable can wrap unusually long course names']
+  ['overflow-wrap:anywhere!important','registration timetable can wrap unusually long course names'],
+  ['directRegistrationSchedulePreferred:true','synchronous registration schedule is not overwritten by a later layer'],
+  ['existingScheduleMatches','post-submit compatibility capture respects the already saved schedule'],
+  ['singleBottomNotice:true','registration timetable keeps only the first lower notice'],
+  ['paragraphs.slice(1).forEach','second and later lower notices are removed from the registration timetable'],
+  ['largerScheduleNotices:true','registration timetable notice sizing marker'],
+  ['schedule-top-note-v13{font-size:16px!important','lateness notice is visibly enlarged'],
+  ['schedule-notes-v13{font-size:15px!important','remaining lower notice is visibly enlarged']
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
 forbidText(scheduleMatrix,"{...model,schedule:null}",'empty schedules must not be stripped before receipt rendering');
@@ -81,7 +91,9 @@ for(const [token,label] of [
   ['receiptSectionInsidePaper:true','injected timetable stays inside the receipt paper'],
   ['longCourseNamesWrap:true','receipt timetable wraps long course names'],
   ["const paper=doc.querySelector('.paper12')||doc.body",'receipt timetable is inserted into the receipt paper'],
-  ['overflow-wrap:anywhere!important','receipt course name cell wraps long names']
+  ['overflow-wrap:anywhere!important','receipt course name cell wraps long names'],
+  ['directSavedSchedulePreferred:true','receipt compatibility layer preserves the direct saved matrix values'],
+  ['existingScheduleMatches','receipt compatibility capture does not replace an already valid schedule']
 ])requireText(receiptSchedule,token,label);
 forbidText(receiptSchedule,'else if(section){section.remove();}','empty registration timetable must not be removed from receipt');
 
@@ -131,4 +143,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: selected-course timetable, always-visible receipt schedule, long-name wrapping, compact-screen accessibility and backup-on-exit safeguards are present without duplicating registration/accounting ownership.');
+console.log('Registration redesign verified: selected-course timetable values persist into the receipt, the registration notices are simplified/enlarged, empty receipt schedules remain visible, long names wrap safely, compact-screen accessibility remains intact, and no registration/accounting ownership is duplicated.');
