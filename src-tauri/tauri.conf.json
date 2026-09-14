@@ -14,8 +14,8 @@
         "title": "مركز EFC للغات والمعلوماتية",
         "width": 1440,
         "height": 900,
-        "minWidth": 1160,
-        "minHeight": 700,
+        "minWidth": 840,
+        "minHeight": 560,
         "resizable": true,
         "center": true
       }
