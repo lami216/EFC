@@ -107,11 +107,24 @@ requireText(financeUi,'finance-kpi-align-v13','finance KPI rows stay top-aligned
 requireText(financeUi,'justify-content:flex-start!important','finance KPI cards align their primary rows consistently at the top');
 const periodUi=read('assets/production-period-search-redesign-v28.js');
 const studentSearchUi=read('assets/production-student-search-redesign-v31.js');
+const sidebarUi=read('assets/production-sidebar-lock-v30.js');
 const baseUi=read('assets/production-ui-v13.css');
 const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
 const mainWindow=tauriConfig?.app?.windows?.[0]||{};
-if(Number(mainWindow.minWidth||0)<1160)throw new Error('Critical runtime missing: desktop minimum width must contain the 900px workspace, 230px sidebar, and page gap without clipping.');
-requireText(read('index.html'),'body{min-width:1160px}','browser preview minimum width matches the fixed desktop workspace');
+if(Number(mainWindow.minWidth||0)!==840)throw new Error('Critical runtime missing: responsive desktop minimum width must remain 840px.');
+if(Number(mainWindow.minHeight||0)!==560)throw new Error('Critical runtime missing: responsive desktop minimum height must remain 560px.');
+requireText(read('index.html'),'body{min-width:840px}','browser preview minimum width matches the responsive desktop workspace');
+for(const [token,label] of [
+  ['@media(max-width:1080px)','sidebar compacts for narrower Windows displays'],
+  ['@media(max-width:900px)','sidebar has an extra compact-width breakpoint'],
+  ['@media(max-height:760px)','sidebar compacts vertically on short Windows displays'],
+  ['@media(max-height:640px)','sidebar has an extra short-height breakpoint'],
+  ['overflow-y:auto!important','short sidebar can scroll instead of hiding controls below the taskbar'],
+  ['width:min(900px,calc(100% - 32px))!important','settings workspace shrinks with available width'],
+  ['responsiveSmallViewport:true','responsive sidebar runtime advertises its compact-screen safeguard'],
+  ['settingsFitAvailableWidth:true','settings runtime advertises width-safe layout'],
+  ['shortScreenSidebarScrollFallback:true','short-screen sidebar exposes a scroll fallback']
+])requireText(sidebarUi,token,label);
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
@@ -195,4 +208,4 @@ for(const obsolete of [
 for(const leftover of ['scripts/apply-reminder-document-polish.mjs','.github/workflows/reminder-document-polish.yml'])requireText(runtimeManifest,leftover,`temporary reminder patch guard ${leftover}`);
 
 await verifyPersistenceCompletes();
-console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, certificates keep direct state ownership, reminder documents stay consolidated, and preview cache versions remain synchronized, and browser/Windows use one deterministic post-license redesign runtime.');
+console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, compact-screen safeguards are enforced, certificates keep direct state ownership, reminder documents stay consolidated, preview cache versions remain synchronized, and browser/Windows use one deterministic post-license redesign runtime.');
