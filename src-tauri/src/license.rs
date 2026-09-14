@@ -634,10 +634,7 @@ pub fn get_license_status() -> Result<LicenseStatus, String> {
 
 #[tauri::command]
 pub fn install_license_file() -> Result<Option<LicenseInfo>, String> {
-    let Some(path) = rfd::FileDialog::new()
-        .add_filter("EFC activation file", &["efc-license"])
-        .pick_file()
-    else {
+    let Some(path) = rfd::FileDialog::new().pick_file() else {
         return Ok(None);
     };
     let bytes = fs::read(&path).map_err(|e| format!("تعذر قراءة ملف التفعيل: {e}"))?;
