@@ -16,6 +16,7 @@ html body .shell.shell-v13 aside{
   background:linear-gradient(180deg,#075445 0%,#05473d 48%,#033d35 100%)!important;
   color:#fff!important;box-shadow:-10px 0 35px rgba(5,55,47,.08)!important;
   font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif!important;
+  overscroll-behavior:contain!important;
 }
 html body .shell.shell-v13 main{
   margin-right:clamp(230px,18vw,268px)!important;width:calc(100% - clamp(230px,18vw,268px))!important;
@@ -59,6 +60,13 @@ html body .shell.shell-v13 aside .user-controls-v13 button{min-height:42px!impor
 html body .efc-bell-v13{top:34px!important;left:22px!important;width:48px!important;height:48px!important;border-radius:13px!important;font-size:18px!important}
 html body .efc-bell-v13>b{min-width:21px!important;height:21px!important;line-height:21px!important;font-size:10px!important}
 
+/* Settings must shrink with the available main workspace instead of forcing 900px. */
+html body .content:has(.settings-grid-prod){
+  width:min(900px,calc(100% - 32px))!important;max-width:900px!important;min-width:0!important;
+  margin:0 auto!important;padding:12px 0 24px!important;box-sizing:border-box!important;
+}
+html body .content:has(.settings-grid-prod) .settings-grid-prod{width:100%!important;max-width:100%!important;min-width:0!important}
+
 /* Registration's sidebar-to-content breathing room, only on pages already redesigned. */
 html body.efc-specialties-redesign-v23 .shell.shell-v13 main>.content,
 html body.efc-period-redesign-v28 .shell.shell-v13 main>.content{margin-right:22px!important;margin-left:0!important}
@@ -67,7 +75,7 @@ html body.efc-period-redesign-v28 .shell.shell-v13 main>.content{margin-right:22
 html body.efc-specialties-redesign-v23 .page-title,
 html body.efc-period-redesign-v28 .efc-period-hero-v28{
   position:relative!important;display:flex!important;align-items:center!important;justify-content:center!important;
-  width:470px!important;min-width:470px!important;max-width:470px!important;
+  width:min(470px,calc(100% - 24px))!important;min-width:0!important;max-width:470px!important;
   height:76px!important;min-height:76px!important;max-height:76px!important;
   margin:0 auto 18px!important;padding:0!important;border:0!important;border-radius:17px!important;
   background:linear-gradient(135deg,#e4f8f0,#d4efe5)!important;
@@ -84,13 +92,57 @@ html body.efc-specialties-redesign-v23 .page-title::after,
 html body.efc-period-redesign-v28 .efc-period-hero-v28::after{content:''!important;position:absolute!important;bottom:9px!important;left:50%!important;transform:translateX(-50%)!important;width:48px!important;height:3px!important;border-radius:6px!important;background:#0a7f62!important}
 
 @media(max-width:1260px){html body .shell.shell-v13 aside{width:230px!important}html body .shell.shell-v13 main{margin-right:230px!important;width:calc(100% - 230px)!important}}
-@media(max-width:1080px){html body .shell.shell-v13 aside{width:218px!important}html body .shell.shell-v13 main{margin-right:218px!important;width:calc(100% - 218px)!important}}
+@media(max-width:1080px){
+  html body .shell.shell-v13 aside{width:205px!important;padding-left:12px!important;padding-right:12px!important}
+  html body .shell.shell-v13 main{margin-right:205px!important;width:calc(100% - 205px)!important}
+  html body .content:has(.settings-grid-prod) .settings-grid-prod{grid-template-columns:1fr!important;grid-template-rows:auto!important}
+  html body .content:has(.settings-grid-prod) .settings-card-prod.backup-prod,
+  html body .content:has(.settings-grid-prod) .settings-card-prod.restore-prod,
+  html body .content:has(.settings-grid-prod) .settings-card-prod.methods-settings-v13,
+  html body .content:has(.settings-grid-prod) .settings-card-prod.security-settings-v13{grid-column:1!important;grid-row:auto!important;height:auto!important;min-height:145px!important}
+  html body .content:has(.settings-grid-prod) .settings-card-prod.methods-settings-v13,
+  html body .content:has(.settings-grid-prod) .settings-card-prod.security-settings-v13{min-height:230px!important}
+  html body .content:has(.settings-grid-prod) .methods-list-v13,
+  html body .content:has(.settings-grid-prod) .users-list-v13{max-height:145px!important}
+}
+@media(max-width:900px){
+  html body .shell.shell-v13 aside{width:190px!important}
+  html body .shell.shell-v13 main{margin-right:190px!important;width:calc(100% - 190px)!important}
+  html body .shell.shell-v13 aside .brand b span:first-child{font-size:14px!important}
+  html body .shell.shell-v13 aside .brand b span:last-child{font-size:11.5px!important}
+  html body .shell.shell-v13 aside nav a{font-size:12px!important;padding-left:9px!important;padding-right:9px!important;gap:8px!important}
+  html body .content:has(.settings-grid-prod){width:calc(100% - 20px)!important}
+}
+@media(max-height:760px){
+  html body .shell.shell-v13 aside{padding-top:12px!important;padding-bottom:10px!important;overflow-y:auto!important;scrollbar-width:thin!important}
+  html body .shell.shell-v13 aside .brand{padding-bottom:10px!important;gap:8px!important}
+  html body .shell.shell-v13 aside .brand .logo{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex-basis:44px!important}
+  html body .shell.shell-v13 aside .brand .logo img{width:37px!important;height:37px!important}
+  html body .shell.shell-v13 aside nav{padding-top:10px!important;gap:3px!important}
+  html body .shell.shell-v13 aside nav a{min-height:40px!important;padding-top:5px!important;padding-bottom:5px!important}
+  html body .shell.shell-v13 aside nav a i{width:21px!important;height:21px!important;min-width:21px!important;max-width:21px!important}
+  html body .shell.shell-v13 aside nav a i svg{width:20px!important;height:20px!important}
+  html body .shell.shell-v13 aside .side-foot{padding-top:7px!important;gap:4px!important}
+  html body .shell.shell-v13 aside .user-controls-v13{gap:4px!important}
+  html body .shell.shell-v13 aside .user-controls-v13 button{min-height:35px!important;font-size:11px!important}
+  html body .efc-bell-v13{top:18px!important;width:42px!important;height:42px!important}
+}
+@media(max-height:640px){
+  html body .shell.shell-v13 aside{padding-top:8px!important;padding-bottom:8px!important}
+  html body .shell.shell-v13 aside .brand{padding-bottom:7px!important}
+  html body .shell.shell-v13 aside .brand small{display:none!important}
+  html body .shell.shell-v13 aside nav{padding-top:7px!important;gap:2px!important}
+  html body .shell.shell-v13 aside nav a{min-height:36px!important;font-size:11.5px!important;padding-top:3px!important;padding-bottom:3px!important}
+  html body .shell.shell-v13 aside .side-foot{padding-top:5px!important}
+  html body .shell.shell-v13 aside .user-controls-v13 button{min-height:32px!important}
+}
 `;
 document.head.appendChild(style);
 
 window.EFC_SIDEBAR_LOCK_V30=Object.freeze({
   ready:true,singleSidebarDesignSource:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
   redesignedPagesUseRegistrationGap:true,redesignedTitlesMatchRegistrationHero:true,
+  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,
   centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,mainUntouched:true
 });
 })();
