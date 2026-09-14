@@ -7,7 +7,7 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
@@ -16,6 +16,7 @@ const ui=read(uiPath);
 const registration=read('assets/production-registration-schedule-v13.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
 const receiptSchedule=read('assets/production-registration-receipt-schedule-v22.js');
+const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
 const sidebar=read('assets/production-sidebar-lock-v30.js');
 const monthly=read('assets/production-monthly-prepayment-ui-v14.js');
 const gate=read('assets/production-license-gate-v8.js');
@@ -63,15 +64,35 @@ for(const token of [
 for(const [token,label] of [
   ['selectedCourseOnly:true','registration timetable shows only the selected course'],
   ['renderSelectedCourseRow','selected course row synchronization'],
-  ["courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]",'single selected course schedule snapshot']
+  ["courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]",'single selected course schedule snapshot'],
+  ['emptyScheduleVisibleOnReceipt:true','empty registration schedule remains visible in receipt flow'],
+  ['longCourseNamesWrapInMatrix:true','long selected course names wrap inside registration timetable'],
+  ['overflow-wrap:anywhere!important','registration timetable can wrap unusually long course names']
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
+forbidText(scheduleMatrix,"{...model,schedule:null}",'empty schedules must not be stripped before receipt rendering');
 
 for(const [token,label] of [
   ['legacySingleCourseScheduleFallback:true','legacy schedule receipt compatibility'],
-  ['const legacyDays=Array.isArray(schedule.days)?schedule.days:[]','receipt fallback to stored day schedule'],
-  ['if(courses.length)return[courses[0]]','receipt limited to the registered course']
+  ['const legacyDays=Array.isArray(schedule.days)?schedule.days:emptyDays()','receipt fallback to stored or empty day schedule'],
+  ['if(courses.length)return[courses[0]]','receipt limited to the registered course when a selected schedule exists'],
+  ['alwaysVisibleOnRegistrationReceipt:true','registration receipt always owns a timetable section'],
+  ['emptyScheduleVisibleOnReceipt:true','empty timetable still renders on registration receipt'],
+  ['receiptSectionInsidePaper:true','injected timetable stays inside the receipt paper'],
+  ['longCourseNamesWrap:true','receipt timetable wraps long course names'],
+  ["const paper=doc.querySelector('.paper12')||doc.body",'receipt timetable is inserted into the receipt paper'],
+  ['overflow-wrap:anywhere!important','receipt course name cell wraps long names']
 ])requireText(receiptSchedule,token,label);
+forbidText(receiptSchedule,'else if(section){section.remove();}','empty registration timetable must not be removed from receipt');
+
+for(const [token,label] of [
+  ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
+  ['longNamesWrapInsideCards:true','course and center names wrap inside their cards'],
+  ['height:auto!important;min-height:160px!important;max-height:none!important','course card height expands when its title wraps'],
+  ['height:auto!important;min-height:136px!important;max-height:none!important','center card height expands when its title wraps'],
+  ['overflow-wrap:anywhere!important;word-break:break-word!important','long card names cannot be clipped by unbroken text']
+])requireText(coursesCompact,token,label);
+forbidText(coursesCompact,'fixedCardHeights:true','cards must not advertise fixed heights after long-name wrapping support');
 
 for(const [token,label] of [
   ['responsiveSmallViewport:true','small viewport sidebar marker'],
@@ -110,4 +131,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: selected-course timetable, receipt schedule compatibility, compact-screen accessibility and backup-on-exit safeguards are present without duplicating registration/accounting ownership.');
+console.log('Registration redesign verified: selected-course timetable, always-visible receipt schedule, long-name wrapping, compact-screen accessibility and backup-on-exit safeguards are present without duplicating registration/accounting ownership.');
