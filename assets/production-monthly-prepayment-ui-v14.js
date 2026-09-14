@@ -27,7 +27,19 @@ function coverageText(amount,fee,startMonth=1){
   if(partial>0)parts.push(`جزء من الشهر ${startMonth+full} (${cash(partial)} من ${cash(unit)})`);
   return parts.join(' + ');
 }
-function readSchedule(root,item){return{version:1,specialtyId:String(item?.id||''),specialtyName:String(item?.name||''),days:DAYS.map(key=>{const check=root.querySelector(`[data-day-check="${key}"]`),time=root.querySelector(`[data-day-time="${key}"]`);return{key,selected:Boolean(check?.checked),time:String(time?.value||'')};})};}
+function readSchedule(root,item){
+  const specialtyId=String(item?.id||'');
+  const days=DAYS.map(key=>{
+    const matrixCheck=root.querySelector(`[data-matrix-day="${key}"]`);
+    const legacyCheck=root.querySelector(`[data-day-check="${key}"]`);
+    const matrixTime=root.querySelector(`[data-schedule-day-time="${key}"]`);
+    const legacyTime=root.querySelector(`[data-day-time="${key}"]`);
+    const check=matrixCheck||legacyCheck;
+    const time=matrixTime||legacyTime;
+    return{key,selected:Boolean(check?.checked),time:String(time?.value||'')};
+  });
+  return{version:2,specialtyId,specialtyName:String(item?.name||''),days};
+}
 
 window.renderRegister=function(){
   baseRenderRegister();
@@ -84,5 +96,5 @@ function enhanceLedger(){
 window.renderLedger=function(){baseRenderLedger();enhanceLedger();['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(enhanceLedger,0)));};
 
 const style=document.createElement('style');style.textContent=`.prepay-note-v14{margin:-4px 0 12px;padding:9px 11px;border:1px solid #cfe0d9;border-radius:9px;background:#f4faf7;color:var(--muted);font-size:9px;line-height:1.7}.prepay-preview-v14{min-height:38px;padding:9px 11px;border:1px dashed var(--border);border-radius:8px;background:var(--surface2);font-size:9px;line-height:1.7;color:var(--primary);font-weight:700}`;document.head.appendChild(style);
-window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true});
+window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,scheduleDirectFromMatrix:true});
 })();
