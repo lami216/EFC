@@ -18,6 +18,7 @@ const DAYS=[
 const baseRenderRegister=window.renderRegister;
 const baseReceiptWindow=window.receiptWindowV4;
 const studentList=()=>typeof students!=='undefined'&&Array.isArray(students)?students:[];
+const emptyDays=()=>DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:false,time:''}));
 
 function sharedTime(root,day){
   return String(
@@ -54,7 +55,7 @@ function captureSchedule(){
     return{specialtyId,specialtyName,days};
   }).filter(course=>course.specialtyId&&course.specialtyId===selectedId&&course.days.some(day=>day.selected));
   const selectedCourse=courses[0]||null;
-  const days=selectedCourse?.days||DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:false,time:''}));
+  const days=selectedCourse?.days||emptyDays();
   return{
     version:4,
     specialtyId:selectedId,
@@ -81,29 +82,29 @@ function installSubmitCapture(){
   },true);
 }
 
-function selectedCourses(schedule){
-  if(!schedule)return[];
+function selectedCourses(schedule,fallbackName='الدورة'){
+  const fallback=String(schedule?.specialtyName||fallbackName||'الدورة').trim()||'الدورة';
+  if(!schedule)return[{specialtyId:'',specialtyName:fallback,days:emptyDays()}];
   const selectedId=String(schedule.specialtyId||'');
   const stored=Array.isArray(schedule.courses)?schedule.courses:[];
   const courses=stored.map(course=>({
     specialtyId:String(course?.specialtyId||''),
-    specialtyName:String(course?.specialtyName||schedule.specialtyName||'الدورة'),
-    days:Array.isArray(course?.days)?course.days:[]
+    specialtyName:String(course?.specialtyName||fallback),
+    days:Array.isArray(course?.days)?course.days:emptyDays()
   })).filter(course=>(!selectedId||!course.specialtyId||course.specialtyId===selectedId)&&course.days.some(day=>Boolean(day?.selected)));
   if(courses.length)return[courses[0]];
-  const legacyDays=Array.isArray(schedule.days)?schedule.days:[];
-  if(!legacyDays.some(day=>Boolean(day?.selected)))return[];
+  const legacyDays=Array.isArray(schedule.days)?schedule.days:emptyDays();
   return[{
     specialtyId:selectedId,
-    specialtyName:String(schedule.specialtyName||'الدورة'),
-    days:legacyDays
+    specialtyName:fallback,
+    days:legacyDays.length?legacyDays:emptyDays()
   }];
 }
 
 function usedTimes(courses){
   const result={};
   DAYS.forEach(day=>{
-    const selectedDay=courses.map(course=>course.days.find(item=>String(item?.key||'')===day.key)).find(item=>Boolean(item?.selected));
+    const selectedDay=courses.map(course=>(course.days||[]).find(item=>String(item?.key||'')===day.key)).find(item=>Boolean(item?.selected));
     result[day.key]=String(selectedDay?.time||'');
   });
   return result;
@@ -114,7 +115,7 @@ function gridMarkup(courses){
   const header=DAYS.map(day=>`<th><b>${day.ar}</b><small>${day.fr}</small></th>`).join('');
   const timeCells=DAYS.map(day=>`<td>${times[day.key]?`<b>${esc(times[day.key])}</b>`:'<span class="efcScheduleDash22">—</span>'}</td>`).join('');
   const rows=courses.map(course=>{
-    const byKey=new Map(course.days.map(day=>[String(day?.key||''),day]));
+    const byKey=new Map((course.days||[]).map(day=>[String(day?.key||''),day]));
     const cells=DAYS.map(day=>{
       const item=byKey.get(day.key)||{};
       return`<td>${item.selected?'<span class="efcScheduleBox22 is-checked"></span>':'<span class="efcScheduleBox22"></span>'}</td>`;
@@ -135,8 +136,8 @@ function installReceiptStyle(doc){
     .efcScheduleGrid22 thead th{background:#006a58!important;color:#fff!important;font-weight:900!important}
     .efcScheduleGrid22 thead th b,.efcScheduleGrid22 thead th small{display:block!important;color:#fff!important;line-height:1.15!important;white-space:nowrap!important}
     .efcScheduleGrid22 thead th b{font-size:8px!important}.efcScheduleGrid22 thead th small{font-size:6px!important;margin-top:1px!important}
-    .efcScheduleGrid22 thead th:first-child,.efcScheduleGrid22 tbody th{width:76px!important;min-width:76px!important}
-    .efcScheduleGrid22 tbody th{background:#eef2ef!important;color:#111!important;font-weight:900!important}
+    .efcScheduleGrid22 thead th:first-child,.efcScheduleGrid22 tbody th{width:92px!important;min-width:92px!important}
+    .efcScheduleGrid22 tbody th{background:#eef2ef!important;color:#111!important;font-weight:900!important;height:auto!important;min-height:26px!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.25!important;padding:4px!important}
     .efcScheduleTimeRow22 td{background:#fffdf0!important;font-weight:900!important;color:#111!important}
     .efcScheduleCourseRow22 td{background:#fffdf0!important}
     .efcScheduleBox22{display:inline-block!important;width:14px!important;height:14px!important;border:1.7px solid #394a44!important;border-radius:3px!important;background:#fff!important;vertical-align:middle!important}
@@ -151,15 +152,14 @@ function patchReceipt(frame,courses,autoPrint){
     const doc=frame?.contentDocument;if(!doc)return;
     installReceiptStyle(doc);
     let section=doc.querySelector('.studentSchedule12');
-    if(courses.length){
-      if(!section){
-        section=doc.createElement('section');
-        section.className='studentSchedule12';
-        const anchor=doc.querySelector('.receiptNotes12,.notes12,footer');
-        if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor);else doc.body.appendChild(section);
-      }
-      section.innerHTML=gridMarkup(courses);
-    }else if(section){section.remove();}
+    if(!section){
+      section=doc.createElement('section');
+      section.className='studentSchedule12';
+      const paper=doc.querySelector('.paper12')||doc.body;
+      const anchor=paper.querySelector?.('.receiptNotes12,.notes12,footer');
+      if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor);else paper.appendChild(section);
+    }
+    section.innerHTML=gridMarkup(courses);
     if(autoPrint)setTimeout(()=>frame.contentWindow?.print?.(),100);
   };
   frame?.addEventListener('load',()=>setTimeout(apply,0),{once:true});
@@ -168,7 +168,7 @@ function patchReceipt(frame,courses,autoPrint){
 
 window.receiptWindowV4=function(model,autoPrint=false){
   const schedule=model?.schedule||null;
-  const courses=model?.registrationReceipt?selectedCourses(schedule):[];
+  const courses=model?.registrationReceipt?selectedCourses(schedule,model?.specialty):[];
   const viewer=baseReceiptWindow(model,false);
   if(model?.registrationReceipt&&viewer?.frame)patchReceipt(viewer.frame,courses,autoPrint);
   else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),100);
@@ -188,6 +188,10 @@ window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   savedScheduleMatchesBlackBoxes:true,
   checkboxSelectionPersistsWithoutTime:true,
   legacySingleCourseScheduleFallback:true,
+  alwaysVisibleOnRegistrationReceipt:true,
+  emptyScheduleVisibleOnReceipt:true,
+  receiptSectionInsidePaper:true,
+  longCourseNamesWrap:true,
   noCrossRegistrationPendingState:true,
   mainUntouched:true
 });

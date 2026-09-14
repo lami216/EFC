@@ -185,7 +185,6 @@ function patchReceiptFrame(frame,model,courses,autoPrint){
     const doc=frame.contentDocument;if(!doc)return;
     const section=doc.querySelector('.studentSchedule12');
     if(section&&courses.length)section.innerHTML=receiptScheduleMarkup(courses);
-    if(section&&!courses.length)section.remove();
     const late=doc.querySelector('.late12');if(late)late.textContent=NOTE;
     if(autoPrint)setTimeout(()=>frame.contentWindow?.print?.(),80);
   };
@@ -195,8 +194,7 @@ function patchReceiptFrame(frame,model,courses,autoPrint){
 
 window.receiptWindowV4=function(model,autoPrint=false){
   const courses=model?.registrationReceipt?activeCourses(model?.schedule):[];
-  const normalized=model?.registrationReceipt&&!courses.length?{...model,schedule:null}:model;
-  const viewer=baseReceiptWindow(normalized,false);
+  const viewer=baseReceiptWindow(model,false);
   if(viewer?.frame&&model?.registrationReceipt)patchReceiptFrame(viewer.frame,model,courses,autoPrint);
   else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),80);
   return viewer;
@@ -215,6 +213,8 @@ body.efc-registration-redesign-v15 .schedule-time-row-v17 td{height:47px!importa
 body.efc-registration-redesign-v15 .schedule-day-time-v17{width:100%;min-width:0;height:34px;border:1px solid #c7d3cf;border-radius:7px;background:#fff;padding:2px 3px;font:700 11px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;text-align:center;color:#17352d}
 body.efc-registration-redesign-v15 .schedule-day-time-v17:focus{outline:0;border-color:#118063;box-shadow:0 0 0 2px rgba(17,128,99,.10)}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17 td{height:45px!important;padding:4px!important;background:#fffdf3}
+body.efc-registration-redesign-v15 .schedule-matrix-row-v17 th{height:auto!important;min-height:45px!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere!important;word-break:break-word!important;vertical-align:middle!important}
+body.efc-registration-redesign-v15 .schedule-matrix-row-v17 th span{display:block!important;width:100%!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.25!important;text-align:center!important}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17.is-registration-course-v17 th{background:#dff3ea!important;color:#075844!important;box-shadow:inset -4px 0 #19a47d}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17.is-empty-course-v17 th{color:#83928d!important;font-weight:700!important}
 body.efc-registration-redesign-v15 .schedule-course-check-v17{display:inline-grid;place-items:center;cursor:pointer;margin:0!important}
@@ -256,7 +256,8 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   checkedCourseSquaresAreBlack:true,
   selectedCourseOnly:true,
   receiptOnlyShowsScheduledCourses:true,
-  emptyScheduleHiddenOnReceipt:true,
+  emptyScheduleVisibleOnReceipt:true,
+  longCourseNamesWrapInMatrix:true,
   lateNoteUpdated:true,
   mainUntouched:true
 });
