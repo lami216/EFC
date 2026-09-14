@@ -166,8 +166,13 @@ fn import_backup(app: tauri::AppHandle) -> Result<Option<String>, String> {
     Ok(Some(state))
 }
 
+#[tauri::command]
+fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 fn main() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_license_device_id,
             get_license_status,
@@ -178,8 +183,35 @@ fn main() {
             import_backup,
             load_certificate_state,
             save_certificate_state,
-            save_receipt_pdf
+            save_receipt_pdf,
+            exit_app
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Centre EFC");
+        .build(tauri::generate_context!())
+        .expect("error while building Centre EFC");
+
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::WindowEvent { label, event, .. } = event {
+            if label != "main" {
+                return;
+            }
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                // The activation window must always remain closable. Once licensed,
+                // the frontend flushes pending state before offering the save dialog.
+                if license::require_valid_license().is_err() {
+                    return;
+                }
+                api.prevent_close();
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    if window
+                        .eval("if(typeof window.EFC_REQUEST_CLOSE_BACKUP==='function'){window.EFC_REQUEST_CLOSE_BACKUP();}else{window.__TAURI__?.core?.invoke('exit_app');}")
+                        .is_err()
+                    {
+                        app_handle.exit(0);
+                    }
+                } else {
+                    app_handle.exit(0);
+                }
+            }
+        }
+    });
 }

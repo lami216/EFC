@@ -42,6 +42,7 @@ function captureSchedule(){
   const form=document.getElementById('regFormV13');
   if(!root)return null;
   const selectedId=String(form?.elements?.specialty?.value||'');
+  const selectedItem=(typeof specialties!=='undefined'&&Array.isArray(specialties))?specialties.find(item=>String(item?.id||'')===selectedId):null;
   const times=Object.fromEntries(DAYS.map(day=>[day.key,sharedTime(root,day.key)]));
   const courses=[...root.querySelectorAll('.schedule-matrix-row-v17')].map(row=>{
     const specialtyId=String(row.dataset.courseId||'');
@@ -51,16 +52,16 @@ function captureSchedule(){
       return{key:day.key,ar:day.ar,fr:day.fr,selected,time:selected?times[day.key]:''};
     });
     return{specialtyId,specialtyName,days};
-  }).filter(course=>course.days.some(day=>day.selected));
-  if(!courses.length)return{version:4,specialtyId:selectedId,specialtyName:'',dailyTimes:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,time:times[day.key]})),days:[],courses:[]};
-  const selectedCourse=courses.find(course=>course.specialtyId===selectedId)||courses[0];
+  }).filter(course=>course.specialtyId&&course.specialtyId===selectedId&&course.days.some(day=>day.selected));
+  const selectedCourse=courses[0]||null;
+  const days=selectedCourse?.days||DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:false,time:''}));
   return{
     version:4,
     specialtyId:selectedId,
-    specialtyName:String(selectedCourse?.specialtyName||''),
+    specialtyName:String(selectedCourse?.specialtyName||selectedItem?.name||''),
     dailyTimes:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,time:times[day.key]})),
-    days:Array.isArray(selectedCourse?.days)?selectedCourse.days:[],
-    courses
+    days,
+    courses:selectedCourse?[selectedCourse]:[]
   };
 }
 
@@ -81,12 +82,22 @@ function installSubmitCapture(){
 }
 
 function selectedCourses(schedule){
-  const courses=Array.isArray(schedule?.courses)?schedule.courses:[];
-  return courses.map(course=>({
+  if(!schedule)return[];
+  const selectedId=String(schedule.specialtyId||'');
+  const stored=Array.isArray(schedule.courses)?schedule.courses:[];
+  const courses=stored.map(course=>({
     specialtyId:String(course?.specialtyId||''),
-    specialtyName:String(course?.specialtyName||'الدورة'),
+    specialtyName:String(course?.specialtyName||schedule.specialtyName||'الدورة'),
     days:Array.isArray(course?.days)?course.days:[]
-  })).filter(course=>course.days.some(day=>Boolean(day?.selected)));
+  })).filter(course=>(!selectedId||!course.specialtyId||course.specialtyId===selectedId)&&course.days.some(day=>Boolean(day?.selected)));
+  if(courses.length)return[courses[0]];
+  const legacyDays=Array.isArray(schedule.days)?schedule.days:[];
+  if(!legacyDays.some(day=>Boolean(day?.selected)))return[];
+  return[{
+    specialtyId:selectedId,
+    specialtyName:String(schedule.specialtyName||'الدورة'),
+    days:legacyDays
+  }];
 }
 
 function usedTimes(courses){
@@ -176,6 +187,7 @@ window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   liveScheduleCapturedBeforeReceipt:true,
   savedScheduleMatchesBlackBoxes:true,
   checkboxSelectionPersistsWithoutTime:true,
+  legacySingleCourseScheduleFallback:true,
   noCrossRegistrationPendingState:true,
   mainUntouched:true
 });
