@@ -46,7 +46,8 @@ function timeRow(){
 }
 
 function courseRow(course){
-  return`<tr class="schedule-matrix-row-v17" data-course-id="${esc(course.id)}"><th><span>${esc(course.name)}</span></th>${DAYS.map(day=>`<td><label class="schedule-course-check-v17" title="${esc(course.name)} - ${day.ar}"><input type="checkbox" data-matrix-course="${esc(course.id)}" data-matrix-day="${day.key}" aria-label="${esc(course.name)} - ${day.ar}"><span></span></label></td>`).join('')}</tr>`;
+  if(!course)return`<tr class="schedule-matrix-row-v17 is-empty-course-v17" data-course-id=""><th><span>اختر الدورة</span></th>${DAYS.map(day=>`<td><label class="schedule-course-check-v17 is-disabled-v17" title="اختر الدورة أولاً"><input type="checkbox" data-matrix-course="" data-matrix-day="${day.key}" aria-label="${day.ar}" disabled><span></span></label></td>`).join('')}</tr>`;
+  return`<tr class="schedule-matrix-row-v17 is-registration-course-v17" data-course-id="${esc(course.id)}"><th><span>${esc(course.name)}</span></th>${DAYS.map(day=>`<td><label class="schedule-course-check-v17" title="${esc(course.name)} - ${day.ar}"><input type="checkbox" data-matrix-course="${esc(course.id)}" data-matrix-day="${day.key}" aria-label="${esc(course.name)} - ${day.ar}"><span></span></label></td>`).join('')}</tr>`;
 }
 
 function bindMatrixBehavior(scheduleRoot){
@@ -59,44 +60,46 @@ function bindMatrixBehavior(scheduleRoot){
   });
 }
 
+function renderSelectedCourseRow(form,scheduleRoot,{clearChecks=false}={}){
+  const tbody=scheduleRoot.querySelector('.schedule-table-v13 tbody');if(!tbody)return;
+  const selectedId=String(form.elements.specialty?.value||'');
+  const selectedCourse=specialties.find(course=>String(course.id)===selectedId)||null;
+  const previousRow=tbody.querySelector('.schedule-matrix-row-v17');
+  const previousId=String(previousRow?.dataset.courseId||'');
+  if(previousId===selectedId&&previousRow)return;
+  previousRow?.remove();
+  tbody.insertAdjacentHTML('beforeend',courseRow(selectedCourse));
+  if(clearChecks)scheduleRoot.querySelectorAll('[data-matrix-course][data-matrix-day]').forEach(input=>{input.checked=false;});
+}
+
 function installMatrix(form,scheduleRoot){
   scheduleRoot.querySelector('.efc-schedule-course-mirror-v15')?.remove();
   const note=scheduleRoot.querySelector('.schedule-top-note-v13');if(note)note.textContent=NOTE;
   const tbody=scheduleRoot.querySelector('.schedule-table-v13 tbody');if(!tbody)return;
-  tbody.innerHTML=timeRow()+specialties.map(courseRow).join('');
+  tbody.innerHTML=timeRow()+courseRow(null);
   bindMatrixBehavior(scheduleRoot);
   const specialtySelect=form.elements.specialty;
-  const syncHighlight=()=>{
-    const selected=String(specialtySelect?.value||'');
-    scheduleRoot.querySelectorAll('.schedule-matrix-row-v17').forEach(row=>row.classList.toggle('is-registration-course-v17',String(row.dataset.courseId)===selected));
-  };
-  specialtySelect?.addEventListener('change',syncHighlight);
-  syncHighlight();
+  specialtySelect?.addEventListener('change',()=>renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true}));
+  renderSelectedCourseRow(form,scheduleRoot);
 }
 
 function scheduleSnapshot(form,scheduleRoot){
   const selectedId=String(form.elements.specialty?.value||'');
+  const selectedItem=specialties.find(course=>String(course.id)===selectedId)||null;
   const dayTimes=Object.fromEntries(DAYS.map(day=>[day.key,String(scheduleRoot.querySelector(`[data-schedule-day-time="${day.key}"]`)?.value||'')]));
-  const courses=specialties.map(course=>{
-    const days=DAYS.map(day=>{
-      const check=scheduleRoot.querySelector(`[data-matrix-course="${CSS.escape(String(course.id))}"][data-matrix-day="${day.key}"]`);
-      const selected=Boolean(check?.checked&&dayTimes[day.key]);
-      return{key:day.key,ar:day.ar,fr:day.fr,selected,time:selected?dayTimes[day.key]:''};
-    });
-    return{specialtyId:String(course.id),specialtyName:String(course.name||''),days};
-  }).filter(course=>course.days.some(day=>day.selected));
-  const selectedCourse=courses.find(course=>course.specialtyId===selectedId);
-  const selectedItem=specialties.find(course=>String(course.id)===selectedId);
+  const days=DAYS.map(day=>{
+    const check=scheduleRoot.querySelector(`[data-matrix-course="${CSS.escape(selectedId)}"][data-matrix-day="${day.key}"]`);
+    const selected=Boolean(check?.checked&&dayTimes[day.key]);
+    return{key:day.key,ar:day.ar,fr:day.fr,selected,time:selected?dayTimes[day.key]:''};
+  });
+  const selectedCourse={specialtyId:selectedId,specialtyName:String(selectedItem?.name||''),days};
   return{
     version:3,
     specialtyId:selectedId,
     specialtyName:String(selectedItem?.name||''),
     dailyTimes:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,time:dayTimes[day.key]})),
-    days:DAYS.map(day=>{
-      const existing=selectedCourse?.days.find(value=>value.key===day.key);
-      return existing?{...existing}:{key:day.key,ar:day.ar,fr:day.fr,selected:false,time:''};
-    }),
-    courses
+    days,
+    courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]
   };
 }
 
@@ -117,8 +120,7 @@ function attachSubmitCapture(form,scheduleRoot){
       created.schedule=snapshot;
       try{D.saveStudents();}catch(error){console.error('EFC v17 schedule save failed.',error);}
       resetMatrix(scheduleRoot);
-      const selected=String(form.elements.specialty?.value||'');
-      scheduleRoot.querySelectorAll('.schedule-matrix-row-v17').forEach(row=>row.classList.toggle('is-registration-course-v17',String(row.dataset.courseId)===selected));
+      renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true});
     });
   },true);
 }
@@ -142,11 +144,11 @@ function enhanceRegister(){
     installBlankSelection(specialtySelect,'اختر الدورة',{required:true});
     installBlankSelection(methodSelect,'اختر وسيلة الدفع');
     resetMatrix(scheduleRoot);
+    renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true});
     syncMethodRequired();
-    specialtySelect?.dispatchEvent(new Event('change',{bubbles:true}));
   }));
   syncMethodRequired();
-  specialtySelect?.dispatchEvent(new Event('change',{bubbles:true}));
+  renderSelectedCourseRow(form,scheduleRoot);
   attachSubmitCapture(form,scheduleRoot);
 }
 
@@ -157,7 +159,7 @@ window.renderRegister=function(){
 
 function activeCourses(schedule){
   if(!schedule)return[];
-  if(Array.isArray(schedule.courses))return schedule.courses.map(course=>({
+  if(Array.isArray(schedule.courses)&&schedule.courses.length)return schedule.courses.map(course=>({
     specialtyId:String(course?.specialtyId||''),
     specialtyName:String(course?.specialtyName||''),
     days:Array.isArray(course?.days)?course.days:[]
@@ -214,7 +216,9 @@ body.efc-registration-redesign-v15 .schedule-day-time-v17{width:100%;min-width:0
 body.efc-registration-redesign-v15 .schedule-day-time-v17:focus{outline:0;border-color:#118063;box-shadow:0 0 0 2px rgba(17,128,99,.10)}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17 td{height:45px!important;padding:4px!important;background:#fffdf3}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17.is-registration-course-v17 th{background:#dff3ea!important;color:#075844!important;box-shadow:inset -4px 0 #19a47d}
+body.efc-registration-redesign-v15 .schedule-matrix-row-v17.is-empty-course-v17 th{color:#83928d!important;font-weight:700!important}
 body.efc-registration-redesign-v15 .schedule-course-check-v17{display:inline-grid;place-items:center;cursor:pointer;margin:0!important}
+body.efc-registration-redesign-v15 .schedule-course-check-v17.is-disabled-v17{cursor:not-allowed;opacity:.42}
 body.efc-registration-redesign-v15 .schedule-course-check-v17 input{position:absolute;opacity:0;pointer-events:none}
 body.efc-registration-redesign-v15 .schedule-course-check-v17 span{display:block;width:22px;height:22px;border:2px solid #50625b;border-radius:5px;background:#fff;box-shadow:inset 0 0 0 2px #fff;transition:.12s ease}
 body.efc-registration-redesign-v15 .schedule-course-check-v17 input:checked+span{background:#111;border-color:#111;box-shadow:inset 0 0 0 3px #111}
@@ -250,7 +254,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   sharedDayTimes:true,
   courseDayCheckboxes:true,
   checkedCourseSquaresAreBlack:true,
-  allCoursesVisible:true,
+  selectedCourseOnly:true,
   receiptOnlyShowsScheduledCourses:true,
   emptyScheduleHiddenOnReceipt:true,
   lateNoteUpdated:true,
