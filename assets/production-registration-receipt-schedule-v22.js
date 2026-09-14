@@ -66,6 +66,14 @@ function captureSchedule(){
   };
 }
 
+function existingScheduleMatches(schedule,snapshot){
+  return Boolean(
+    schedule&&snapshot&&
+    String(schedule.specialtyId||'')===String(snapshot.specialtyId||'')&&
+    Array.isArray(schedule.days)&&schedule.days.length===DAYS.length
+  );
+}
+
 function installSubmitCapture(){
   const form=document.getElementById('regFormV13');
   if(!form||form.dataset.efcReceiptScheduleV22==='1')return;
@@ -75,7 +83,7 @@ function installSubmitCapture(){
     const before=new Set(studentList().map(student=>String(student.id)));
     queueMicrotask(()=>{
       const created=studentList().find(student=>!before.has(String(student.id)));
-      if(!created||!snapshot)return;
+      if(!created||!snapshot||existingScheduleMatches(created.schedule,snapshot))return;
       created.schedule=snapshot;
       try{D.saveStudents();}catch(error){console.error('EFC v22 schedule save failed.',error);}
     });
@@ -186,6 +194,7 @@ window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   selectedCellsRenderedBlack:true,
   liveScheduleCapturedBeforeReceipt:true,
   savedScheduleMatchesBlackBoxes:true,
+  directSavedSchedulePreferred:true,
   checkboxSelectionPersistsWithoutTime:true,
   legacySingleCourseScheduleFallback:true,
   alwaysVisibleOnRegistrationReceipt:true,
