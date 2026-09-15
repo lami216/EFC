@@ -5,7 +5,6 @@ const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check
 await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready&&window.EFC_DOMAIN_V13?.ready&&typeof window.renderRegister==='function'&&typeof window.receiptWindowV4==='function');
 
 const D=window.EFC_DOMAIN_V13;
-const esc=D.esc;
 const DAYS=[
   {key:'monday',ar:'الاثنين',fr:'Lundi'},
   {key:'tuesday',ar:'الثلاثاء',fr:'Mardi'},
@@ -16,7 +15,6 @@ const DAYS=[
   {key:'sunday',ar:'الأحد',fr:'Dimanche'}
 ];
 const baseRenderRegister=window.renderRegister;
-const baseReceiptWindow=window.receiptWindowV4;
 const studentList=()=>typeof students!=='undefined'&&Array.isArray(students)?students:[];
 const emptyDays=()=>DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:false,time:''}));
 
@@ -90,117 +88,21 @@ function installSubmitCapture(){
   },true);
 }
 
-function selectedCourses(schedule,fallbackName='الدورة'){
-  const fallback=String(schedule?.specialtyName||fallbackName||'الدورة').trim()||'الدورة';
-  if(!schedule)return[{specialtyId:'',specialtyName:fallback,days:emptyDays()}];
-  const selectedId=String(schedule.specialtyId||'');
-  const stored=Array.isArray(schedule.courses)?schedule.courses:[];
-  const courses=stored.map(course=>({
-    specialtyId:String(course?.specialtyId||''),
-    specialtyName:String(course?.specialtyName||fallback),
-    days:Array.isArray(course?.days)?course.days:emptyDays()
-  })).filter(course=>(!selectedId||!course.specialtyId||course.specialtyId===selectedId)&&course.days.some(day=>Boolean(day?.selected)));
-  if(courses.length)return[courses[0]];
-  const legacyDays=Array.isArray(schedule.days)?schedule.days:emptyDays();
-  return[{
-    specialtyId:selectedId,
-    specialtyName:fallback,
-    days:legacyDays.length?legacyDays:emptyDays()
-  }];
-}
-
-function usedTimes(courses){
-  const result={};
-  DAYS.forEach(day=>{
-    const selectedDay=courses.map(course=>(course.days||[]).find(item=>String(item?.key||'')===day.key)).find(item=>Boolean(item?.selected));
-    result[day.key]=String(selectedDay?.time||'');
-  });
-  return result;
-}
-
-function gridMarkup(courses){
-  const times=usedTimes(courses);
-  const header=DAYS.map(day=>`<th><b>${day.ar}</b><small>${day.fr}</small></th>`).join('');
-  const timeCells=DAYS.map(day=>`<td>${times[day.key]?`<b>${esc(times[day.key])}</b>`:'<span class="efcScheduleDash22">—</span>'}</td>`).join('');
-  const rows=courses.map(course=>{
-    const byKey=new Map((course.days||[]).map(day=>[String(day?.key||''),day]));
-    const cells=DAYS.map(day=>{
-      const item=byKey.get(day.key)||{};
-      return`<td>${item.selected?'<span class="efcScheduleBox22 is-checked"></span>':'<span class="efcScheduleBox22"></span>'}</td>`;
-    }).join('');
-    return`<tr class="efcScheduleCourseRow22"><th>${esc(course.specialtyName||'الدورة')}</th>${cells}</tr>`;
-  }).join('');
-  return`<h3 class="efcScheduleTitle22">جدول الطالب الأسبوعي</h3><table class="efcScheduleGrid22"><thead><tr><th>الدورة</th>${header}</tr></thead><tbody><tr class="efcScheduleTimeRow22"><th>الوقت</th>${timeCells}</tr>${rows}</tbody></table>`;
-}
-
-function installReceiptStyle(doc){
-  if(!doc||doc.getElementById('efc-registration-receipt-schedule-style-v22'))return;
-  const style=doc.createElement('style');
-  style.id='efc-registration-receipt-schedule-style-v22';
-  style.textContent=`
-    .efcScheduleTitle22{margin:8px 0 5px!important;text-align:center!important;font-size:12px!important;font-weight:900!important;color:#111!important}
-    .efcScheduleGrid22{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;direction:rtl!important;background:#fff7bf!important;border:1.4px solid #17352d!important;font-family:Arial,Tahoma,sans-serif!important}
-    .efcScheduleGrid22 th,.efcScheduleGrid22 td{border:1px solid #17352d!important;text-align:center!important;padding:3px 2px!important;height:26px!important;color:#111!important;font-size:8px!important;vertical-align:middle!important}
-    .efcScheduleGrid22 thead th{background:#006a58!important;color:#fff!important;font-weight:900!important}
-    .efcScheduleGrid22 thead th b,.efcScheduleGrid22 thead th small{display:block!important;color:#fff!important;line-height:1.15!important;white-space:nowrap!important}
-    .efcScheduleGrid22 thead th b{font-size:8px!important}.efcScheduleGrid22 thead th small{font-size:6px!important;margin-top:1px!important}
-    .efcScheduleGrid22 thead th:first-child,.efcScheduleGrid22 tbody th{width:92px!important;min-width:92px!important}
-    .efcScheduleGrid22 tbody th{background:#eef2ef!important;color:#111!important;font-weight:900!important;height:auto!important;min-height:26px!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.25!important;padding:4px!important}
-    .efcScheduleTimeRow22 td{background:#fffdf0!important;font-weight:900!important;color:#111!important}
-    .efcScheduleCourseRow22 td{background:#fffdf0!important}
-    .efcScheduleBox22{display:inline-block!important;width:14px!important;height:14px!important;border:1.7px solid #394a44!important;border-radius:3px!important;background:#fff!important;vertical-align:middle!important}
-    .efcScheduleBox22.is-checked{background:#111!important;border-color:#111!important}
-    .efcScheduleDash22{color:#8b9692!important;font-weight:600!important}
-  `;
-  doc.head?.appendChild(style);
-}
-
-function patchReceipt(frame,courses,autoPrint){
-  const apply=()=>{
-    const doc=frame?.contentDocument;if(!doc)return;
-    installReceiptStyle(doc);
-    let section=doc.querySelector('.studentSchedule12');
-    if(!section){
-      section=doc.createElement('section');
-      section.className='studentSchedule12';
-      const paper=doc.querySelector('.paper12')||doc.body;
-      const anchor=paper.querySelector?.('.receiptNotes12,.notes12,footer');
-      if(anchor?.parentNode)anchor.parentNode.insertBefore(section,anchor);else paper.appendChild(section);
-    }
-    section.innerHTML=gridMarkup(courses);
-    if(autoPrint)setTimeout(()=>frame.contentWindow?.print?.(),100);
-  };
-  frame?.addEventListener('load',()=>setTimeout(apply,0),{once:true});
-  if(frame?.contentDocument?.readyState==='complete')setTimeout(apply,0);
-}
-
-window.receiptWindowV4=function(model,autoPrint=false){
-  const schedule=model?.schedule||null;
-  const courses=model?.registrationReceipt?selectedCourses(schedule,model?.specialty):[];
-  const viewer=baseReceiptWindow(model,false);
-  if(model?.registrationReceipt&&viewer?.frame)patchReceipt(viewer.frame,courses,autoPrint);
-  else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),100);
-  return viewer;
-};
-
 window.renderRegister=function(){baseRenderRegister();installSubmitCapture();};
 installSubmitCapture();
 
 window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22=Object.freeze({
   ready:true,
-  selectedCourseRowsOnly:true,
-  registrationMatrixLayout:true,
-  sharedDayTimeRow:true,
-  selectedCellsRenderedBlack:true,
+  registrationMatrixCapture:true,
+  sharedDayTimeCapture:true,
   liveScheduleCapturedBeforeReceipt:true,
   savedScheduleMatchesBlackBoxes:true,
   directSavedSchedulePreferred:true,
   checkboxSelectionPersistsWithoutTime:true,
-  legacySingleCourseScheduleFallback:true,
-  alwaysVisibleOnRegistrationReceipt:true,
-  emptyScheduleVisibleOnReceipt:true,
-  receiptSectionInsidePaper:true,
-  longCourseNamesWrap:true,
+  hourOnlyTimeValues:true,
+  receiptRenderingOwnedByBase:true,
+  noReceiptWindowOverride:true,
+  noReceiptDomPatch:true,
   noCrossRegistrationPendingState:true,
   mainUntouched:true
 });
