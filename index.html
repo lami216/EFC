@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0d3558" />
   <title>مركز EFC للغات والمعلوماتية</title>
-  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20260915-receipt-edit-hour-duration-2" />
-  <link rel="stylesheet" href="./assets/production-certificates-ui-v13.css?v=20260915-receipt-edit-hour-duration-2" />
-  <link rel="stylesheet" href="./assets/production-home-background-v36.css?v=20260915-receipt-edit-hour-duration-2&rev=20260914-responsive-1" />
+  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20260915-receipt-edit-hour-duration-3" />
+  <link rel="stylesheet" href="./assets/production-certificates-ui-v13.css?v=20260915-receipt-edit-hour-duration-3" />
+  <link rel="stylesheet" href="./assets/production-home-background-v36.css?v=20260915-receipt-edit-hour-duration-3&rev=20260914-responsive-1" />
   <style>
     html.efc-booting #app{visibility:hidden}
     body{min-width:840px}
@@ -21,6 +21,8 @@
       let closeRequestBusy=false;
       window.EFC_REQUEST_CLOSE_BACKUP=async()=>{
         if(closeRequestBusy)return;
+        const requestLeave=window.EFC_REGISTRATION_EDIT_V17?.requestLeave;
+        if(typeof requestLeave==='function'&&requestLeave()===false)return;
         const invoke=window.__TAURI__?.core?.invoke;
         if(!invoke)return;
         closeRequestBusy=true;
@@ -42,6 +44,6 @@
       };
     })();
   </script>
-  <script src="./assets/production-license-gate-v8.js?v=20260915-receipt-edit-hour-duration-2" defer></script>
+  <script src="./assets/production-license-gate-v8.js?v=20260915-receipt-edit-hour-duration-3" defer></script>
 </body>
 </html>
