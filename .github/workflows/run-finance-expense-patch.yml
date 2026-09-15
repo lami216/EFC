@@ -64,6 +64,10 @@ jobs:
           $scriptText = $scriptText.Replace('20260915-receipt-edit-hour-duration-4','__EFC_PREV_CACHE__')
           $scriptText = $scriptText.Replace('20260915-receipt-edit-hour-duration-5','20260915-receipt-edit-hour-duration-6')
           $scriptText = $scriptText.Replace('__EFC_PREV_CACHE__','20260915-receipt-edit-hour-duration-5')
+          $oldVerifierLine = "verify_reg = replace_once(verify_reg, '20260915-receipt-edit-hour-duration-5', '20260915-receipt-edit-hour-duration-6', 'registration verifier cache token')"
+          $newVerifierLine = "verify_reg = verify_reg.replace('20260915-receipt-edit-hour-duration-5','20260915-receipt-edit-hour-duration-6')"
+          if (-not $scriptText.Contains($oldVerifierLine)) { throw 'Could not adapt registration verifier cache replacement.' }
+          $scriptText = $scriptText.Replace($oldVerifierLine, $newVerifierLine)
           $scriptPath = Join-Path $env:RUNNER_TEMP 'efc-finance-expense-patch.py'
           [System.IO.File]::WriteAllText($scriptPath, $scriptText, [System.Text.UTF8Encoding]::new($false))
           python -m py_compile $scriptPath
