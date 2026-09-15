@@ -17,25 +17,40 @@ const DAYS=[
 const NOTE='ملاحظة: لا يسمح بتأخر الطالب عن 20 دقيقة.';
 const baseRenderRegister=window.renderRegister;
 let editSession=null;
+let navigationBypass=false;
 
 function clone(value){try{return structuredClone(value);}catch{return JSON.parse(JSON.stringify(value));}}
 function currentEditSession(){
   if(!editSession)return null;
   const student=students.find(value=>String(value.id)===String(editSession.studentId));
-  if(!student){editSession=null;return null;}
+  if(!student){clearEditSession();return null;}
   return{...editSession,student};
+}
+function clearEditSession(){
+  editSession=null;
+  document.body.classList.remove('efc-registration-editing-v17');
 }
 function receiptModelForSession(session){
   const student=students.find(value=>String(value.id)===String(session?.studentId));if(!student)return null;
   if(session.statement)return typeof receiptModelV4==='function'?receiptModelV4(student,null,true):null;
   return typeof receiptModelV4==='function'?receiptModelV4(student,session.paymentIndex,false):null;
 }
-function returnFromEdit({reopenReceipt=true}={}){
-  const session=editSession;editSession=null;if(!session)return;
-  const target=session.returnHash&&session.returnHash!=='#register'?session.returnHash:'#students';
+function restoreNormalRegistration(){
+  clearEditSession();
+  if(location.hash!=='#register')history.replaceState(null,'','#register');
+  window.renderCurrentV13?.();
+}
+function returnFromEdit({reopenReceipt=false}={}){
+  const session=editSession;if(!session)return;
+  clearEditSession();
+  const target=session.returnHash&&session.returnHash!=='#register'?session.returnHash:'#register';
   if(location.hash!==target)history.replaceState(null,'',target);
   window.renderCurrentV13?.();
   if(reopenReceipt)setTimeout(()=>{const model=receiptModelForSession(session);if(model)window.receiptWindowV4?.(model);},40);
+}
+function confirmDiscardEdit(){
+  if(!editSession)return true;
+  return window.confirm('لديك تعديلات غير محفوظة. مغادرة صفحة التعديل ستلغي التغييرات الحالية فقط. هل تريد المتابعة؟');
 }
 function beginRegistrationEdit(model){
   const studentId=String(model?.studentId||'');const student=students.find(value=>String(value.id)===studentId);
@@ -43,13 +58,38 @@ function beginRegistrationEdit(model){
   if(!(window.EFC_AUTH_V13?.canEdit?.('students')??true)){alert('لا تملك صلاحية تعديل ملف الطالب.');return false;}
   const rawIndex=model?.paymentIndex,index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);
   if(index!==null&&(!Number.isInteger(index)||index<0||!student.payments?.[index])){alert('تعذر العثور على الدفعة المرتبطة بهذا الروسي.');return false;}
-  editSession={studentId,paymentIndex:index,statement:Boolean(model?.statement),returnHash:location.hash||'#students',receipt:String(model?.receipt||''),startedAt:Date.now()};
+  const returnHash=location.hash||'#students';
+  editSession={studentId,paymentIndex:index,statement:Boolean(model?.statement),returnHash,receipt:String(model?.receipt||''),startedAt:Date.now()};
+  document.querySelectorAll('.modal').forEach(modal=>modal.remove());
+  document.body.classList.add('efc-registration-editing-v17');
   if(location.hash!=='#register')history.replaceState(null,'','#register');
   window.renderCurrentV13?.();
   return true;
 }
 window.EFC_BEGIN_REGISTRATION_EDIT_V17=beginRegistrationEdit;
-window.EFC_REGISTRATION_EDIT_V17=Object.freeze({begin:beginRegistrationEdit,current:currentEditSession,cancel:()=>returnFromEdit({reopenReceipt:true}),active:()=>Boolean(currentEditSession())});
+window.EFC_REGISTRATION_EDIT_V17=Object.freeze({begin:beginRegistrationEdit,current:currentEditSession,cancel:restoreNormalRegistration,active:()=>Boolean(currentEditSession())});
+
+document.addEventListener('click',event=>{
+  if(!editSession)return;
+  const target=event.target instanceof Element?event.target.closest('a[href^="#"]'):null;
+  if(!target)return;
+  const nextHash=String(target.getAttribute('href')||'');
+  if(!nextHash||nextHash==='#register')return;
+  event.preventDefault();event.stopPropagation();
+  if(!confirmDiscardEdit())return;
+  clearEditSession();navigationBypass=true;location.hash=nextHash;
+},true);
+window.addEventListener('hashchange',()=>{
+  if(navigationBypass){navigationBypass=false;return;}
+  if(!editSession||location.hash==='#register')return;
+  if(confirmDiscardEdit()){
+    clearEditSession();
+    window.renderCurrentV13?.();
+    return;
+  }
+  history.replaceState(null,'','#register');
+  window.renderCurrentV13?.();
+});
 
 function installBlankSelection(select,label,{required=false,preserveValue=false}={}){
   if(!select)return;
@@ -185,12 +225,22 @@ function attachSubmitCapture(form,scheduleRoot){
   },true);
 }
 
+function mountEditActions(form,submit){
+  let actions=form.querySelector('.registration-edit-actions-v17');
+  if(!actions){
+    actions=document.createElement('div');actions.className='registration-edit-actions-v17';
+    submit.parentNode.insertBefore(actions,submit);actions.appendChild(submit);
+    const cancel=document.createElement('button');cancel.className='button secondary registration-cancel-edit-v17';cancel.type='button';cancel.textContent='إلغاء التعديل';actions.appendChild(cancel);
+  }
+  actions.querySelector('.registration-cancel-edit-v17').onclick=restoreNormalRegistration;
+}
+
 function installEditMode(form,scheduleRoot){
   const session=currentEditSession();if(!session)return false;
   const student=session.student,payment=session.paymentIndex===null?null:student.payments?.[session.paymentIndex]||null,fields=form.querySelector('.registration-fields-v13');
-  document.querySelector('.page-title h1')?.replaceChildren(document.createTextNode('تعديل تسجيل الطالب'));
-  const pageDesc=document.querySelector('.page-title span');if(pageDesc)pageDesc.textContent='عدّل بيانات هذا الطالب فقط. لن يُحفظ أي تغيير قبل الضغط على «حفظ التغييرات».';
-  const sectionTitle=form.querySelector('.section-head h2');if(sectionTitle)sectionTitle.textContent='بيانات الطالب والتسجيل — وضع التعديل';
+  document.body.classList.add('efc-registration-editing-v17');
+  const heroTitle=document.querySelector('.efc-reg-hero-v15 h1');if(heroTitle)heroTitle.textContent='تعديل تسجيل الطالب';
+  const sectionTitle=form.querySelector('.section-head h2');if(sectionTitle)sectionTitle.textContent='بيانات الطالب والتسجيل';
   form.classList.add('registration-edit-mode-v17');
   form.elements.name.value=String(student.name||'');form.elements.phone.value=String(student.phone||'');form.elements.branch.value=String(student.branch||'');form.elements.specialty.value=String(student.specialty||'');form.elements.start.value=String(student.start||'');form.elements.price.value=String(student.snapshot?.fee||student.required||'');
   form.elements.paid.value=payment?String(payment[1]||0):String(D.paymentTotal?.(student)||0);form.elements.method.value=payment?String(payment[2]||''):'';
@@ -199,8 +249,7 @@ function installEditMode(form,scheduleRoot){
     fields.insertAdjacentHTML('beforeend',`<label data-edit-extra-v17>رقم السجل<input class="input" value="${esc(String(student.reg??'').padStart(4,'0'))}" readonly></label><label data-edit-extra-v17>تاريخ هذه الدفعة<input class="input" name="paymentDate" type="date" value="${esc(String(payment?.[0]||student.start||''))}" ${payment?'required':'disabled'}></label><label data-edit-extra-v17 class="wide-edit-field-v17">بيان هذه الدفعة<input class="input" name="paymentDescription" value="${esc(String(payment?.[5]||''))}" ${payment?'':'disabled'} autocomplete="off"></label>`);
   }
   if(!payment){form.elements.paid.readOnly=true;form.elements.method.disabled=true;const paidLabel=form.elements.paid.closest('label');if(paidLabel)paidLabel.childNodes[0].textContent='إجمالي المدفوع (محسوب)';}
-  const submit=form.querySelector('.registration-submit-v13');if(submit){submit.textContent='حفظ التغييرات';submit.classList.add('registration-save-edit-v17');if(!form.querySelector('.registration-cancel-edit-v17'))submit.insertAdjacentHTML('afterend','<button class="button secondary registration-cancel-edit-v17" type="button">إلغاء التعديل</button>');}
-  form.querySelector('.registration-cancel-edit-v17')?.addEventListener('click',()=>returnFromEdit({reopenReceipt:true}));
+  const submit=form.querySelector('.registration-submit-v13');if(submit){submit.textContent='حفظ التغييرات';submit.classList.add('registration-save-edit-v17');mountEditActions(form,submit);}
   renderSelectedCourseRow(form,scheduleRoot);fillMatrix(scheduleRoot,form,student.schedule||null);
   form.elements.specialty?.dispatchEvent(new Event('change',{bubbles:true}));renderSelectedCourseRow(form,scheduleRoot);fillMatrix(scheduleRoot,form,student.schedule||null);
   form.onsubmit=event=>{
@@ -211,8 +260,7 @@ function installEditMode(form,scheduleRoot){
     try{
       D.updateStudentRegistration(active.student,{name:String(data.get('name')||''),phone:String(data.get('phone')||''),branch:String(data.get('branch')||''),specialty:String(data.get('specialty')||''),start:String(data.get('start')||''),fee,schedule:scheduleSnapshot(form,scheduleRoot),paymentIndex:active.paymentIndex,paymentAmount,paymentMethod:payment?String(data.get('method')||''):undefined,paymentDate:payment?String(data.get('paymentDate')||payment[0]||''):undefined,paymentDescription:payment?String(data.get('paymentDescription')||''):undefined,debtDueDate:payment?debtDate:undefined});
     }catch(error){alert(String(error?.message||error));return;}
-    const finished={...editSession};editSession=null;const target=finished.returnHash&&finished.returnHash!=='#register'?finished.returnHash:'#students';history.replaceState(null,'',target);window.renderCurrentV13?.();
-    setTimeout(()=>{const model=receiptModelForSession(finished);if(model)window.receiptWindowV4?.(model);},40);
+    restoreNormalRegistration();
   };
   return true;
 }
@@ -222,6 +270,7 @@ function enhanceRegister(){
   const scheduleRoot=document.querySelector('.registration-schedule-card-v13');
   if(!form||!scheduleRoot)return;
   const editing=Boolean(currentEditSession()),branchSelect=form.elements.branch,specialtySelect=form.elements.specialty,methodSelect=form.elements.method,paidInput=form.elements.paid;
+  if(!editing)document.body.classList.remove('efc-registration-editing-v17');
   installBlankSelection(branchSelect,'اختر المركز',{required:true,preserveValue:editing});
   installBlankSelection(specialtySelect,'اختر الدورة',{required:true,preserveValue:editing});
   installBlankSelection(methodSelect,'اختر وسيلة الدفع',{preserveValue:editing});
@@ -278,15 +327,63 @@ body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th span,
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{color:#111!important;opacity:1!important;font-weight:800!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:112px!important;min-width:112px!important}
-body.efc-registration-redesign-v15 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 12px 34px rgba(7,88,68,.14)!important}
-body.efc-registration-redesign-v15 .registration-edit-mode-v17 .section-head span{color:#0b6a54!important;font-weight:800!important}
-body.efc-registration-redesign-v15 .registration-edit-mode-v17 .wide-edit-field-v17{grid-column:1/-1}
-body.efc-registration-redesign-v15 .registration-save-edit-v17{width:calc(60% - 5px)!important;display:inline-flex!important;justify-content:center!important}
-body.efc-registration-redesign-v15 .registration-cancel-edit-v17{width:calc(40% - 5px)!important;margin-top:10px!important;margin-inline-start:10px!important;min-height:44px!important}
+
+body.efc-registration-editing-v17 .efc-reg-page-head-v15{display:flex!important;justify-content:center!important;min-height:52px!important;margin:0 0 8px!important}
+body.efc-registration-editing-v17 .efc-reg-welcome-v15,body.efc-registration-editing-v17 .efc-reg-page-head-v15>div[aria-hidden]{display:none!important}
+body.efc-registration-editing-v17 .efc-reg-hero-v15{width:min(520px,100%)!important;height:52px!important;border-radius:14px!important;gap:12px!important}
+body.efc-registration-editing-v17 .efc-reg-hero-v15 h1{font-size:22px!important;white-space:nowrap!important}
+body.efc-registration-editing-v17 .efc-reg-hero-v15 svg{width:31px!important;height:31px!important}
+body.efc-registration-editing-v17 .efc-reg-hero-v15 i{bottom:6px!important;width:42px!important;height:3px!important}
+body.efc-registration-editing-v17 .registration-schedule-layout-v13{grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr)!important;gap:10px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 10px 28px rgba(7,88,68,.12)!important;padding:9px 10px 10px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .section-head{height:40px!important;margin:0 0 7px!important;padding:0 10px!important;border-radius:9px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .section-head h2{font-size:16px!important;line-height:1.2!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .efc-reg-form-icon-v15{width:24px!important;height:24px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .efc-reg-form-icon-v15 svg{width:22px!important;height:22px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px 8px!important;align-items:end!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 label{font-size:10.5px!important;gap:3px!important;line-height:1.25!important;min-width:0!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 .input,
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 select{height:34px!important;padding:4px 8px!important;border-radius:7px!important;font-size:11px!important;min-width:0!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 label.efc-reg-has-icon-v15 .input{padding-left:31px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .efc-reg-field-icon-v15{left:8px!important;bottom:7px!important;width:17px!important;height:17px!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .debt-slot-v13{min-height:0!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17 .wide-edit-field-v17{grid-column:span 2!important}
+body.efc-registration-editing-v17 .registration-edit-actions-v17{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr)!important;gap:8px!important;margin-top:7px!important;position:relative;z-index:2}
+body.efc-registration-editing-v17 .registration-edit-actions-v17 .button{width:100%!important;min-width:0!important;min-height:38px!important;height:38px!important;margin:0!important;border-radius:8px!important;font-size:13px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+body.efc-registration-editing-v17 .registration-save-edit-v17{background:linear-gradient(180deg,#08785d,#056149)!important;color:#fff!important}
+body.efc-registration-editing-v17 .registration-cancel-edit-v17{background:#eef3f1!important;color:#17352d!important;border:1px solid #c9d8d2!important}
+body.efc-registration-editing-v17 .registration-schedule-card-v13{padding:10px 10px 9px!important}
+body.efc-registration-editing-v17 .schedule-title-v13{margin-bottom:6px!important}
+body.efc-registration-editing-v17 .schedule-title-v13 h2{font-size:18px!important}
+body.efc-registration-editing-v17 .schedule-top-note-v13{min-height:40px!important;margin-bottom:6px!important;padding:6px 9px!important;font-size:12px!important}
+body.efc-registration-editing-v17 .schedule-time-row-v17 td,body.efc-registration-editing-v17 .schedule-matrix-row-v17 td{height:40px!important}
+body.efc-registration-editing-v17 .schedule-day-time-v17{height:30px!important;font-size:10px!important}
+body.efc-registration-editing-v17 .schedule-notes-v13{margin-top:6px!important;padding-top:7px!important;padding-bottom:7px!important;font-size:11px!important}
+
 @media(max-width:1180px){
   body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:98px!important;min-width:98px!important}
   body.efc-registration-redesign-v15 .schedule-day-time-v17{font-size:10px!important;padding:1px!important}
   body.efc-registration-redesign-v15 .schedule-course-check-v17 span{width:20px;height:20px}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .wide-edit-field-v17{grid-column:1/-1!important}
+}
+@media(max-width:980px){
+  body.efc-registration-editing-v17 .registration-schedule-layout-v13{grid-template-columns:1fr!important}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17{max-width:760px!important;justify-self:center!important}
+}
+@media(max-height:720px) and (min-width:981px){
+  body.efc-registration-editing-v17 .content{padding-top:8px!important;padding-bottom:12px!important}
+  body.efc-registration-editing-v17 .efc-reg-page-head-v15{min-height:44px!important;margin-bottom:6px!important}
+  body.efc-registration-editing-v17 .efc-reg-hero-v15{height:44px!important}
+  body.efc-registration-editing-v17 .efc-reg-hero-v15 h1{font-size:19px!important}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .section-head{height:36px!important;margin-bottom:5px!important}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13{gap:4px 7px!important}
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 .input,
+  body.efc-registration-editing-v17 .registration-edit-mode-v17 .registration-fields-v13 select{height:31px!important;font-size:10.5px!important}
+  body.efc-registration-editing-v17 .registration-edit-actions-v17 .button{height:34px!important;min-height:34px!important;font-size:12px!important}
+  body.efc-registration-editing-v17 .schedule-top-note-v13{min-height:34px!important;font-size:11px!important}
+  body.efc-registration-editing-v17 .schedule-time-row-v17 td,body.efc-registration-editing-v17 .schedule-matrix-row-v17 td{height:36px!important}
+  body.efc-registration-editing-v17 .schedule-notes-v13{font-size:10px!important;line-height:1.4!important}
 }
 `;
 document.head.appendChild(style);
@@ -318,6 +415,10 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   atomicEditMode:true,
   cancelEditDiscardsDraft:true,
   receiptEditReturnsToRegistration:true,
+  closesSourceModalsBeforeEdit:true,
+  guardedEditNavigation:true,
+  normalRegistrationRestoredAfterSave:true,
+  responsiveEditWorkspace:true,
   mainUntouched:true
 });
 })();
