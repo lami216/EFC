@@ -21,8 +21,8 @@
       let closeRequestBusy=false;
       window.EFC_REQUEST_CLOSE_BACKUP=async()=>{
         if(closeRequestBusy)return;
-        const requestLeave=window.EFC_REGISTRATION_EDIT_V17?.requestLeave;
-        if(typeof requestLeave==='function'&&requestLeave()===false)return;
+        const editApi=window.EFC_REGISTRATION_EDIT_V17;
+        if(editApi?.active?.()&&!window.confirm('لديك تعديلات غير محفوظة. إغلاق البرنامج سيلغي التغييرات الحالية فقط. هل تريد المتابعة؟'))return;
         const invoke=window.__TAURI__?.core?.invoke;
         if(!invoke)return;
         closeRequestBusy=true;
