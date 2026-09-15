@@ -58,6 +58,15 @@ function installPlaceholder(select,label,{required=false,preserveValue=false}={}
   select.addEventListener('blur',()=>setTimeout(sync,0));
 }
 
+function restoreEditPaymentMethod(method){
+  const session=window.EFC_REGISTRATION_EDIT_V17?.current?.();
+  const payment=session?.paymentIndex===null||session?.paymentIndex===undefined?null:session.student?.payments?.[Number(session.paymentIndex)];
+  const existing=String(payment?.[2]||'').trim();
+  if(!method||!existing)return;
+  if(![...method.options].some(option=>String(option.value)===existing))method.add(new Option(existing,existing));
+  method.value=existing;
+}
+
 function enhance(){
   const form=document.getElementById('regFormV13');
   if(!form)return;
@@ -66,6 +75,7 @@ function enhance(){
   const method=form.elements.method;
   const paid=form.elements.paid;
   const editing=Boolean(window.EFC_REGISTRATION_EDIT_V17?.active?.());
+  if(editing)restoreEditPaymentMethod(method);
   installPlaceholder(branch,'اختر المركز',{required:true,preserveValue:editing});
   installPlaceholder(specialty,'اختر الدورة',{required:true,preserveValue:editing});
   installPlaceholder(method,'اختر وسيلة الدفع',{preserveValue:editing});
@@ -111,6 +121,7 @@ window.EFC_REGISTRATION_SELECT_NATIVE_V19=Object.freeze({
   course:true,
   paymentMethod:true,
   preservesReceiptEditSelections:true,
+  preservesInactiveReceiptPaymentMethod:true,
   mainUntouched:true
 });
 })();
