@@ -73,6 +73,8 @@ for(const [token,label] of [
   ['renderSelectedCourseRow','selected course row synchronization'],
   ['hourOnlyTimes:true','registration timetable exposes hour-only choices'],
   ['fixedMinuteZero:true','registration timetable fixes minutes to zero'],
+  ['legacyNonHourTimesPreservedDuringEdit:true','legacy non-hour timetable values survive an edit until explicitly changed'],
+  ['setScheduleTime(select,value)','legacy timetable values are inserted only for the edited record'],
   ['<select class="schedule-day-time-v17"','active timetable uses an hour selector instead of an editable time field'],
   ['value=`${hh}:00`','hour choices store canonical HH:00 values'],
   ["courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]",'single selected course schedule snapshot'],
@@ -92,21 +94,27 @@ for(const [token,label] of [
   ['receiptEditReturnsToRegistration:true','receipt edit routes to registration page'],
   ['closesSourceModalsBeforeEdit:true','receipt edit closes source receipt/student modals before routing'],
   ['guardedEditNavigation:true','unsaved edit navigation is guarded'],
+  ['logoutAndCloseGuardAvailable:true','edit guard is exposed to logout and native close paths'],
+  ['singleRouterRenderOnHashNavigation:true','hash navigation no longer performs a second explicit page render'],
+  ['zeroPaymentRegistrationEditable:true','zero-payment registration receipts can create their first transaction'],
+  ['editRequiresStudentAndRegistrationPermission:true','receipt editing requires both relevant edit permissions'],
   ['normalRegistrationRestoredAfterSave:true','successful edit returns registration to normal mode'],
   ['responsiveEditWorkspace:true','edit workspace has dedicated responsive sizing'],
   ["document.querySelectorAll('.modal').forEach(modal=>modal.remove())",'source modal stack is closed before entering edit mode'],
   ['مغادرة صفحة التعديل ستلغي التغييرات الحالية فقط','navigation warning explains current draft cancellation'],
-  ['restoreNormalRegistration();','save/cancel exits edit mode through normal registration restore'],
+  ['requestLeave:requestDiscardEdit','shared edit-leave guard is published'],
   ['registration-edit-actions-v17','save and cancel share a stable edit action row'],
   ['window.EFC_BEGIN_REGISTRATION_EDIT_V17=beginRegistrationEdit','receipt edit entry point'],
   ["submit.textContent='حفظ التغييرات'",'edit submit button label'],
   ['إلغاء التعديل','edit cancel action'],
   ['D.updateStudentRegistration(active.student','edit save delegates to domain transaction'],
+  ['createRegistrationPayment:canCreatePayment','zero-payment receipt edit delegates first-payment creation to the domain'],
   ['fillMatrix(scheduleRoot,form,student.schedule||null)','student timetable is restored into edit form']
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
 forbidText(scheduleMatrix,'window.receiptWindowV4=function','registration matrix must not override the canonical receipt viewer');
 forbidText(scheduleMatrix,'baseReceiptWindow','registration matrix must not wrap receiptWindowV4');
+forbidText(scheduleMatrix,'navigationBypass','registration edit navigation must not maintain a second render-bypass state machine');
 
 for(const [token,label] of [
   ['preservesReceiptEditSelections:true','native selects preserve edit-mode values'],
@@ -118,10 +126,15 @@ for(const [token,label] of [
   ['registrationEditAtomic:true','domain publishes atomic registration edits'],
   ['registrationEditStudentScoped:true','domain promises student-scoped edits'],
   ['monthlyReallocationOnEdit:true','monthly allocations are rebuilt on edit'],
+  ['historicalCourseSnapshotPreservedOnEdit:true','same-course edits preserve the historical course snapshot'],
+  ['registrationNumberCollisionGuard:true','center/course moves guard the register namespace'],
+  ['zeroPaymentRegistrationCanCreateTransaction:true','zero-payment registration can create a first payment'],
+  ['rollbackOnLocalSaveFailure:true','failed local persistence rolls the object back'],
+  ['revisionStampedPayments:true','edited/new payments carry merge revisions'],
   ['function updateStudentRegistration(student,changes={})','domain owns registration source edit'],
   ['const draft=clone(student)','domain edits a draft before committing'],
   ['Object.assign(student,draft)','domain commits validated draft atomically'],
-  ['transactionCode:index!==null?String(draft.payments[index]?.[6]||\'\'):null','audit preserves transaction identity reference']
+  ['transactionCode:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[6]||\'\'):null','audit preserves transaction identity reference']
 ])requireText(monthlyDomain,token,label);
 
 for(const [token,label] of [
@@ -199,8 +212,9 @@ requireText(index,'body{min-width:840px}','compact browser viewport minimum');
 requireText(index,'EFC_REQUEST_CLOSE_BACKUP','desktop close backup prompt bridge');
 requireText(index,"await window.EFC_FORCE_PERSIST?.()",'flush pending state before exit backup');
 requireText(index,"invoke('export_backup'",'exit backup uses existing full backup exporter');
-requireText(index,'20260915-receipt-edit-hour-duration-2','updated branch cache token');
-requireText(gate,"RUNTIME_VERSION='20260915-receipt-edit-hour-duration-2'",'runtime cache token matches index after edit fixes');
+requireText(index,'EFC_REGISTRATION_EDIT_V17?.requestLeave','native close consults the active receipt-edit guard before backup/exit');
+requireText(index,'20260915-receipt-edit-hour-duration-3','updated branch cache token');
+requireText(gate,"RUNTIME_VERSION='20260915-receipt-edit-hour-duration-3'",'runtime cache token matches index after hardened edit fixes');
 requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close interception');
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');
@@ -226,4 +240,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: hour-only timetable values, atomic student-scoped receipt editing through the registration page, guarded cancel-on-navigation behavior, source modal cleanup, normal registration restoration after save, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
+console.log('Registration redesign verified: hour-only timetable values with legacy preservation, atomic student-scoped receipt editing through the registration page, guarded navigation/logout/native-close behavior, source modal cleanup, normal registration restoration after save, zero-payment registration edits, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
