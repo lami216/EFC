@@ -56,6 +56,10 @@ for(const forbidden of ['new MutationObserver(','window.MutationObserver =','win
 forbidText(source.loader,'SCRIPT_ORDER','legacy script loading chain');
 requireText(source.loader,'noStoragePrototypePatch:true','storage prototype is not patched');
 requireText(source.loader,'explicitPersistence:true','explicit persistence');
+requireText(source.loader,'revisionAwareStudentMerge:true','backup merge understands student revisions');
+requireText(source.loader,'revisionAwarePaymentMerge:true','backup merge understands payment revisions');
+requireText(source.loader,'function paymentRevision(payment)','payment merge revision source');
+requireText(source.loader,'paymentRevision(normalized)>paymentRevision(merged[position])','newer copy of the same transaction wins during merge');
 requireText(source.foundation,'noRouter:true','foundation has no router');
 requireText(source.foundation,'noMutationObserver:true','foundation has no observer');
 requireText(source.receipts,'noWindowOpenPatch:true','receipt service does not intercept window.open');
@@ -82,6 +86,23 @@ requireText(source.finance,'financePrimaryActionV13','expense primary action slo
 requireText(source.finance,"if(section==='expenses')action.innerHTML=",'expense actions only render on the expense page');
 requireText(source.finance,'historicalExpenseMethodPreserved:true','historical expense method preservation');
 requireText(source.finance,'certificateLedgerReceiptNavigation:true','certificate ledger receipt navigation');
+
+// Backup merge regression: corrections to an existing transaction/student must win only when their revision is newer.
+const mergeStore=new Map();
+const mergeLocalStorage={getItem:key=>mergeStore.has(key)?mergeStore.get(key):null,setItem:(key,value)=>mergeStore.set(key,String(value)),removeItem:key=>mergeStore.delete(key)};
+mergeLocalStorage.setItem('efc-state-meta-v1',JSON.stringify({version:3,updatedAt:200,installationId:'center-local',sourceCenters:['center-local']}));
+mergeLocalStorage.setItem('efc-specialties-v1',JSON.stringify([{id:'quick',recordCode:'spec-quick',sourceCenterId:'center-local',name:'سريعة',courseType:'quick',billing:'one_time',durationUnit:'day',durationValue:30}]));
+mergeLocalStorage.setItem('efc-payment-methods-v1',JSON.stringify(['نقداً','Bankily']));
+mergeLocalStorage.setItem('efc-students-v1',JSON.stringify([{id:'s1',recordCode:'reg-1',sourceCenterId:'center-local',name:'local-old',branch:'main',specialty:'quick',reg:1,start:'2026-09-09',required:1000,paid:1000,updatedAt:200,payments:[['2026-09-09',1000,'نقداً','10:00',100,'old','tx-1',null,7,null,null,200]]}]));
+const mergeContext={console,Date,setTimeout,clearTimeout,structuredClone,crypto:webcrypto,localStorage:mergeLocalStorage,window:{}};mergeContext.window.window=mergeContext.window;vm.createContext(mergeContext);vm.runInContext(source.loader,mergeContext,{filename:files.loader});await mergeContext.window.EFC_CORE_STORAGE_READY;
+const incomingBase={version:3,updatedAt:300,installationId:'center-import',sourceCenters:['center-import'],specialties:[{id:'quick',recordCode:'spec-quick',sourceCenterId:'center-local',name:'سريعة',courseType:'quick',billing:'one_time',durationUnit:'day',durationValue:30}],paymentMethods:['نقداً','Bankily']};
+await mergeContext.window.EFC_MERGE_IMPORTED_STATE({...incomingBase,students:[{id:'s1-copy',recordCode:'reg-1',sourceCenterId:'center-local',name:'incoming-newer',branch:'center-b',specialty:'quick',reg:1,start:'2026-09-08',required:1300,paid:1200,updatedAt:300,payments:[['2026-09-11',1200,'Bankily','11:00',100,'corrected','tx-1',null,7,null,null,300]]}]});
+let merged=JSON.parse(mergeLocalStorage.getItem('efc-students-v1'))[0];
+if(merged.name!=='incoming-newer'||merged.branch!=='center-b'||Number(merged.payments[0][1])!==1200||merged.payments[0][2]!=='Bankily')throw new Error('Revision-aware backup merge did not apply the newer corrected student/payment.');
+await mergeContext.window.EFC_MERGE_IMPORTED_STATE({...incomingBase,updatedAt:400,students:[{id:'s1-copy',recordCode:'reg-1',sourceCenterId:'center-local',name:'incoming-older-metadata',branch:'should-not-win',specialty:'quick',reg:1,start:'2026-09-01',required:9999,paid:1300,updatedAt:250,payments:[['2026-09-12',1300,'نقداً','12:00',100,'newer-payment-only','tx-1',null,7,null,null,400]]}]});
+merged=JSON.parse(mergeLocalStorage.getItem('efc-students-v1'))[0];
+if(merged.name!=='incoming-newer'||merged.branch!=='center-b')throw new Error('Older imported student metadata overwrote newer local metadata.');
+if(Number(merged.payments[0][1])!==1300||merged.payments[0][5]!=='newer-payment-only')throw new Error('A newer transaction revision was ignored because the surrounding student metadata was older.');
 
 const store=new Map();
 const localStorage={getItem:key=>store.has(key)?store.get(key):null,setItem:(key,value)=>store.set(key,String(value)),removeItem:key=>store.delete(key)};
@@ -130,4 +151,4 @@ if(!existsSync('dist/assets/production-ui-v13.css'))throw new Error('Packaged pr
 for(const key of activeKeys){const dist=`dist/${files[key]}`;if(!existsSync(dist))throw new Error(`Packaged runtime missing: ${dist}`);execFileSync(process.execPath,['--check',dist],{stdio:'inherit'});}
 for(const legacy of ['.demo-imported','demo.css','demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js','assets/production-student-profile-v3.js','assets/production-registration-receipt-v4.js','assets/production-ledger-finance-ui-v5.js','assets/production-ledger-pdf-v6.js'])if(existsSync(`dist/${legacy}`))throw new Error(`Obsolete runtime leaked into dist: ${legacy}`);
 
-console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime/source names, safe persistence order, single router, canonical payments and no demo side effects.');
+console.log('Runtime architecture and accounting v13 verification passed: clean packaged runtime/source names, safe persistence order, single final router, canonical payments, revision-aware backup merges and no demo side effects.');
