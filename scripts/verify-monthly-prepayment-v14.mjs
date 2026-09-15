@@ -11,7 +11,7 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Monthly prepayment v14 missing: ${label}`);};
 for(const [token,label] of [
   ['prepayAcrossMonths:true','domain prepayment marker'],['allocationPersisted:true','persisted allocation marker'],['nextMonthVisibleBeforeRenewal:true','early next-month visibility'],['dueAfterMonthStarts:true','due timing marker'],['monthlyDueGraceDays:DUE_GRACE_DAYS','grace-day export'],['payment[10]','payment allocation metadata'],['allocationSummary','shared allocation statement'],['month.openDate','pre-renewal reminder window'],['month.dueFrom','due threshold after month start'],
-  ['registrationEditAtomic:true','atomic registration edit marker'],['registrationEditStudentScoped:true','student-scoped registration edit marker'],['monthlyReallocationOnEdit:true','monthly reallocation edit marker'],['function updateStudentRegistration(student,changes={})','source registration update function'],['const draft=clone(student)','edit validation happens on a draft'],['Object.assign(student,draft)','validated edit commits atomically']
+  ['registrationEditAtomic:true','atomic registration edit marker'],['registrationEditStudentScoped:true','student-scoped registration edit marker'],['monthlyReallocationOnEdit:true','monthly reallocation edit marker'],['historicalCourseSnapshotPreservedOnEdit:true','historical course snapshot protection'],['registrationNumberCollisionGuard:true','registration number collision guard'],['zeroPaymentRegistrationCanCreateTransaction:true','zero-payment registration edit support'],['rollbackOnLocalSaveFailure:true','rollback on local persistence failure'],['revisionStampedPayments:true','payment revision stamping'],['function updateStudentRegistration(student,changes={})','source registration update function'],['const draft=clone(student)','edit validation happens on a draft'],['Object.assign(student,draft)','validated edit commits atomically']
 ])requireText(source.patch,token,label);
 for(const [token,label] of [
   ['registrationOverpayment:true','registration overpayment UI'],['paymentOverMonthValue:true','payment larger than month UI'],['studentPrepaidMonthBadges:true','prepaid month badge UI'],['monthReceiptUsesAllocations:true','month receipt allocation UI'],['ledgerUsesAllocationSummary:true','ledger allocation statement UI'],['يمكن إدخال قيمة أكبر من قيمة الشهر','overpayment explanation']
@@ -40,6 +40,7 @@ const allocationTotal=payment=>(Array.isArray(payment?.[10])?payment[10]:[]).red
 
 const twoMonths=makeStudent('two');students.push(twoMonths);const twoIndex=D.appendPayment(twoMonths,{amount:1200,method:'نقداً',date:'2026-09-09',targetMonth:1,persist:false});if(twoIndex!==0||twoMonths.payments.length!==1)throw new Error('Two-month prepayment must remain one financial transaction.');
 if(!Array.isArray(twoMonths.payments[0][10])||twoMonths.payments[0][10].length!==2)throw new Error('Two-month allocation was not persisted on the payment.');
+if(!Number(twoMonths.payments[0][11])||!Number(twoMonths.updatedAt))throw new Error('New monthly payment did not receive merge revision metadata.');
 let plan=D.installmentPlan(twoMonths,'2026-09-09');if(plan.length!==2||plan[0].paid!==600||plan[1].paid!==600||!plan[1].prepaid||D.remainingAmount(twoMonths,'2026-09-09')!==0)throw new Error('Full two-month prepayment allocation is incorrect.');
 if(!D.allocationSummary(twoMonths,0,'2026-09-09').includes('الشهر 1 كامل')||!D.allocationSummary(twoMonths,0,'2026-09-09').includes('الشهر 2 كامل'))throw new Error('Two-month receipt statement is unclear.');
 
@@ -59,12 +60,13 @@ const editA=makeStudent('edit-a','normal',600),editB=makeStudent('edit-b','norma
 const aIndex=D.appendPayment(editA,{amount:900,method:'نقداً',date:'2026-09-09',targetMonth:1,debtDueDate:'2026-09-20',persist:false});
 D.appendPayment(editA,{amount:300,method:'Bankily',date:'2026-09-10',targetMonth:2,persist:false});
 D.appendPayment(editB,{amount:600,method:'نقداً',date:'2026-09-09',targetMonth:1,persist:false});
-editA.payments[aIndex][8]=77;const transactionBefore=editA.payments[aIndex][6],receiptBefore=editA.payments[aIndex][8],otherBefore=snapshot(editB);
+editA.payments[aIndex][8]=77;const transactionBefore=editA.payments[aIndex][6],receiptBefore=editA.payments[aIndex][8],otherBefore=snapshot(editB),revisionBefore=Number(editA.payments[aIndex][11]||0);
 D.updateStudentRegistration(editA,{name:'طالب معدل',phone:'2222',branch:'center-b',specialty:'normal',start:'2026-09-08',fee:700,paymentIndex:aIndex,paymentAmount:1000,paymentMethod:'Bankily',paymentDate:'2026-09-11',paymentDescription:'تصحيح إداري',debtDueDate:'2026-09-25',schedule:{version:3,specialtyId:'normal',specialtyName:'عادية',days:[]}});
 if(snapshot(editB)!==otherBefore)throw new Error('Editing one receipt/student changed another student in the same course.');
 if(editA.name!=='طالب معدل'||editA.phone!=='2222'||editA.branch!=='center-b'||editA.start!=='2026-09-08'||Number(editA.snapshot.fee)!==700)throw new Error('Edited student registration fields were not committed.');
 if(editA.payments[aIndex][6]!==transactionBefore||editA.payments[aIndex][8]!==receiptBefore)throw new Error('Receipt edit changed protected transaction/receipt identifiers.');
 if(editA.payments[aIndex][1]!==1000||editA.payments[aIndex][2]!=='Bankily'||editA.payments[aIndex][0]!=='2026-09-11')throw new Error('Receipt financial edit did not update the source transaction.');
+if(Number(editA.payments[aIndex][11]||0)<revisionBefore||!Number(editA.updatedAt))throw new Error('Receipt edit revision metadata was not advanced.');
 for(const payment of editA.payments){if(Math.round(allocationTotal(payment)*100)!==Math.round(Number(payment[1]||0)*100))throw new Error('Edited monthly payment allocation no longer equals its transaction amount.');}
 if(!editA.payments[aIndex][5].includes('تصحيح إداري'))throw new Error('Custom edited payment description was not preserved with allocation summary.');
 if(!Array.isArray(editA.registrationEditHistory)||!editA.registrationEditHistory.length)throw new Error('Receipt edit audit metadata was not recorded.');
@@ -82,4 +84,29 @@ if(Number(quickA.snapshot.fee)!==850||D.paymentTotal(quickA)!==800||D.remainingA
 if(quickA.payments[0][6]!==quickTransaction||quickA.payments[0][8]!==quickReceipt)throw new Error('Quick edit changed protected payment identifiers.');
 if(snapshot(quickB)!==quickOtherBefore)throw new Error('Successful quick edit changed another student in the same course.');
 
-console.log('Monthly prepayment v14 verified: prepayment allocation, timing, atomic student-scoped receipt edits, protected identifiers, monthly reallocation, and quick-course balance validation are consistent.');
+// A later change to the course definition must not silently rewrite an existing student's historical duration/type.
+const historical=makeStudent('historical','quick',1000);historical.reg=30;historical.snapshot.durationValue=30;historical.snapshot.durationUnit='day';historical.end='2026-10-09';students.push(historical);
+const quickSpec=specialties.find(item=>item.id==='quick');quickSpec.quickDays=45;quickSpec.durationValue=45;
+D.updateStudentRegistration(historical,{name:'historical edited',specialty:'quick',fee:1000,start:'2026-09-09'});
+if(historical.snapshot.durationValue!==30||historical.snapshot.courseType!=='quick'||historical.end!=='2026-10-09')throw new Error('Editing unrelated student data adopted the course definition changed after registration.');
+quickSpec.quickDays=30;quickSpec.durationValue=30;
+
+// Moving a student into a center/course namespace that already has the same register number must be rejected atomically.
+const collisionA=makeStudent('collision-a','quick',500),collisionB=makeStudent('collision-b','quick',500);collisionA.branch='center-a';collisionB.branch='center-b';collisionA.reg=50;collisionB.reg=50;students.push(collisionA,collisionB);const collisionBefore=snapshot(collisionA);
+let collisionRejected=false;try{D.updateStudentRegistration(collisionA,{branch:'center-b',specialty:'quick',fee:500});}catch{collisionRejected=true;}
+if(!collisionRejected)throw new Error('Student move accepted a duplicate register number in the target center/course namespace.');
+if(snapshot(collisionA)!==collisionBefore)throw new Error('Rejected register-number collision mutated the student.');
+
+// A registration receipt created with zero payment must be able to create its first transaction later without changing the receipt identity.
+const zeroPay=makeStudent('zero-pay','quick',1000);zeroPay.reg=60;zeroPay.registrationReceiptNo=91;students.push(zeroPay);
+const zeroResult=D.updateStudentRegistration(zeroPay,{specialty:'quick',fee:1000,paymentIndex:null,createRegistrationPayment:true,registrationReceiptNo:'91',paymentAmount:300,paymentMethod:'Bankily',paymentDate:'2026-09-09',paymentDescription:'دفعة تسجيل لاحقة',debtDueDate:'2026-09-25'});
+if(zeroResult.paymentIndex!==0||zeroPay.payments.length!==1||Number(zeroPay.payments[0][1])!==300||String(zeroPay.payments[0][8])!=='91')throw new Error('Zero-payment registration edit did not create the first transaction with the original receipt number.');
+if(!String(zeroPay.payments[0][6]||'').startsWith('tx-')||!Number(zeroPay.payments[0][11])||D.remainingAmount(zeroPay)!==700)throw new Error('First transaction created from zero-payment registration is missing identity/revision/balance data.');
+
+// A synchronous local save failure must roll the in-memory object back to the exact pre-edit state.
+const rollbackStudent=makeStudent('rollback','quick',900);rollbackStudent.reg=70;students.push(rollbackStudent);const rollbackBefore=snapshot(rollbackStudent),saveStudentsOk=context.saveStudents;context.saveStudents=()=>{throw new Error('forced save failure');};
+let saveRejected=false;try{D.updateStudentRegistration(rollbackStudent,{name:'should not stick',specialty:'quick',fee:900});}catch{saveRejected=true;}finally{context.saveStudents=saveStudentsOk;}
+if(!saveRejected)throw new Error('Forced persistence failure did not reject the edit.');
+if(snapshot(rollbackStudent)!==rollbackBefore)throw new Error('Persistence failure left an in-memory partial edit behind.');
+
+console.log('Monthly prepayment v14 verified: prepayment allocation, timing, student-scoped receipt edits, historical course snapshots, register collision protection, zero-payment receipt upgrades, revision metadata, rollback safety, protected identifiers, monthly reallocation, and quick-course balance validation are consistent.');
