@@ -7,14 +7,16 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-registration-select-native-v19.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
 
 const ui=read(uiPath);
 const registration=read('assets/production-registration-schedule-v13.js');
+const monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
+const selectNative=read('assets/production-registration-select-native-v19.js');
 const receiptSchedule=read('assets/production-registration-receipt-schedule-v22.js');
 const receipts=read('assets/production-receipts-v13.js');
 const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
@@ -25,6 +27,7 @@ const build=read('scripts/build-production.mjs');
 const index=read('index.html');
 const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
 const rustMain=read('src-tauri/src/main.rs');
+const receiptPdfRust=read('src-tauri/src/receipt_pdf.rs');
 const packageJson=JSON.parse(read('package.json'));
 
 for(const token of [
@@ -83,11 +86,35 @@ for(const [token,label] of [
   ['schedule-top-note-v13{font-size:16px!important','lateness notice is visibly enlarged'],
   ['schedule-notes-v13{font-size:15px!important','remaining lower notice is visibly enlarged'],
   ['receiptRenderingOwnedByBase:true','matrix delegates receipt rendering to the canonical receipt service'],
-  ['noReceiptWindowOverride:true','matrix advertises no receipt-window override']
+  ['noReceiptWindowOverride:true','matrix advertises no receipt-window override'],
+  ['atomicEditMode:true','registration page owns transactional edit mode'],
+  ['cancelEditDiscardsDraft:true','cancel discards only the current unsaved edit'],
+  ['receiptEditReturnsToRegistration:true','receipt edit routes to registration page'],
+  ['window.EFC_BEGIN_REGISTRATION_EDIT_V17=beginRegistrationEdit','receipt edit entry point'],
+  ["submit.textContent='حفظ التغييرات'",'edit submit button label'],
+  ['إلغاء التعديل','edit cancel action'],
+  ['D.updateStudentRegistration(active.student','edit save delegates to domain transaction'],
+  ['fillMatrix(scheduleRoot,form,student.schedule||null)','student timetable is restored into edit form']
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
 forbidText(scheduleMatrix,'window.receiptWindowV4=function','registration matrix must not override the canonical receipt viewer');
 forbidText(scheduleMatrix,'baseReceiptWindow','registration matrix must not wrap receiptWindowV4');
+
+for(const [token,label] of [
+  ['preservesReceiptEditSelections:true','native selects preserve edit-mode values'],
+  ['preserveValue:editing','edit mode keeps center/course/payment selections'],
+  ['EFC_REGISTRATION_EDIT_V17?.active?.()','native select layer detects active edit session']
+])requireText(selectNative,token,label);
+
+for(const [token,label] of [
+  ['registrationEditAtomic:true','domain publishes atomic registration edits'],
+  ['registrationEditStudentScoped:true','domain promises student-scoped edits'],
+  ['monthlyReallocationOnEdit:true','monthly allocations are rebuilt on edit'],
+  ['function updateStudentRegistration(student,changes={})','domain owns registration source edit'],
+  ['const draft=clone(student)','domain edits a draft before committing'],
+  ['Object.assign(student,draft)','domain commits validated draft atomically'],
+  ['transactionCode:index!==null?String(draft.payments[index]?.[6]||\'\'):null','audit preserves transaction identity reference']
+])requireText(monthlyDomain,token,label);
 
 for(const [token,label] of [
   ['registrationMatrixCapture:true','v22 remains a schedule capture compatibility module'],
@@ -115,14 +142,27 @@ for(const [token,label] of [
   ['periodHalf(model)','receipt period row branches by course type'],
   ["half('Durée'",'quick receipt uses the duration field'],
   ["'مدة الدورة'",'quick receipt uses the Arabic duration label'],
-  ['editableReceiptWorkingCopy:true','receipt viewer supports a safe editable working copy'],
-  ['receiptEditDoesNotMutateRecords:true','receipt edits are isolated from stored accounting records'],
-  ['protectedReceiptIdentifiers:true','receipt and registration identifiers stay protected'],
-  ['receipt-edit-panel-v13','receipt editor is integrated into the canonical viewer'],
-  ['cloneReceiptModel','receipt editor clones its display model before editing']
+  ['receiptEditRoutesToRegistration:true','receipt edit routes to registration page'],
+  ['receiptModelCarriesSourceIdentity:true','receipt model carries student/payment identity'],
+  ['studentId:String(student.id||\'\')','receipt includes student source identity'],
+  ['paymentIndex:statement?null:normalizedIndex','receipt includes source payment index'],
+  ['transactionCode:String(payment?.[6]||\'\')','receipt carries stable transaction code'],
+  ['window.EFC_BEGIN_REGISTRATION_EDIT_V17','receipt viewer invokes registration editor'],
+  ['saveDialogReceiptPdf:true','receipt PDF uses Save As'],
+  ['receiptFileNameUsesCenterAndRegister:true','receipt filename uses center and register'],
+  ['`روسي-${filePart(model.branch,\'المركز\')}-${filePart(westernDigitsV3(model.reg||\'\'),\'0000\')}.pdf`','receipt PDF suggested filename'],
+  ['protectedReceiptIdentifiers:true','receipt and transaction identifiers stay protected']
 ])requireText(receipts,token,label);
-forbidText(receipts,'saveStudents(','receipt editing must not persist student/accounting mutations');
-forbidText(receipts,'appendPayment(','receipt editing must not create or alter payments');
+forbidText(receipts,'receipt-edit-panel-v13','receipt must not keep a second inline edit form');
+forbidText(receipts,'applyReceiptEdits','receipt must not mutate a display-only working copy');
+
+for(const [token,label] of [
+  ['rfd::FileDialog::new()','native receipt save opens a Save As dialog'],
+  ['set_file_name(&suggested)','native save dialog uses suggested receipt filename'],
+  ['Result<Option<String>, String>','native save returns cancellation without writing'],
+  ['save_file()','native receipt save waits for selected location']
+])requireText(receiptPdfRust,token,label);
+forbidText(receiptPdfRust,'profile.join("Downloads")','receipt PDF must not force the Downloads folder');
 
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
@@ -170,4 +210,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: the active timetable uses fixed HH:00 hour choices, schedule capture stays compatible, receipt rendering is consolidated in the canonical receipt service, quick-course duration and safe working-copy receipt editing are present, and no accounting ownership is duplicated.');
+console.log('Registration redesign verified: hour-only timetable values, atomic student-scoped receipt editing through the registration page, cancel-without-mutation behavior, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
