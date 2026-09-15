@@ -100,6 +100,8 @@ for(const [token,label] of [
   ['editRequiresStudentAndRegistrationPermission:true','receipt editing requires both relevant edit permissions'],
   ['normalRegistrationRestoredAfterSave:true','successful edit returns registration to normal mode'],
   ['responsiveEditWorkspace:true','edit workspace has dedicated responsive sizing'],
+  ['editKeepsRegistrationGeometry:true','receipt edit keeps the normal registration page geometry'],
+  ['registration-edit-meta-v17','edit-only transaction fields live in a compact nested block'],
   ["document.querySelectorAll('.modal').forEach(modal=>modal.remove())",'source modal stack is closed before entering edit mode'],
   ['مغادرة صفحة التعديل ستلغي التغييرات الحالية فقط','navigation warning explains current draft cancellation'],
   ['requestLeave:requestDiscardEdit','shared edit-leave guard is published'],
@@ -115,6 +117,9 @@ forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration ti
 forbidText(scheduleMatrix,'window.receiptWindowV4=function','registration matrix must not override the canonical receipt viewer');
 forbidText(scheduleMatrix,'baseReceiptWindow','registration matrix must not wrap receiptWindowV4');
 forbidText(scheduleMatrix,'navigationBypass','registration edit navigation must not maintain a second render-bypass state machine');
+forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .registration-schedule-layout-v13{grid-template-columns','edit mode must not resize the base timetable/form columns');
+forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .efc-reg-hero-v15{width:min(520px','edit mode must not shrink the registration hero');
+forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .schedule-title-v13 h2{font-size:18px','edit mode must not shrink the timetable title');
 
 for(const [token,label] of [
   ['preservesReceiptEditSelections:true','native selects preserve edit-mode values'],
@@ -215,8 +220,8 @@ requireText(index,"invoke('export_backup'",'exit backup uses existing full backu
 requireText(index,'editApi?.active?.()','native close checks for an active unsaved receipt edit');
 requireText(index,'إغلاق البرنامج سيلغي التغييرات الحالية فقط','native close warns before discarding the current draft');
 forbidText(index,'requestLeave()===false','native close must not clear the edit draft before a backup Save As can be cancelled');
-requireText(index,'20260915-receipt-edit-hour-duration-3','updated branch cache token');
-requireText(gate,"RUNTIME_VERSION='20260915-receipt-edit-hour-duration-3'",'runtime cache token matches index after hardened edit fixes');
+requireText(index,'20260915-receipt-edit-hour-duration-4','updated branch cache token');
+requireText(gate,"RUNTIME_VERSION='20260915-receipt-edit-hour-duration-4'",'runtime cache token matches index after finance split and edit geometry fix');
 requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close interception');
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');
@@ -242,4 +247,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: hour-only timetable values with legacy preservation, atomic student-scoped receipt editing through the registration page, guarded navigation/logout/native-close behavior without premature draft loss, source modal cleanup, normal registration restoration after save, zero-payment registration edits, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
+console.log('Registration redesign verified: hour-only timetable values with legacy preservation, atomic student-scoped receipt editing through the registration page, guarded navigation/logout/native-close behavior without premature draft loss, source modal cleanup, normal registration geometry preserved during edit, normal registration restoration after save, zero-payment registration edits, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
