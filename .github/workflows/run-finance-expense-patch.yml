@@ -36,6 +36,16 @@ jobs:
       - name: Extract and apply integrated patch
         shell: pwsh
         run: |
+          $verifyPath = 'scripts/verify-production-v13.mjs'
+          $verify = [System.IO.File]::ReadAllText($verifyPath)
+          $baseline = "'certificateFinanceByBranch:true','certificateFinanceByPaymentMethod:true','certificateIncomeExcludedFromMainFinance:true'"
+          $expanded = "'certificateFinanceByBranch:true','certificateFinanceByPaymentMethod:true','certificateFinancePeriodAndLifetimeTotals:true','certificateFinanceSimplifiedUi:true','certificateIncomeExcludedFromMainFinance:true'"
+          if (-not $verify.Contains("'certificateFinancePeriodAndLifetimeTotals:true'")) {
+            if (-not $verify.Contains($baseline)) { throw 'Could not align certificate verifier baseline.' }
+            $verify = $verify.Replace($baseline, $expanded)
+            [System.IO.File]::WriteAllText($verifyPath, $verify, [System.Text.UTF8Encoding]::new($false))
+          }
+
           $source = git show "3b0f814fde9f5d092b2bdd509c35f954c2fd2925:.github/workflows/patch-finance-expense-v1.yml"
           $lines = @($source -split "`n")
           $start = -1
