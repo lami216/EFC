@@ -16,7 +16,6 @@ const DAYS=[
 ];
 const NOTE='ملاحظة: لا يسمح بتأخر الطالب عن 20 دقيقة.';
 const baseRenderRegister=window.renderRegister;
-const baseReceiptWindow=window.receiptWindowV4;
 
 function installBlankSelection(select,label,{required=false}={}){
   if(!select)return;
@@ -41,8 +40,16 @@ function installBlankSelection(select,label,{required=false}={}){
   sync();
 }
 
+function hourOptions(selected=''){
+  const current=String(selected||'');
+  return`<option value="">--</option>${Array.from({length:24},(_,hour)=>{
+    const hh=String(hour).padStart(2,'0'),value=`${hh}:00`;
+    return`<option value="${value}"${value===current?' selected':''}>${value}</option>`;
+  }).join('')}`;
+}
+
 function timeRow(){
-  return`<tr class="schedule-time-row-v17"><th>الوقت</th>${DAYS.map(day=>`<td><input type="time" class="schedule-day-time-v17" data-schedule-day-time="${day.key}" aria-label="وقت ${day.ar}" autocomplete="off"></td>`).join('')}</tr>`;
+  return`<tr class="schedule-time-row-v17"><th>الوقت</th>${DAYS.map(day=>`<td><select class="schedule-day-time-v17" data-schedule-day-time="${day.key}" aria-label="ساعة ${day.ar}">${hourOptions()}</select></td>`).join('')}</tr>`;
 }
 
 function courseRow(course){
@@ -51,10 +58,10 @@ function courseRow(course){
 }
 
 function bindMatrixBehavior(scheduleRoot){
-  scheduleRoot.querySelectorAll('[data-schedule-day-time]').forEach(input=>{
-    input.addEventListener('change',()=>{
-      if(input.value)return;
-      const day=String(input.dataset.scheduleDayTime||'');
+  scheduleRoot.querySelectorAll('[data-schedule-day-time]').forEach(select=>{
+    select.addEventListener('change',()=>{
+      if(select.value)return;
+      const day=String(select.dataset.scheduleDayTime||'');
       scheduleRoot.querySelectorAll(`[data-matrix-day="${CSS.escape(day)}"]`).forEach(check=>{check.checked=false;});
     });
   });
@@ -109,7 +116,7 @@ function scheduleSnapshot(form,scheduleRoot){
 }
 
 function resetMatrix(scheduleRoot){
-  scheduleRoot.querySelectorAll('[data-schedule-day-time]').forEach(input=>{input.value='';});
+  scheduleRoot.querySelectorAll('[data-schedule-day-time]').forEach(select=>{select.value='';});
   scheduleRoot.querySelectorAll('[data-matrix-course][data-matrix-day]').forEach(input=>{input.checked=false;});
 }
 
@@ -172,49 +179,6 @@ window.renderRegister=function(){
   enhanceRegister();
 };
 
-function activeCourses(schedule){
-  if(!schedule)return[];
-  if(Array.isArray(schedule.courses)&&schedule.courses.length)return schedule.courses.map(course=>({
-    specialtyId:String(course?.specialtyId||''),
-    specialtyName:String(course?.specialtyName||''),
-    days:Array.isArray(course?.days)?course.days:[]
-  })).filter(course=>course.days.some(day=>Boolean(day?.selected&&day?.time)));
-  if(Array.isArray(schedule.days)&&schedule.days.some(day=>Boolean(day?.selected&&day?.time)))return[{
-    specialtyId:String(schedule.specialtyId||''),
-    specialtyName:String(schedule.specialtyName||''),
-    days:schedule.days
-  }];
-  return[];
-}
-
-function receiptScheduleMarkup(courses){
-  const rows=courses.map(course=>{
-    const byKey=new Map((course.days||[]).map(day=>[String(day.key),day]));
-    return`<tr><th class="courseCell12">${esc(course.specialtyName||'الدورة')}</th>${DAYS.map(day=>{const item=byKey.get(day.key)||{};return`<td>${item.selected&&item.time?esc(item.time):'<span class="scheduleEmpty12">—</span>'}</td>`;}).join('')}</tr>`;
-  }).join('');
-  return`<h3>جدول الطالب الأسبوعي</h3><p class="late12">${NOTE}</p><table class="scheduleTable12"><thead><tr><th class="courseCell12">الدورة</th>${DAYS.map(day=>`<th>${day.ar}<small>${day.fr}</small></th>`).join('')}</tr></thead><tbody>${rows}</tbody></table><div class="scheduleNotes12"><p>ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p><p>ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.</p></div>`;
-}
-
-function patchReceiptFrame(frame,model,courses,autoPrint){
-  const apply=()=>{
-    const doc=frame.contentDocument;if(!doc)return;
-    const section=doc.querySelector('.studentSchedule12');
-    if(section&&courses.length)section.innerHTML=receiptScheduleMarkup(courses);
-    const late=doc.querySelector('.late12');if(late)late.textContent=NOTE;
-    if(autoPrint)setTimeout(()=>frame.contentWindow?.print?.(),80);
-  };
-  frame.addEventListener('load',apply,{once:true});
-  if(frame.contentDocument?.readyState==='complete')setTimeout(apply,0);
-}
-
-window.receiptWindowV4=function(model,autoPrint=false){
-  const courses=model?.registrationReceipt?activeCourses(model?.schedule):[];
-  const viewer=baseReceiptWindow(model,false);
-  if(viewer?.frame&&model?.registrationReceipt)patchReceiptFrame(viewer.frame,model,courses,autoPrint);
-  else if(autoPrint&&viewer?.frame)setTimeout(()=>viewer.frame.contentWindow?.print?.(),80);
-  return viewer;
-};
-
 const style=document.createElement('style');
 style.id='efc-registration-schedule-matrix-style-v17';
 style.textContent=`
@@ -228,7 +192,7 @@ body.efc-registration-redesign-v15 .schedule-notes-v13 p{margin:0!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th{width:112px!important;min-width:112px!important;padding:6px 7px!important;background:#eef3ef!important;font-size:11px!important;line-height:1.3!important}
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{font-weight:800!important;background:#e7eee9!important}
 body.efc-registration-redesign-v15 .schedule-time-row-v17 td{height:47px!important;padding:4px!important;background:#fffdf3}
-body.efc-registration-redesign-v15 .schedule-day-time-v17{width:100%;min-width:0;height:34px;border:1px solid #c7d3cf;border-radius:7px;background:#fff;padding:2px 3px;font:700 11px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;text-align:center;color:#17352d}
+body.efc-registration-redesign-v15 .schedule-day-time-v17{width:100%;min-width:0;height:34px;border:1px solid #c7d3cf;border-radius:7px;background:#fff;padding:2px 3px;font:700 11px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;text-align:center;color:#17352d;cursor:pointer}
 body.efc-registration-redesign-v15 .schedule-day-time-v17:focus{outline:0;border-color:#118063;box-shadow:0 0 0 2px rgba(17,128,99,.10)}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17 td{height:45px!important;padding:4px!important;background:#fffdf3}
 body.efc-registration-redesign-v15 .schedule-matrix-row-v17 th{height:auto!important;min-height:45px!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere!important;word-break:break-word!important;vertical-align:middle!important}
@@ -244,11 +208,6 @@ body.efc-registration-redesign-v15 .schedule-course-check-v17 input:focus-visibl
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,
 body.efc-registration-redesign-v15 .schedule-table-v13 tbody th span,
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{color:#111!important;opacity:1!important;font-weight:800!important}
-body.efc-registration-redesign-v15 .schedule-day-time-v17,
-body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit,
-body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-fields-wrapper,
-body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-hour-field,
-body.efc-registration-redesign-v15 .schedule-day-time-v17::-webkit-datetime-edit-minute-field{color:#111!important;opacity:1!important;font-weight:800!important;-webkit-text-fill-color:#111!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:112px!important;min-width:112px!important}
 @media(max-width:1180px){
   body.efc-registration-redesign-v15 .schedule-table-v13 tbody th,body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:98px!important;min-width:98px!important}
@@ -273,13 +232,14 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   courseDayCheckboxes:true,
   checkedCourseSquaresAreBlack:true,
   selectedCourseOnly:true,
-  receiptOnlyShowsScheduledCourses:true,
-  emptyScheduleVisibleOnReceipt:true,
-  longCourseNamesWrapInMatrix:true,
+  hourOnlyTimes:true,
+  fixedMinuteZero:true,
   directRegistrationSchedulePreferred:true,
   singleBottomNotice:true,
   largerScheduleNotices:true,
   lateNoteUpdated:true,
+  receiptRenderingOwnedByBase:true,
+  noReceiptWindowOverride:true,
   mainUntouched:true
 });
 })();
