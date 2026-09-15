@@ -50,8 +50,12 @@ jobs:
             $line = $lines[$i]
             if ($line.StartsWith('          ')) { $script += $line.Substring(10) } else { $script += $line }
           }
+          $scriptText = [string]::Join("`n", $script)
+          $scriptText = $scriptText.Replace('20260915-receipt-edit-hour-duration-4','__EFC_PREV_CACHE__')
+          $scriptText = $scriptText.Replace('20260915-receipt-edit-hour-duration-5','20260915-receipt-edit-hour-duration-6')
+          $scriptText = $scriptText.Replace('__EFC_PREV_CACHE__','20260915-receipt-edit-hour-duration-5')
           $scriptPath = Join-Path $env:RUNNER_TEMP 'efc-finance-expense-patch.py'
-          [System.IO.File]::WriteAllLines($scriptPath, $script, [System.Text.UTF8Encoding]::new($false))
+          [System.IO.File]::WriteAllText($scriptPath, $scriptText, [System.Text.UTF8Encoding]::new($false))
           python -m py_compile $scriptPath
           python $scriptPath
 
