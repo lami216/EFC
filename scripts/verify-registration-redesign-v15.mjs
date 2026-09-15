@@ -7,7 +7,7 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
@@ -16,6 +16,7 @@ const ui=read(uiPath);
 const registration=read('assets/production-registration-schedule-v13.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
 const receiptSchedule=read('assets/production-registration-receipt-schedule-v22.js');
+const receipts=read('assets/production-receipts-v13.js');
 const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
 const sidebar=read('assets/production-sidebar-lock-v30.js');
 const monthly=read('assets/production-monthly-prepayment-ui-v14.js');
@@ -67,8 +68,11 @@ for(const token of [
 for(const [token,label] of [
   ['selectedCourseOnly:true','registration timetable shows only the selected course'],
   ['renderSelectedCourseRow','selected course row synchronization'],
+  ['hourOnlyTimes:true','registration timetable exposes hour-only choices'],
+  ['fixedMinuteZero:true','registration timetable fixes minutes to zero'],
+  ['<select class="schedule-day-time-v17"','active timetable uses an hour selector instead of an editable time field'],
+  ['value=`${hh}:00`','hour choices store canonical HH:00 values'],
   ["courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]",'single selected course schedule snapshot'],
-  ['emptyScheduleVisibleOnReceipt:true','empty registration schedule remains visible in receipt flow'],
   ['longCourseNamesWrapInMatrix:true','long selected course names wrap inside registration timetable'],
   ['overflow-wrap:anywhere!important','registration timetable can wrap unusually long course names'],
   ['directRegistrationSchedulePreferred:true','synchronous registration schedule is not overwritten by a later layer'],
@@ -77,25 +81,48 @@ for(const [token,label] of [
   ['paragraphs.slice(1).forEach','second and later lower notices are removed from the registration timetable'],
   ['largerScheduleNotices:true','registration timetable notice sizing marker'],
   ['schedule-top-note-v13{font-size:16px!important','lateness notice is visibly enlarged'],
-  ['schedule-notes-v13{font-size:15px!important','remaining lower notice is visibly enlarged']
+  ['schedule-notes-v13{font-size:15px!important','remaining lower notice is visibly enlarged'],
+  ['receiptRenderingOwnedByBase:true','matrix delegates receipt rendering to the canonical receipt service'],
+  ['noReceiptWindowOverride:true','matrix advertises no receipt-window override']
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
-forbidText(scheduleMatrix,"{...model,schedule:null}",'empty schedules must not be stripped before receipt rendering');
+forbidText(scheduleMatrix,'window.receiptWindowV4=function','registration matrix must not override the canonical receipt viewer');
+forbidText(scheduleMatrix,'baseReceiptWindow','registration matrix must not wrap receiptWindowV4');
 
 for(const [token,label] of [
-  ['legacySingleCourseScheduleFallback:true','legacy schedule receipt compatibility'],
-  ['const legacyDays=Array.isArray(schedule.days)?schedule.days:emptyDays()','receipt fallback to stored or empty day schedule'],
-  ['if(courses.length)return[courses[0]]','receipt limited to the registered course when a selected schedule exists'],
-  ['alwaysVisibleOnRegistrationReceipt:true','registration receipt always owns a timetable section'],
-  ['emptyScheduleVisibleOnReceipt:true','empty timetable still renders on registration receipt'],
-  ['receiptSectionInsidePaper:true','injected timetable stays inside the receipt paper'],
-  ['longCourseNamesWrap:true','receipt timetable wraps long course names'],
-  ["const paper=doc.querySelector('.paper12')||doc.body",'receipt timetable is inserted into the receipt paper'],
-  ['overflow-wrap:anywhere!important','receipt course name cell wraps long names'],
-  ['directSavedSchedulePreferred:true','receipt compatibility layer preserves the direct saved matrix values'],
-  ['existingScheduleMatches','receipt compatibility capture does not replace an already valid schedule']
+  ['registrationMatrixCapture:true','v22 remains a schedule capture compatibility module'],
+  ['sharedDayTimeCapture:true','v22 captures the active shared day-time values'],
+  ['directSavedSchedulePreferred:true','v22 preserves an already saved registration schedule'],
+  ['hourOnlyTimeValues:true','v22 preserves canonical HH:00 timetable values'],
+  ['existingScheduleMatches','v22 does not replace a valid schedule'],
+  ['receiptRenderingOwnedByBase:true','v22 delegates receipt rendering to the base receipt service'],
+  ['noReceiptWindowOverride:true','v22 advertises no receipt-window override'],
+  ['noReceiptDomPatch:true','v22 advertises no receipt DOM post-patching']
 ])requireText(receiptSchedule,token,label);
-forbidText(receiptSchedule,'else if(section){section.remove();}','empty registration timetable must not be removed from receipt');
+forbidText(receiptSchedule,'window.receiptWindowV4=function','v22 must not override the canonical receipt viewer');
+forbidText(receiptSchedule,'baseReceiptWindow','v22 must not wrap receiptWindowV4');
+forbidText(receiptSchedule,'patchReceipt','v22 must not post-patch receipt DOM');
+forbidText(receiptSchedule,'gridMarkup','v22 must not own receipt timetable rendering');
+
+for(const [token,label] of [
+  ['registrationScheduleRenderedByBase:true','base receipt service owns registration timetable rendering'],
+  ['receiptScheduleCourse','base receipt service normalizes registration timetable data'],
+  ['emptyScheduleDays','empty registration timetables remain renderable'],
+  ['efcScheduleGrid22','canonical receipt contains the final timetable markup'],
+  ['overflow-wrap:anywhere!important','canonical receipt wraps long course names'],
+  ['quickCourseDurationOnReceipt:true','quick course receipts expose course duration'],
+  ['monthlyReceiptPeriodUnchanged:true','monthly receipt month semantics remain unchanged'],
+  ['periodHalf(model)','receipt period row branches by course type'],
+  ["half('Durée'",'quick receipt uses the duration field'],
+  ["'مدة الدورة'",'quick receipt uses the Arabic duration label'],
+  ['editableReceiptWorkingCopy:true','receipt viewer supports a safe editable working copy'],
+  ['receiptEditDoesNotMutateRecords:true','receipt edits are isolated from stored accounting records'],
+  ['protectedReceiptIdentifiers:true','receipt and registration identifiers stay protected'],
+  ['receipt-edit-panel-v13','receipt editor is integrated into the canonical viewer'],
+  ['cloneReceiptModel','receipt editor clones its display model before editing']
+])requireText(receipts,token,label);
+forbidText(receipts,'saveStudents(','receipt editing must not persist student/accounting mutations');
+forbidText(receipts,'appendPayment(','receipt editing must not create or alter payments');
 
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
@@ -143,4 +170,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: selected-course timetable values persist into the receipt, the registration notices are simplified/enlarged, empty receipt schedules remain visible, long names wrap safely, compact-screen accessibility remains intact, and no registration/accounting ownership is duplicated.');
+console.log('Registration redesign verified: the active timetable uses fixed HH:00 hour choices, schedule capture stays compatible, receipt rendering is consolidated in the canonical receipt service, quick-course duration and safe working-copy receipt editing are present, and no accounting ownership is duplicated.');
