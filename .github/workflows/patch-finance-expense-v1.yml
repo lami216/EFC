@@ -1,0 +1,296 @@
+name: Patch finance and expense receipt v1
+
+on:
+  push:
+    branches: [feature/receipt-edit-hour-duration-v1]
+    paths: [.github/workflows/patch-finance-expense-v1.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/receipt-edit-hour-duration-v1
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Apply integrated source changes
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old, new, 1)
+
+          def regex_once(text, pattern, replacement, label):
+              new_text, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one regex match, found {count}')
+              return new_text
+
+          # --- General finance: rolling years + shared presentation helpers + expense receipts ---
+          finance_path = Path('assets/production-finance-ui-v13.js')
+          finance = finance_path.read_text(encoding='utf-8')
+          finance = replace_once(
+              finance,
+              "const pad2=value=>String(value).padStart(2,'0');\nfunction canEdit(section){return window.EFC_AUTH_V13?.canEdit?.(section)??true;}",
+              "const pad2=value=>String(value).padStart(2,'0');\nconst FINANCE_FIRST_YEAR=2025;\nfunction financialYearWindow(currentYear=Number(today().slice(0,4))){const current=Math.max(FINANCE_FIRST_YEAR,Number(currentYear||FINANCE_FIRST_YEAR)),start=current-FINANCE_FIRST_YEAR+1<=10?FINANCE_FIRST_YEAR:current-9;return{start,end:current,count:current-start+1};}\nfunction financialYears(currentYear=Number(today().slice(0,4))){const {start,end}=financialYearWindow(currentYear);return Array.from({length:Math.max(0,end-start+1)},(_,index)=>end-index);}\nfunction canEdit(section){return window.EFC_AUTH_V13?.canEdit?.(section)??true;}",
+              'finance year helpers insert'
+          )
+          finance = replace_once(
+              finance,
+              "function tenYears(){const year=Number(today().slice(0,4));return{from:`${year-9}-01-01`,to:`${year}-12-31`,start:year-9,end:year};}\nfunction years(){const current=Number(today().slice(0,4)),set=new Set(Array.from({length:10},(_,index)=>current-index));allPayments().forEach(row=>set.add(Number(String(row.date||'').slice(0,4))));expenses.forEach(row=>set.add(Number(String(row.date||'').slice(0,4))));return[...set].filter(value=>value>1900&&value<2200).sort((a,b)=>b-a);}",
+              "function tenYears(){const {start,end}=financialYearWindow();return{from:`${start}-01-01`,to:`${end}-12-31`,start,end};}\nfunction years(){return financialYears();}",
+              'finance rolling year policy'
+          )
+          finance = replace_once(
+              finance,
+              "  const bounds=tenYears();return Array.from({length:10},(_,index)=>bounds.start+index).map(value=>({label:String(value),date:`${value}-01-01`,match:date=>Number(String(date||'').slice(0,4))===value}));",
+              "  const bounds=tenYears();return Array.from({length:Math.max(0,bounds.end-bounds.start+1)},(_,index)=>bounds.start+index).map(value=>({label:String(value),date:`${value}-01-01`,match:date=>Number(String(date||'').slice(0,4))===value}));",
+              'finance yearly buckets'
+          )
+
+          expense_anchor = "function expenseLedgerStatement(row){return row?.specialty===GENERAL_EXPENSE?'مصروف عام':'مصروف تخصص';}\n"
+          expense_helpers = r'''function expenseLedgerStatement(row){return row?.specialty===GENERAL_EXPENSE?'مصروف عام':'مصروف تخصص';}
+function expenseReceiptCode(row){
+  const stamp=Math.max(0,Number(row?.createdAt||0)).toString(36).toUpperCase(),tail=String(row?.id||'').replace(/[^a-z0-9]/gi,'').slice(-4).toUpperCase();
+  return`EXP-${stamp}${tail?`-${tail}`:''}`;
+}
+const expenseReceiptLogo=()=>new URL('./efc-logo.svg',location.href).href;
+function expenseReceiptCss(){return`
+*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;margin:0;background:#eef1f0;color:#111715}.paper12{width:1040px;max-width:96vw;margin:18px auto;background:#fff;border:2px solid #293631;padding:12px 18px 14px;direction:ltr}.head12{display:grid;grid-template-columns:240px 1fr 150px;gap:14px;align-items:center;border-bottom:1px solid #b2b8b5;padding-bottom:6px}.contact12{display:grid;grid-template-columns:92px 1fr;gap:8px;align-items:center;direction:ltr;text-align:left}.contact12 img,.logoOnly12 img{width:82px;height:62px;object-fit:contain;object-position:center;display:block}.contactText12{display:grid;gap:2px;align-content:center}.contactText12>b{display:block;font-size:13px;line-height:1.35;white-space:nowrap}.socialLine12{font-size:12px;line-height:1.35;white-space:nowrap;font-weight:700}.teacher12{font-size:10px;direction:rtl;text-align:left}.center12{text-align:center;direction:rtl}.center12 h1{margin:0;font-size:27px;line-height:1}.title12{display:flex;direction:ltr;justify-content:center;align-items:baseline;gap:12px;white-space:nowrap}.official12{font-size:11px;font-weight:900;margin-top:3px}.tag12{font-size:12px;font-weight:900;margin-top:3px;color:#7d2e2e}.rn12{display:flex;direction:ltr;justify-content:center;align-items:center;gap:9px;margin-top:4px;font-size:15px}.rn12 b{font-size:17px}.logoOnly12{height:66px;display:grid;place-items:center}.expenseTitle12{text-align:center;direction:rtl;font-size:22px;font-weight:900;margin:8px 0 5px;color:#7d2e2e}.meta12{display:flex;justify-content:space-between;gap:24px;direction:ltr;padding:5px 0 4px;font-size:11px;border-bottom:1px solid #d9dedc}.meta12 span{direction:rtl}.row12{display:grid;grid-template-columns:145px minmax(0,1fr) 135px;gap:8px;align-items:center;min-height:38px;font-size:13px;direction:ltr}.fr12{text-align:left;direction:ltr;font-weight:700}.ar12{text-align:right;direction:rtl;font-weight:800}.track12{position:relative;min-height:30px;display:flex;align-items:center;justify-content:center;min-width:0}.track12:before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px dotted #7d8581;transform:translateY(-50%)}.track12 b{position:relative;z-index:1;background:#fff;padding:0 10px;font-size:15px;font-weight:800;direction:rtl;white-space:normal;text-align:center;overflow-wrap:anywhere}.pair12{display:grid;grid-template-columns:1fr 1fr;gap:24px;direction:ltr}.half12{display:grid;grid-template-columns:92px minmax(0,1fr) 110px;gap:7px;align-items:center;min-height:38px;font-size:13px;direction:ltr}.amount12 b{font-size:18px;color:#7d2e2e}.expenseDetails12{margin-top:7px;padding:7px 10px;border:1px solid #d5ddda;background:#fbfdfc}.actions12{width:1040px;max-width:96vw;margin:0 auto 18px;display:flex;direction:rtl;gap:8px}.actions12 button{border:0;border-radius:7px;padding:10px 17px;font:700 13px Tahoma;cursor:pointer}.print12{background:#155ea8;color:#fff}.download12{background:#159a55;color:#fff}@media print{body{background:#fff}.paper12{width:100%;max-width:none;margin:0;border:1px solid #222}.actions12{display:none}@page{size:landscape;margin:8mm}}
+`;}
+function expenseReceiptHeader(row){const img=`<img src="${expenseReceiptLogo()}" alt="EFC">`;return`<div class="head12"><div class="contact12">${img}<div class="contactText12"><b>Tél: 48 02 84 84</b><div class="socialLine12">WhatsApp: 32 09 86 89</div><div class="socialLine12 teacher12">الأستاذ محمد ديدي</div></div></div><div class="center12"><h1 class="title12"><span>Centre EFC</span><span>مركز</span></h1><div class="official12">للغات والمعلوماتية</div><div class="tag12">سند مصروف</div><div class="rn12"><span>Pièce N°</span><b>${esc(expenseReceiptCode(row))}</b><span>سند رقم</span></div></div><div class="logoOnly12">${img}</div></div>`;}
+const expenseTrack=value=>`<span class="track12"><b>${esc(value||'—')}</b></span>`;
+const expenseRow=(fr,value,ar)=>`<div class="row12"><span class="fr12">${fr}</span>${expenseTrack(value)}<span class="ar12">${ar}</span></div>`;
+const expenseHalf=(fr,value,ar,cls='')=>`<div class="half12 ${cls}"><span class="fr12">${fr}</span>${expenseTrack(value)}<span class="ar12">${ar}</span></div>`;
+function expenseReceiptBody(row){return`${expenseReceiptHeader(row)}<div class="expenseTitle12">تفاصيل المصروف</div><div class="meta12"><span>تاريخ المصروف: <b>${showDate(row.date)}</b></span><span>الفرع: <b>${esc(branchName(row.branch))}</b></span></div><div class="expenseDetails12">${expenseRow('Libellé',row.name,'اسم المصروف')}<div class="pair12">${expenseHalf('Montant',cash(row.amount),'المبلغ','amount12')}${expenseHalf('Date',showDate(row.date),'التاريخ')}</div>${expenseRow('Branche',branchName(row.branch),'الفرع')}${expenseRow('Catégorie',expenseSpecialtyName(row.specialty),'التخصص')}${expenseRow('Mode de paiement',row.method,'وسيلة الدفع')}${expenseRow('Heure',row.time||'—','الوقت')}</div>`;}
+function expenseReceiptDocument(row,actions=true,autoPrint=false){const data=JSON.stringify(row).replace(/</g,'\\u003c');return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>روسي مصروف ${esc(expenseReceiptCode(row))}</title><style>${expenseReceiptCss()}</style></head><body><div class="paper12">${expenseReceiptBody(row)}</div>${actions?`<div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="parent.EFC_SAVE_EXPENSE_RECEIPT_PDF_V13(EXPENSE)">حفظ PDF</button></div>`:''}<script>const EXPENSE=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;}
+function openExpenseReceipt(row,autoPrint=false){if(!row)return null;const modal=document.createElement('div');modal.className='modal receipt-viewer-v13';modal.innerHTML=`<div class="receipt-viewer-card-v13"><div class="receipt-viewer-head-v13"><b>عرض روسي المصروف</b><button class="receipt-viewer-close-v13" type="button" title="إغلاق">×</button></div><iframe class="receipt-viewer-frame-v13" title="روسي المصروف"></iframe></div>`;document.body.appendChild(modal);const frame=modal.querySelector('iframe'),close=()=>modal.remove();modal.querySelector('.receipt-viewer-close-v13').onclick=close;frame.srcdoc=expenseReceiptDocument(row,true,Boolean(autoPrint));return{closed:false,close,focus:()=>frame.focus(),frame};}
+function expenseLoadLocal(src,key){if(window[key])return Promise.resolve();return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src} محليًا.`));document.head.appendChild(script);});}
+function expenseArrayBufferToBase64(buffer){const bytes=new Uint8Array(buffer);let binary='';for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));return btoa(binary);}
+function expenseFilePart(value,fallback){const text=String(value||'').trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g,'_').replace(/\s+/g,' ');return text||fallback;}
+async function saveExpenseReceiptPdf(row){let stage;try{await Promise.all([expenseLoadLocal('./vendor/html2canvas.min.js','html2canvas'),expenseLoadLocal('./vendor/jspdf.umd.min.js','jspdf')]);stage=document.createElement('div');stage.style.cssText='position:fixed;left:-16000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${expenseReceiptCss()}</style><div class="paper12">${expenseReceiptBody(row)}</div>`;document.body.appendChild(stage);try{await stage.ownerDocument.fonts?.ready;}catch{}const paper=stage.querySelector('.paper12'),canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ratio=Math.min(pw/canvas.width,ph/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pw-width)/2,(ph-height)/2,width,height);const fileName=`روسي-مصروف-${expenseFilePart(branchName(row.branch),'المركز')}-${expenseFilePart(expenseReceiptCode(row),'EXP')}.pdf`,invoke=window.__TAURI__?.core?.invoke;if(!invoke){pdf.save(fileName);return fileName;}const savedPath=await invoke('save_receipt_pdf',{fileName,dataBase64:expenseArrayBufferToBase64(pdf.output('arraybuffer'))});if(!savedPath)return null;alert(`تم حفظ روسي المصروف:\n${savedPath}`);return savedPath;}catch(error){if(error?.name==='AbortError')return null;console.error('EFC expense receipt PDF failed.',error);alert(String(error?.message||error||'تعذر حفظ روسي المصروف.'));return null;}finally{stage?.remove();}}
+window.EFC_SAVE_EXPENSE_RECEIPT_PDF_V13=saveExpenseReceiptPdf;
+window.EFC_OPEN_EXPENSE_RECEIPT_V13=openExpenseReceipt;
+'''
+          finance = replace_once(finance, expense_anchor, expense_helpers, 'expense receipt helpers')
+
+          expense_history = r'''function renderExpenseHistory(){
+  currentPage='finance';expenses=D.getExpenses();const rows=[...expenses].sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time)));
+  shell(`<section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16M7 3v3M7 9v3M7 15v3"/></g></svg><h1>سجل المصاريف</h1></section><div class="expense-history-toolbar-v13"><button class="button secondary" id="backToFinanceV13">العودة للمالية</button><span>${rows.length} عملية</span></div><div class="card expense-history-v13">${table(['التاريخ','الوقت','اسم المصروف','الفرع','التخصص','الوسيلة','المبلغ','الإجراءات'],rows.map(row=>`<tr><td>${showDate(row.date)}</td><td>${esc(row.time||'—')}</td><td>${esc(row.name)}</td><td>${esc(branchName(row.branch))}</td><td>${esc(expenseSpecialtyName(row.specialty))}</td><td>${esc(row.method)}</td><td><b>${cash(row.amount)}</b></td><td><div class="expense-history-actions-v13"><button class="mini open-expense-receipt-v13" data-id="${esc(row.id)}">فتح الروسي</button>${canEdit('finance')?`<button class="mini edit-expense-history-v13" data-id="${esc(row.id)}">تعديل</button><button class="mini danger delete-expense-v13" data-id="${esc(row.id)}">حذف</button>`:''}</div></td></tr>`).join(''))}</div>`);
+  document.getElementById('backToFinanceV13')?.addEventListener('click',()=>renderFinance('expenses'));
+  document.querySelectorAll('.open-expense-receipt-v13').forEach(button=>button.onclick=()=>{const item=expenses.find(row=>row.id===button.dataset.id);if(item)openExpenseReceipt(item);});
+  document.querySelectorAll('.edit-expense-history-v13').forEach(button=>button.onclick=()=>openExpenseEditor(button.dataset.id,renderExpenseHistory));
+  document.querySelectorAll('.delete-expense-v13').forEach(button=>button.onclick=()=>{const item=expenses.find(row=>row.id===button.dataset.id);if(!item||!canEdit('finance'))return;if(!confirm(`حذف المصروف «${item.name}» بقيمة ${cash(item.amount)}؟`))return;expenses=expenses.filter(row=>row.id!==item.id);D.saveExpenses(expenses);renderExpenseHistory();});
+}
+
+function openExpenseEditor'''
+          finance = regex_once(finance, r"function renderExpenseHistory\(\)\{.*?\n\}\n\nfunction openExpenseEditor", expense_history, 'expense history receipt action')
+
+          finance = replace_once(
+              finance,
+              "window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;\nwindow.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;",
+              "window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;\nwindow.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;\nwindow.EFC_FINANCE_PRESENTATION_V13=Object.freeze({financialYearWindow,financialYears,chart,bindChartTooltips,breakdown,groupRows,series,monthNames,pad2});",
+              'finance presentation export'
+          )
+          finance = replace_once(
+              finance,
+              "window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true});",
+              "window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true});",
+              'finance feature markers'
+          )
+          finance_path.write_text(finance, encoding='utf-8')
+
+          # --- Certificate finance: same visual grammar as main finance and same year window ---
+          cert_path = Path('assets/production-certificates-v13.js')
+          cert = cert_path.read_text(encoding='utf-8')
+          cert_helpers = r'''function certificateBranchKey(receipt){return`${receipt?.branchType==='certificate'?'certificate':'internal'}:${String(receipt?.branchId||receipt?.branchName||'')}`;}
+function certificateSpecialtyKey(receipt){return String(receipt?.specialtyId||receipt?.specialtyName||'').trim();}
+function certificateFinanceYears(){const shared=window.EFC_FINANCE_PRESENTATION_V13?.financialYears?.();if(Array.isArray(shared)&&shared.length)return shared;const current=Math.max(2025,Number(today().slice(0,4))),start=current-2025+1<=10?2025:current-9;return Array.from({length:current-start+1},(_,index)=>current-index);}
+function certificateFinanceBranches(){const map=new Map();state.certificateReceipts.forEach(receipt=>{const key=certificateBranchKey(receipt),label=String(receipt.branchName||'—');if(key&&!map.has(key))map.set(key,label);});return[...map.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar'));}
+function certificateFinanceSpecialties(){const map=new Map();state.certificateReceipts.forEach(receipt=>{const key=certificateSpecialtyKey(receipt),label=String(receipt.specialtyName||spec(receipt.specialtyId)?.name||receipt.specialtyId||'—');if(key&&!map.has(key))map.set(key,label);});return[...map.entries()].sort((a,b)=>a[1].localeCompare(b[1],'ar'));}
+function certificateFinanceRange(modeValue,yearValue,monthValue,dayValue){
+  const financeMode=['daily','monthly','yearly'].includes(modeValue)?modeValue:'daily',year=Number(yearValue||today().slice(0,4)),month=Math.max(1,Math.min(12,Number(monthValue||today().slice(5,7))));
+  if(financeMode==='daily'){const day=String(dayValue||today());return{from:day,to:day,label:showDate(day)};}
+  if(financeMode==='monthly'){const last=new Date(year,month,0).getDate();return{from:`${year}-${pad2(month)}-01`,to:`${year}-${pad2(month)}-${pad2(last)}`,label:`${MONTH_NAMES[month-1]} ${year}`};}
+  return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
+}
+function certificateFinanceSeries(rows,modeValue,yearValue,monthValue,dayValue){
+  const now=today(),currentYear=Number(now.slice(0,4)),currentMonth=Number(now.slice(5,7)),currentDay=Number(now.slice(8,10)),year=Number(yearValue||currentYear),month=Number(monthValue||currentMonth),day=String(dayValue||now);
+  if(modeValue==='daily'){
+    const selectedToday=day===now,limit=selectedToday?new Date().getHours():23;
+    return Array.from({length:limit+1},(_,hour)=>{const hh=pad2(hour);return{label:`${hh}:00`,value:rows.filter(row=>String(row.time||'').startsWith(`${hh}:`)).reduce((sum,row)=>sum+Number(row.amount||0),0)};});
+  }
+  if(modeValue==='monthly'){
+    const last=new Date(year,month,0).getDate(),limit=year===currentYear&&month===currentMonth?Math.min(last,currentDay):last;
+    return Array.from({length:Math.max(0,limit)},(_,index)=>{const d=index+1,date=`${year}-${pad2(month)}-${pad2(d)}`;return{label:String(d),value:rows.filter(row=>row.date===date).reduce((sum,row)=>sum+Number(row.amount||0),0)};});
+  }
+  const limit=year===currentYear?currentMonth:12;
+  return Array.from({length:Math.max(0,limit)},(_,index)=>{const m=index+1,prefix=`${year}-${pad2(m)}`;return{label:MONTH_NAMES[index],value:rows.filter(row=>String(row.date||'').startsWith(prefix)).reduce((sum,row)=>sum+Number(row.amount||0),0)};});
+}
+function certificateFinanceBreakdown(rows,keyFn,total){const map=new Map();rows.forEach(row=>{const key=String(keyFn(row)||'—');map.set(key,(map.get(key)||0)+Number(row.amount||0));});const items=[...map.entries()].sort((a,b)=>b[1]-a[1]);if(!items.length)return'<div class="empty small">لا توجد بيانات</div>';return items.map(([name,value])=>{const pct=total?value/total*100:0;return`<div class="break-row"><span><b class="pct-v13">${pct>=10?pct.toFixed(0):pct.toFixed(1)}%</b> ${esc(name)}</span><b>${cash(value)}</b><div><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div></div>`;}).join('');}
+function ensureCertificateFinanceStyles(){
+  if(document.getElementById('efc-certificate-finance-style-v42'))return;
+  const style=document.createElement('style');style.id='efc-certificate-finance-style-v42';style.textContent=`
+html body.efc-certificates-workspace-v36 .content:has(.cert-form-v13[data-efc-history-open-v36="1"])>.page-title{display:none!important}
+html body.efc-certificates-workspace-v36 .cert-form-v13[data-efc-history-open-v36="1"]{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+html body.efc-certificates-workspace-v36 .cert-form-v13[data-efc-history-open-v36="1"] .cert-mode-v13{display:none!important}
+html body.efc-certificates-workspace-v36 .cert-form-v13[data-efc-history-open-v36="1"] .efc-cert-workspace-toolbar-v36{justify-content:flex-start!important;direction:ltr!important;margin-bottom:8px!important}
+html body.efc-certificates-workspace-v36 .cert-form-v13>.cert-finance-v13{width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 .finance-hero-v13{width:470px!important;height:76px!important;margin:0 auto 12px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 .finance-topbar-v13{margin-bottom:8px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13{width:100%!important;display:grid!important;grid-template-columns:auto repeat(5,minmax(118px,1fr))!important;gap:10px!important;align-items:end!important;margin:0 0 9px!important;padding:10px 13px!important;box-sizing:border-box!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13 label{min-width:0!important;font-size:9.5px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13 input,html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13 select{width:100%!important;min-width:0!important;height:42px!important;min-height:42px!important;font-size:10px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 #certFinanceBodyV13>.kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 #certFinanceBodyV13>.kpis>.card{min-height:58px!important;padding:7px 12px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 #certFinanceBodyV13>.chart-card{margin-bottom:8px!important}
+html body.efc-certificates-workspace-v36 .cert-finance-v13 #certFinanceBodyV13>.breakdowns{margin-bottom:8px!important}
+@media(max-width:1180px){html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13{grid-template-columns:repeat(3,minmax(0,1fr))!important}html body.efc-certificates-workspace-v36 .cert-finance-v13 .cert-finance-controls-v13 .segmented{grid-column:1/-1!important}}
+`;
+  document.head.appendChild(style);
+}
+function bindCertificateFinanceRows(){document.querySelectorAll('#certFinanceBodyV13 .cert-history-row-v13').forEach(row=>row.addEventListener('click',()=>{const receipt=state.certificateReceipts.find(item=>item.id===row.dataset.certificate);if(receipt)openReceipt(receipt);}));}
+function drawCertificateFinance(){
+  const root=document.getElementById('certFinanceBodyV13');if(!root)return;
+  const activeMode=document.querySelector('#certFinanceModeV13 [data-mode].active'),modeValue=String(activeMode?.dataset.mode||'daily'),day=document.getElementById('certFinanceDayV13')?.value||today(),year=document.getElementById('certFinanceYearV13')?.value||today().slice(0,4),month=document.getElementById('certFinanceMonthV13')?.value||today().slice(5,7),branch=document.getElementById('certFinanceBranchV13')?.value||'',specialty=document.getElementById('certFinanceSpecialtyV13')?.value||'',method=document.getElementById('certFinanceMethodV13')?.value||'',range=certificateFinanceRange(modeValue,year,month,day);
+  const dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue!=='monthly';if(yearWrap)yearWrap.hidden=modeValue==='daily';
+  const matchesFilters=receipt=>(!branch||certificateBranchKey(receipt)===branch)&&(!specialty||certificateSpecialtyKey(receipt)===specialty)&&(!method||String(receipt.method||'')===method),allRows=[...state.certificateReceipts].filter(matchesFilters),rows=allRows.filter(receipt=>receipt.date>=range.from&&receipt.date<=range.to).sort((a,b)=>b.date.localeCompare(a.date)||String(b.time||'').localeCompare(String(a.time||''))||Number(b.timestamp||0)-Number(a.timestamp||0));
+  const periodTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0),overallTotal=allRows.reduce((sum,row)=>sum+Number(row.amount||0),0),periodTitle=modeValue==='daily'?'دخل اليوم':modeValue==='monthly'?'دخل الشهر':'دخل السنة',presentation=window.EFC_FINANCE_PRESENTATION_V13,financeSeries=certificateFinanceSeries(rows,modeValue,year,month,day),chartHtml=presentation?.chart?presentation.chart(financeSeries,'income'):'<div class="empty small">لا توجد بيانات للرسم.</div>',breakdownHtml=(keyFn)=>presentation?.breakdown&&presentation?.groupRows?presentation.breakdown(presentation.groupRows(rows,keyFn),periodTotal):certificateFinanceBreakdown(rows,keyFn,periodTotal);
+  const tableRows=rows.map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${esc(receipt.branchName||'—')}</td><td>${esc(receipt.specialtyName||'—')}</td><td>${esc(receipt.method||'—')}</td><td>${showDate(receipt.date)}</td><td><b>${cash(receipt.amount)}</b></td></tr>`).join('');
+  root.innerHTML=`<div class="kpis"><div class="card"><div class="finance-kpi-line-v13"><small>${periodTitle}</small><b>${cash(periodTotal)}</b></div><span>${esc(range.label)}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>الدخل العام</small><b>${cash(overallTotal)}</b></div><span>ضمن الفلاتر الحالية</span></div></div><div class="card chart-card">${chartHtml}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdownHtml(row=>row.branchName||'—')}</div><div class="card"><h3>حسب الشهادة / الدورة</h3>${breakdownHtml(row=>row.specialtyName||'—')}</div><div class="card"><h3>حسب وسيلة الدفع</h3>${breakdownHtml(row=>row.method||'—')}</div></div>${table(['رقم الروسي','الطالب','الفرع','الدورة','الوسيلة','التاريخ','المبلغ'],tableRows)}`;
+  presentation?.bindChartTooltips?.(root);bindCertificateFinanceRows();
+}
+'''
+          cert = regex_once(cert, r"function certificateBranchKey\(receipt\)\{.*?\nfunction setHistoryMode\(show\)\{", cert_helpers + "function setHistoryMode(show){", 'certificate finance helpers')
+
+          cert_finance_markup = r'''  const finance=`<div class="cert-history-v13 cert-finance-v13" hidden><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>مالية الشهادات</h1></section><div class="finance-topbar-v13"><div class="finance-switch-v13"><button class="active" type="button">دخل الشهادات</button></div></div><div class="card finance-controls finance-controls-v13 cert-finance-controls-v13"><div class="segmented" id="certFinanceModeV13"><button class="active" type="button" data-mode="daily">يومي</button><button type="button" data-mode="monthly">شهري</button><button type="button" data-mode="yearly">سنوي</button></div><label id="certFinanceDayWrapV13">اليوم<input class="input" id="certFinanceDayV13" type="date" value="${date}"></label><label id="certFinanceMonthWrapV13" hidden>الشهر<select id="certFinanceMonthV13">${MONTH_NAMES.map((name,index)=>`<option value="${index+1}" ${index+1===currentMonth?'selected':''}>${name}</option>`).join('')}</select></label><label id="certFinanceYearWrapV13" hidden>السنة<select id="certFinanceYearV13">${financeYears.map(year=>`<option value="${year}" ${year===currentYear?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="certFinanceBranchV13"><option value="">كل الفروع</option>${financeBranches.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label>الشهادة / الدورة<select id="certFinanceSpecialtyV13"><option value="">كل الشهادات</option>${financeSpecialties.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label>وسيلة الدفع<select id="certFinanceMethodV13"><option value="">كل وسائل الدفع</option>${financeMethods.map(value=>`<option>${esc(value)}</option>`).join('')}</select></label></div><div id="certFinanceBodyV13"></div></div>`;'''
+          cert = regex_once(cert, r"  const finance=`<div class=\"card cert-history-v13 cert-finance-v13\" hidden>.*?</div></div>`;", cert_finance_markup, 'certificate finance markup')
+          cert = replace_once(
+              cert,
+              "  ['certFinanceModeV13','certFinanceDayV13','certFinanceMonthV13','certFinanceYearV13','certFinanceBranchV13','certFinanceSpecialtyV13','certFinanceMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',drawCertificateFinance));",
+              "  document.querySelectorAll('#certFinanceModeV13 [data-mode]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('#certFinanceModeV13 [data-mode]').forEach(item=>item.classList.toggle('active',item===button));drawCertificateFinance();}));\n  ['certFinanceDayV13','certFinanceMonthV13','certFinanceYearV13','certFinanceBranchV13','certFinanceSpecialtyV13','certFinanceMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',drawCertificateFinance));",
+              'certificate finance mode bindings'
+          )
+          cert = replace_once(
+              cert,
+              "certificateFinancePeriodAndLifetimeTotals:true,certificateFinanceSimplifiedUi:true,certificateIncomeExcludedFromMainFinance:true",
+              "certificateFinancePeriodAndLifetimeTotals:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceUsesGeneralChart:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true",
+              'certificate finance markers'
+          )
+          cert_path.write_text(cert, encoding='utf-8')
+
+          # --- Cache bump ---
+          for path in [Path('index.html'), Path('assets/production-license-gate-v8.js')]:
+              text = path.read_text(encoding='utf-8')
+              if '20260915-receipt-edit-hour-duration-4' not in text:
+                  raise SystemExit(f'{path}: old cache token not found')
+              text = text.replace('20260915-receipt-edit-hour-duration-4','20260915-receipt-edit-hour-duration-5')
+              path.write_text(text, encoding='utf-8')
+
+          # --- Verifiers: lock the new invariants ---
+          verify_prod_path = Path('scripts/verify-production-v13.mjs')
+          verify_prod = verify_prod_path.read_text(encoding='utf-8')
+          verify_prod = replace_once(
+              verify_prod,
+              "'certificateFinancePeriodAndLifetimeTotals:true','certificateFinanceSimplifiedUi:true','certificateIncomeExcludedFromMainFinance:true'",
+              "'certificateFinancePeriodAndLifetimeTotals:true','certificateFinanceSimplifiedUi:true','certificateFinanceMatchesGeneralLayout:true','certificateFinanceUsesGeneralChart:true','rollingFinancialYearsFrom2025:true','certificateIncomeExcludedFromMainFinance:true'",
+              'certificate verifier markers'
+          )
+          verify_prod = replace_once(
+              verify_prod,
+              "for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true'])requireText(financeUi,token,`finance UI ${token}`);",
+              "for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true','FINANCE_FIRST_YEAR=2025','rollingFinancialYearsFrom2025:true','financialYearWindowMaxTen:true','expenseReceipts:true','expenseReceiptUsesNaturalHeader:true','expenseReceiptPdfSaveAs:true','window.EFC_OPEN_EXPENSE_RECEIPT_V13','window.EFC_FINANCE_PRESENTATION_V13','سند مصروف'])requireText(financeUi,token,`finance UI ${token}`);",
+              'finance verifier markers'
+          )
+          verify_prod = replace_once(
+              verify_prod,
+              "forbidText(certificate,'bimbank','hard-coded certificate payment method label');",
+              "forbidText(certificate,'bimbank','hard-coded certificate payment method label');\nforbidText(certificate,'متوسط العملية','certificate finance must not restore average-operation KPI');\nforbidText(certificate,'أكبر عملية','certificate finance must not restore largest-operation KPI');",
+              'certificate obsolete KPI guards'
+          )
+          verify_prod_path.write_text(verify_prod, encoding='utf-8')
+
+          verify_reg_path = Path('scripts/verify-registration-redesign-v15.mjs')
+          verify_reg = verify_reg_path.read_text(encoding='utf-8')
+          verify_reg = replace_once(verify_reg, '20260915-receipt-edit-hour-duration-4', '20260915-receipt-edit-hour-duration-5', 'registration verifier cache token')
+          verify_reg_path.write_text(verify_reg, encoding='utf-8')
+
+          print('Integrated finance/certificate/expense receipt patch applied successfully.')
+
+      - name: Install desktop build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Generate EFC app icons
+        run: npm run icons
+
+      - name: Verify production source
+        run: npm run check
+
+      - name: Verify HTML activation generator
+        run: node scripts/verify-license-generator-html.mjs
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build legacy activation generator compatibility check
+        run: cargo build --manifest-path tools/license-generator/Cargo.toml --release
+
+      - name: Verify legacy activation generator compatibility output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) {
+            throw "Legacy generator compatibility binary was not produced."
+          }
+
+      - name: Build Windows installer
+        run: npm run tauri build -- --bundles nsis
+
+      - name: Smoke-test release startup
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "src-tauri/target/release/*.exe" |
+            Where-Object { $_.Name -notlike "*-setup.exe" } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $exe) { throw "Release executable was not found." }
+          $process = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            throw "Centre EFC exited during startup smoke test with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
+          Write-Host "Centre EFC stayed alive during the startup smoke test."
+
+      - name: Commit verified source changes
+        shell: pwsh
+        run: |
+          git config user.name "lami216"
+          git config user.email "iiyad21694@gmail.com"
+          git add assets/production-finance-ui-v13.js assets/production-certificates-v13.js assets/production-license-gate-v8.js index.html scripts/verify-production-v13.mjs scripts/verify-registration-redesign-v15.mjs
+          if (git diff --cached --quiet) { throw "No source changes were produced." }
+          git commit -m "feat: align certificate finance and add expense receipts"
+          git push origin HEAD:feature/receipt-edit-hour-duration-v1
