@@ -19,7 +19,11 @@ for(const [token,label] of [
   ['authoritativeRegistrationRenderer:true','registration renderer ownership'],
   ['registration-schedule-layout-v13','side-by-side registration and schedule layout'],
   ['schedule-table-v13','weekly schedule table'],
-  ['type="time"','clickable time fields'],
+  ['schedule-hour-select-v13','hour-only schedule selector'],
+  ['hourOnlyScheduleTime:true','hour-only timetable marker'],
+  ['fixedMinuteZero:true','fixed 00-minute timetable marker'],
+  ['singleScheduleBottomNote:true','single lower timetable note marker'],
+  ['value=`${hh}:00`','hour choices stored as HH:00'],
   ['data-day-check','day selection boxes'],
   ['scheduleStoredWithStudent:true','schedule persisted with student'],
   ['schedule=readSchedule(scheduleRoot,item)','schedule captured from registration table'],
@@ -28,9 +32,9 @@ for(const [token,label] of [
   ['noHorizontalTimetableOverflow:true','timetable must fit without forced horizontal width'],
   ['twoColumnRegistration:true','two-column compact registration form'],
   ['grid-template-columns:repeat(2,minmax(0,1fr))','paired registration fields'],
-  ['wholeInputDateTimePicker:true','whole-field date/time picker marker'],
-  ['input.showPicker?.()','native picker opens from field click'],
-  ['::-webkit-calendar-picker-indicator','native picker icon hidden'],
+  ['wholeInputDateTimePicker:true','whole-field native date/time compatibility marker'],
+  ['input.showPicker?.()','native date/time picker support remains available'],
+  ['::-webkit-calendar-picker-indicator','native picker icon compatibility styles remain available'],
   ['courseTerminology:true','course terminology marker'],
   ['<th class="schedule-course-head-v13">الدورة</th>','schedule course header'],
   ["nav[2]='الدورات و المراكز'",'courses and centers navigation label'],
@@ -50,14 +54,14 @@ for(const [token,label] of [
   ['if(Array.isArray(incoming?.branches))applyCenters(incoming.branches)','centers restored from backups'],
   ['noSideSummary:true','redundant side summary removed'],
   ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
-  ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note'],
-  ['ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.','ID note']
+  ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note']
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
 forbidText(registration,'min-width:720px','oversized forced timetable width');
 forbidText(registration,'schedule-course-head-v13">التخصص / الدورة','mixed specialty/course schedule heading');
 forbidText(registration,'width:102px;min-width:102px','oversized schedule course column');
 forbidText(registration,'grid-template-columns:1fr;gap:8px','single-column registration fields');
+forbidText(registration,'ملاحظة 2: لا يمكن تسليم بطاقة تعريف الأصلية حتى تسديد المبلغ كلياً.','removed second registration timetable notice');
 
 for(const [token,label] of [
   ["'*'.repeat",'visible PIN star mask'],
@@ -86,4 +90,4 @@ const order=['production-student-ui-v13.js','production-registration-schedule-v1
 let last=-1;for(const token of order){const pos=gate.indexOf(token);if(pos<0)throw new Error(`Gate missing ${token}`);if(pos<last)throw new Error(`Gate order wrong at ${token}`);last=pos;}
 for(const token of ['assets/production-registration-schedule-v13.js','assets/production-login-ui-v13.js'])requireText(build,token,`production build includes ${token}`);
 
-console.log('Registration schedule and login v13 verified: paired registration fields, expanded timetable, course terminology, managed centers, finance-only summary, whole-field date/time pickers, receipt schedule/debt note, redesigned login card and star-masked PIN.');
+console.log('Registration schedule and login v13 verified: paired registration fields, hour-only HH:00 timetable, course terminology, managed centers, finance-only summary, native date/time compatibility, receipt schedule/debt note, redesigned login card and star-masked PIN.');
