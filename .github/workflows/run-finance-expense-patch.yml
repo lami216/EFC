@@ -48,7 +48,7 @@ jobs:
           $script = @()
           for ($i = $start; $i -le $end; $i++) {
             $line = $lines[$i]
-            if ($line.Length -ge 10) { $script += $line.Substring(10) } else { $script += '' }
+            if ($line.StartsWith('          ')) { $script += $line.Substring(10) } else { $script += $line }
           }
           $scriptPath = Join-Path $env:RUNNER_TEMP 'efc-finance-expense-patch.py'
           [System.IO.File]::WriteAllLines($scriptPath, $script, [System.Text.UTF8Encoding]::new($false))
