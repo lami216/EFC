@@ -232,6 +232,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   courseDayCheckboxes:true,
   checkedCourseSquaresAreBlack:true,
   selectedCourseOnly:true,
+  longCourseNamesWrapInMatrix:true,
   hourOnlyTimes:true,
   fixedMinuteZero:true,
   directRegistrationSchedulePreferred:true,
