@@ -124,19 +124,26 @@ function allocationMonthLabel(student,paymentIndex,asOf=today()){
 function defaultDescription(value){const text=String(value||'').trim();return !text||/^دفعة(?:\s+الشهر|\s+تسجيل|\s+مستحقات)/.test(text);}
 function appendPayment(student,{amount,method,date=today(),time=nowTime(),description='',targetMonth=null,debtDueDate=null,persist=true}={}){
   if(!student)throw new Error('الطالب غير موجود.');
-  if(!isDynamicMonthly(student))return B.appendPayment(student,{amount,method,date,time,description,targetMonth,debtDueDate,persist});
+  if(!isDynamicMonthly(student)){
+    const index=B.appendPayment(student,{amount,method,date,time,description,targetMonth,debtDueDate,persist:false}),stamp=Date.now();
+    if(student.payments?.[index])student.payments[index][11]=stamp;
+    student.updatedAt=stamp;
+    if(persist)saveStudentsClean();
+    return index;
+  }
   reconcileStudent(student);
   const value=Math.max(0,Number(amount||0)),fee=feeOf(student);if(value<=0||fee<=0)throw new Error('المبلغ غير صالح.');
   const selected=String(method||'').trim();if(!selected)throw new Error('اختر وسيلة الدفع.');
   const plan=installmentPlan(student,String(date||today())),firstOpen=plan.find(month=>month.remaining>0),fallback=(plan.at(-1)?.number||0)+1,monthNumber=clampMonth(Number(targetMonth)||firstOpen?.number||fallback||1),span=Math.max(1,Math.ceil(value/fee));
   if(monthNumber+span-1>MAX_MONTHS)throw new Error('قيمة الدفعة تتجاوز الحد المدعوم للأشهر المقدمة.');
-  const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx');
-  student.payments.push([String(date),value,selected,String(time||nowTime()),Date.now(),String(description||'').trim(),transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,null]);
+  const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=Date.now();
+  student.payments.push([String(date),value,selected,String(time||nowTime()),stamp,String(description||'').trim(),transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,null,stamp]);
   const allocations=paymentAllocations(student,index,String(date||today()));
   if(!allocations.length||Math.round(allocations.reduce((sum,item)=>sum+item.amount,0)*100)!==Math.round(value*100)){student.payments.pop();throw new Error('تعذر توزيع الدفعة على الأشهر.');}
   student.payments[index][10]=allocations.map(item=>({monthNumber:item.monthNumber,amount:item.amount}));
   const summary=allocationSummary(student,index,String(date||today())),original=String(description||'').trim();
   student.payments[index][5]=defaultDescription(original)?summary:`${summary} — ${original}`;
+  student.updatedAt=stamp;
   reconcileStudent(student,String(date||today()));
   const remaining=targetRemaining(student,monthNumber,String(date||today()));
   B.setDebtDate(student,String(monthNumber),remaining>0&&debtDueDate?debtDueDate:null);
@@ -150,29 +157,46 @@ function customDescription(value){
   if(/^(?:الشهر\s+\d|جزء من الشهر|إكمال الشهر|دفعة شهرية|دفعة تسجيل|دفعة مستحقات|دفعة طالب)/.test(text))return'';
   return text;
 }
+function historicalCourseShape(student,item,specialtyChanged){
+  const snapshot=student?.snapshot||{};
+  if(specialtyChanged){const type=B.courseTypeOf(item),monthly=type==='normal',durationValue=monthly?1:Math.max(1,Number(item.quickDays||item.durationValue||1));return{type,monthly,durationValue,durationUnit:monthly?'month':String(item.durationUnit||'day')};}
+  let type=String(snapshot.courseType||'');
+  if(type!=='normal'&&type!=='quick')type=snapshot.billing==='monthly'?'normal':snapshot.billing==='one_time'?'quick':B.courseTypeOf(item);
+  const monthly=type==='normal',durationValue=monthly?1:Math.max(1,Number(snapshot.durationValue||item.quickDays||item.durationValue||1)),durationUnit=monthly?'month':String(snapshot.durationUnit||item.durationUnit||'day');
+  return{type,monthly,durationValue,durationUnit};
+}
 function updateStudentRegistration(student,changes={}){
   if(!student)throw new Error('الطالب غير موجود.');
-  const item=typeof spec==='function'?spec(String(changes.specialty??student.specialty)):null;if(!item)throw new Error('الدورة المحددة غير موجودة.');
-  const draft=clone(student),wasMonthly=isDynamicMonthly(student),type=B.courseTypeOf(item),monthly=type==='normal';
+  const requestedSpecialty=String(changes.specialty??student.specialty),item=typeof spec==='function'?spec(requestedSpecialty):null;if(!item)throw new Error('الدورة المحددة غير موجودة.');
+  const draft=clone(student),wasMonthly=isDynamicMonthly(student),specialtyChanged=String(item.id)!==String(student.specialty),shape=historicalCourseShape(student,item,specialtyChanged),type=shape.type,monthly=shape.monthly;
   const name=String(changes.name??draft.name??'').trim();if(!name)throw new Error('اسم الطالب مطلوب.');
   const branch=String(changes.branch??draft.branch??'').trim();if(!branch)throw new Error('المركز مطلوب.');
   const start=String(changes.start??draft.start??'').trim();if(!start)throw new Error('تاريخ البداية مطلوب.');
   const fee=Math.max(0,Number(changes.fee??draft.snapshot?.fee??draft.required??0));if(fee<=0)throw new Error('سعر الدورة غير صالح.');
-  const days=Math.max(1,Number(item.quickDays||item.durationValue||draft.snapshot?.durationValue||1));
-  draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,days,'day');
-  draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:monthly?1:days,durationUnit:monthly?'month':'day'};
+  const duplicate=students.find(other=>other!==student&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));
+  if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);
+  draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
+  draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:shape.durationValue,durationUnit:shape.durationUnit};
   if(changes.schedule){draft.schedule=clone(changes.schedule);draft.schedule.specialtyId=String(item.id);draft.schedule.specialtyName=String(item.name||'');}
   draft.payments=Array.isArray(draft.payments)?draft.payments.map(payment=>Array.isArray(payment)?[...payment]:[]):[];
   const rawIndex=changes.paymentIndex,index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);
   if(index!==null&&(!Number.isInteger(index)||index<0||!draft.payments[index]))throw new Error('الدفعة المرتبطة بالروسي غير موجودة.');
   const notes=draft.payments.map(payment=>customDescription(payment?.[5]));
-  if(index!==null){
-    const payment=draft.payments[index],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
+  let effectiveIndex=index;
+  if(effectiveIndex===null&&changes.createRegistrationPayment===true&&Math.max(0,Number(changes.paymentAmount||0))>0){
+    const amount=Math.max(0,Number(changes.paymentAmount||0)),method=String(changes.paymentMethod||'').trim();if(!method)throw new Error('اختر وسيلة الدفع.');
+    const stamp=Date.now(),transactionCode=window.EFC_CODES?.newTransactionCode?.(draft)||uid('tx'),description=String(changes.paymentDescription||'').trim(),receipt=String(changes.registrationReceiptNo??draft.registrationReceiptNo??'').trim();
+    draft.payments.push([String(changes.paymentDate||start),amount,method,String(changes.paymentTime||nowTime()),stamp,description,transactionCode,monthly?1:null,receipt||null,changes.debtDueDate?String(changes.debtDueDate):null,null,stamp]);
+    effectiveIndex=draft.payments.length-1;notes.push(description);
+  }
+  const editStamp=Date.now();
+  if(effectiveIndex!==null){
+    const payment=draft.payments[effectiveIndex],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
     const method=String(changes.paymentMethod??payment[2]??'').trim();if(!method)throw new Error('اختر وسيلة الدفع.');
     payment[0]=String(changes.paymentDate??payment[0]??start);payment[1]=amount;payment[2]=method;
     if(changes.paymentTime!==undefined)payment[3]=String(changes.paymentTime||payment[3]||nowTime());
-    if(changes.paymentDescription!==undefined)notes[index]=String(changes.paymentDescription||'').trim();
-    payment[9]=changes.debtDueDate?String(changes.debtDueDate):null;
+    if(changes.paymentDescription!==undefined)notes[effectiveIndex]=String(changes.paymentDescription||'').trim();
+    payment[9]=changes.debtDueDate?String(changes.debtDueDate):null;payment[11]=editStamp;
   }
   if(monthly){
     draft.debtDueDates={};
@@ -198,12 +222,13 @@ function updateStudentRegistration(student,changes={}){
     draft.debtDueDates=remaining>0&&due?{course:String(due)}:{};
     if(!remaining)draft.payments.forEach(payment=>{payment[9]=null;});
   }
-  reconcileStudent(draft);
+  reconcileStudent(draft);draft.updatedAt=editStamp;
   const history=Array.isArray(draft.registrationEditHistory)?draft.registrationEditHistory:[];
-  history.push({at:Date.now(),paymentIndex:index,transactionCode:index!==null?String(draft.payments[index]?.[6]||''):null,receipt:index!==null?String(draft.payments[index]?.[8]||''):null});
+  history.push({at:editStamp,paymentIndex:effectiveIndex,transactionCode:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[6]||''):null,receipt:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[8]||draft.registrationReceiptNo||''):String(draft.registrationReceiptNo||'')});
   draft.registrationEditHistory=history.slice(-50);
-  Object.assign(student,draft);reconcileStudent(student);saveStudents();B.persistExtrasSoon?.();
-  return{student,paymentIndex:index};
+  const before=clone(student);Object.assign(student,draft);reconcileStudent(student);
+  try{saveStudentsClean();}catch(error){Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,before);reconcileStudent(student);throw error;}
+  return{student,paymentIndex:effectiveIndex};
 }
 
 function monthlyFocus(student,asOf=today(),paidOverride=null){
@@ -221,7 +246,7 @@ function financialStatusV14(student){
 function stopStudent(student,reason=''){
   if(!student)return;
   if(isDynamicMonthly(student)){const plan=installmentPlan(student,today());student.frozenMonths=plan.filter(month=>month.dueDate<=today()||month.paid>0).length;}
-  student.active=false;student.status='inactive';student.stoppedAt=today();student.stopReason=String(reason||'').trim();reconcileStudent(student);saveStudentsClean();
+  student.active=false;student.status='inactive';student.stoppedAt=today();student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student);saveStudentsClean();
 }
 function notificationsForStudent(student){
   if(!student||isInactive(student))return[];
@@ -264,9 +289,9 @@ allocV4=function(student,paymentIndex){
 financialStatus=financialStatusV14;
 monthBadgeV3=function(student,asOf=today(),paidOverride=null){const focus=monthlyFocus(student,asOf,paidOverride);if(!focus)return'';const cls=focus.state==='complete'?'good':focus.state==='overdue'?'bad':focus.state==='upcoming'?'neutral':'warn';return`<span class="badge ${cls}">${B.esc(focus.label)}</span>`;};
 
-const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
+const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();
-window.EFC_MONTHLY_PREPAYMENT_DOMAIN_V14=Object.freeze({ready:true,maxMonths:MAX_MONTHS,prepayAcrossMonths:true,allocationPersisted:true,nextMonthVisibleBeforeRenewal:true,renewalReminderBeforeStart:true,dueAfterMonthStarts:true,dueGraceDays:DUE_GRACE_DAYS,atomicRegistrationEdit:true,studentScopedEdits:true});
+window.EFC_MONTHLY_PREPAYMENT_DOMAIN_V14=Object.freeze({ready:true,maxMonths:MAX_MONTHS,prepayAcrossMonths:true,allocationPersisted:true,nextMonthVisibleBeforeRenewal:true,renewalReminderBeforeStart:true,dueAfterMonthStarts:true,dueGraceDays:DUE_GRACE_DAYS,atomicRegistrationEdit:true,studentScopedEdits:true,historicalCourseSnapshotPreserved:true,registrationCollisionGuard:true,zeroPaymentRegistrationEdit:true,revisionAwareEdits:true});
 })();
