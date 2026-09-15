@@ -90,6 +90,14 @@ for(const [token,label] of [
   ['atomicEditMode:true','registration page owns transactional edit mode'],
   ['cancelEditDiscardsDraft:true','cancel discards only the current unsaved edit'],
   ['receiptEditReturnsToRegistration:true','receipt edit routes to registration page'],
+  ['closesSourceModalsBeforeEdit:true','receipt edit closes source receipt/student modals before routing'],
+  ['guardedEditNavigation:true','unsaved edit navigation is guarded'],
+  ['normalRegistrationRestoredAfterSave:true','successful edit returns registration to normal mode'],
+  ['responsiveEditWorkspace:true','edit workspace has dedicated responsive sizing'],
+  ["document.querySelectorAll('.modal').forEach(modal=>modal.remove())",'source modal stack is closed before entering edit mode'],
+  ['مغادرة صفحة التعديل ستلغي التغييرات الحالية فقط','navigation warning explains current draft cancellation'],
+  ['restoreNormalRegistration();','save/cancel exits edit mode through normal registration restore'],
+  ['registration-edit-actions-v17','save and cancel share a stable edit action row'],
   ['window.EFC_BEGIN_REGISTRATION_EDIT_V17=beginRegistrationEdit','receipt edit entry point'],
   ["submit.textContent='حفظ التغييرات'",'edit submit button label'],
   ['إلغاء التعديل','edit cancel action'],
@@ -143,6 +151,11 @@ for(const [token,label] of [
   ["half('Durée'",'quick receipt uses the duration field'],
   ["'مدة الدورة'",'quick receipt uses the Arabic duration label'],
   ['receiptEditRoutesToRegistration:true','receipt edit routes to registration page'],
+  ['receiptEditActionBelowDocument:true','receipt edit action is rendered in the bottom document action bar'],
+  ['darkReceiptEditAction:true','receipt edit action uses the dark primary treatment'],
+  ['actionsSpacer12','receipt edit action is separated to the opposite side of print/save'],
+  ['class="edit12"','receipt document owns the visible edit action'],
+  ['window.EFC_EDIT_RECEIPT=model=>','receipt iframe edit action delegates to parent registration edit entry point'],
   ['receiptModelCarriesSourceIdentity:true','receipt model carries student/payment identity'],
   ['studentId:String(student.id||\'\')','receipt includes student source identity'],
   ['paymentIndex:statement?null:normalizedIndex','receipt includes source payment index'],
@@ -154,6 +167,7 @@ for(const [token,label] of [
   ['protectedReceiptIdentifiers:true','receipt and transaction identifiers stay protected']
 ])requireText(receipts,token,label);
 forbidText(receipts,'receipt-edit-panel-v13','receipt must not keep a second inline edit form');
+forbidText(receipts,'receipt-viewer-edit-v13','receipt viewer header must not keep a second edit button');
 forbidText(receipts,'applyReceiptEdits','receipt must not mutate a display-only working copy');
 
 for(const [token,label] of [
@@ -185,6 +199,8 @@ requireText(index,'body{min-width:840px}','compact browser viewport minimum');
 requireText(index,'EFC_REQUEST_CLOSE_BACKUP','desktop close backup prompt bridge');
 requireText(index,"await window.EFC_FORCE_PERSIST?.()",'flush pending state before exit backup');
 requireText(index,"invoke('export_backup'",'exit backup uses existing full backup exporter');
+requireText(index,'20260915-receipt-edit-hour-duration-2','updated branch cache token');
+requireText(gate,"RUNTIME_VERSION='20260915-receipt-edit-hour-duration-2'",'runtime cache token matches index after edit fixes');
 requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close interception');
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');
@@ -210,4 +226,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: hour-only timetable values, atomic student-scoped receipt editing through the registration page, cancel-without-mutation behavior, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
+console.log('Registration redesign verified: hour-only timetable values, atomic student-scoped receipt editing through the registration page, guarded cancel-on-navigation behavior, source modal cleanup, normal registration restoration after save, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
