@@ -157,7 +157,7 @@ function updateStudentRegistration(student,changes={}){
   const name=String(changes.name??draft.name??'').trim();if(!name)throw new Error('اسم الطالب مطلوب.');
   const branch=String(changes.branch??draft.branch??'').trim();if(!branch)throw new Error('المركز مطلوب.');
   const start=String(changes.start??draft.start??'').trim();if(!start)throw new Error('تاريخ البداية مطلوب.');
-  const fee=Math.max(0,Number(changes.fee??draft.snapshot?.fee??draft.required||0));if(fee<=0)throw new Error('سعر الدورة غير صالح.');
+  const fee=Math.max(0,Number(changes.fee??draft.snapshot?.fee??draft.required??0));if(fee<=0)throw new Error('سعر الدورة غير صالح.');
   const days=Math.max(1,Number(item.quickDays||item.durationValue||draft.snapshot?.durationValue||1));
   draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,days,'day');
   draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:monthly?1:days,durationUnit:monthly?'month':'day'};
@@ -167,7 +167,7 @@ function updateStudentRegistration(student,changes={}){
   if(index!==null&&(!Number.isInteger(index)||index<0||!draft.payments[index]))throw new Error('الدفعة المرتبطة بالروسي غير موجودة.');
   const notes=draft.payments.map(payment=>customDescription(payment?.[5]));
   if(index!==null){
-    const payment=draft.payments[index],amount=Math.max(0,Number(changes.paymentAmount??payment[1]||0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
+    const payment=draft.payments[index],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
     const method=String(changes.paymentMethod??payment[2]??'').trim();if(!method)throw new Error('اختر وسيلة الدفع.');
     payment[0]=String(changes.paymentDate??payment[0]??start);payment[1]=amount;payment[2]=method;
     if(changes.paymentTime!==undefined)payment[3]=String(changes.paymentTime||payment[3]||nowTime());
