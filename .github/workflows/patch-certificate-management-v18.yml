@@ -1,0 +1,346 @@
+name: Patch certificate management v18
+
+on:
+  push:
+    branches:
+      - feature/fiscal-year-current-v14
+    paths:
+      - '.github/workflows/patch-certificate-management-v18.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/fiscal-year-current-v14
+          fetch-depth: 4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply certificate receipt management and responsive finance update
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          cert_path=Path('assets/production-certificates-v13.js')
+          cert=cert_path.read_text(encoding='utf-8')
+
+          def once(text,old,new,label):
+              count=text.count(old)
+              if count!=1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old,new,1)
+
+          def block(text,start,end,new,label):
+              i=text.find(start)
+              if i<0: raise SystemExit(f'{label}: start marker not found')
+              j=text.find(end,i)
+              if j<0: raise SystemExit(f'{label}: end marker not found')
+              return text[:i]+new.rstrip()+"\n"+text[j:]
+
+          cert=once(cert,
+          "let branchSaveInFlight=false;\nlet saveChain=Promise.resolve();",
+          "let branchSaveInFlight=false;\nlet editingReceiptId=null;\nlet receiptDeleteInFlight=false;\nlet saveChain=Promise.resolve();",
+          'certificate mutation state')
+
+          cert=once(cert,
+          ".cert-methods{border-top:1px solid #d7dcda;margin-top:7px;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:16px;direction:ltr}.cert-method{min-width:0;flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:10px;font-weight:700;white-space:nowrap}.cert-check{width:44px;height:30px;border:2px solid #555;background:#fff;display:grid;place-items:center;font-size:18px;font-weight:900;flex:0 0 44px}.cert-method.on .cert-check{color:#158b4c;border-color:#158b4c}.cert-method-name{display:flex;align-items:center;gap:3px;line-height:1.1}.cert-actions{width:1040px;max-width:96vw;margin:0 auto 18px;display:flex;direction:rtl;gap:8px}.cert-actions button{border:0;border-radius:7px;padding:10px 17px;font:700 13px Tahoma;cursor:pointer}.cert-print{background:#155ea8;color:#fff}.cert-save{background:#159a55;color:#fff}@media(max-width:820px){.cert-methods{gap:6px;flex-wrap:wrap}.cert-method{font-size:8px;min-width:120px}.cert-check{width:34px;flex-basis:34px}}@media print{body{background:#fff}.cert-paper{width:100%;max-width:none;margin:0;border:1px solid #222}.cert-actions{display:none}@page{size:landscape;margin:8mm}}",
+          ".cert-methods{border-top:1px solid #d7dcda;margin-top:7px;padding-top:8px;display:flex;align-items:center;justify-content:space-between;gap:16px;direction:ltr}.cert-method{min-width:0;flex:1;display:flex;align-items:center;justify-content:center;gap:7px;font-size:10px;font-weight:700;white-space:nowrap}.cert-check{width:44px;height:30px;border:2px solid #555;background:#fff;display:grid;place-items:center;font-size:18px;font-weight:900;flex:0 0 44px}.cert-method.on .cert-check{color:#158b4c;border-color:#158b4c}.cert-method-name{display:flex;align-items:center;gap:3px;line-height:1.1}.cert-actions{width:1040px;max-width:96vw;margin:0 auto 18px;display:flex;align-items:center;direction:rtl;gap:8px}.cert-actions button{border:0;border-radius:7px;padding:10px 17px;font:700 13px Tahoma;cursor:pointer}.cert-actions button:disabled{opacity:.45;cursor:not-allowed}.cert-action-spacer{flex:1 1 auto}.cert-print{background:#155ea8;color:#fff}.cert-save{background:#159a55;color:#fff}.cert-edit{background:#075844;color:#fff}.cert-delete{background:#b43d3d;color:#fff}@media(max-width:820px){.cert-methods{gap:6px;flex-wrap:wrap}.cert-method{font-size:8px;min-width:120px}.cert-check{width:34px;flex-basis:34px}.cert-actions{flex-wrap:wrap}.cert-action-spacer{display:none}}@media print{body{background:#fff}.cert-paper{width:100%;max-width:none;margin:0;border:1px solid #222}.cert-actions{display:none}@page{size:landscape;margin:8mm}}",
+          'receipt action styling')
+
+          old_doc="function receiptDocument(receipt,actions=true,autoPrint=false){const data=JSON.stringify(receipt).replace(/</g,'\\\\u003c');return`<!doctype html><html lang=\"ar\" dir=\"rtl\"><head><meta charset=\"utf-8\"><title>روسي شهادة ${padReceipt(receipt.receiptNo)}</title><style>${receiptCss()}</style></head><body><div class=\"cert-paper\">${receiptBody(receipt)}</div>${actions?`<div class=\"cert-actions\"><button class=\"cert-print\" onclick=\"print()\">طباعة</button><button class=\"cert-save\" onclick=\"parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)\">حفظ PDF</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\\/script></body></html>`;}"
+          new_doc="function receiptDocument(receipt,actions=true,autoPrint=false){const data=JSON.stringify(receipt).replace(/</g,'\\\\u003c'),mutationDisabled=canEditCertificates()?'':' disabled';return`<!doctype html><html lang=\"ar\" dir=\"rtl\"><head><meta charset=\"utf-8\"><title>روسي شهادة ${padReceipt(receipt.receiptNo)}</title><style>${receiptCss()}</style></head><body><div class=\"cert-paper\">${receiptBody(receipt)}</div>${actions?`<div class=\"cert-actions\"><button class=\"cert-print\" onclick=\"print()\">طباعة</button><button class=\"cert-save\" onclick=\"parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)\">حفظ PDF</button><span class=\"cert-action-spacer\"></span><button class=\"cert-edit\" type=\"button\"${mutationDisabled} onclick=\"parent.EFC_EDIT_CERTIFICATE_RECEIPT_V13(CERT)\">تعديل الروسي</button><button class=\"cert-delete\" type=\"button\"${mutationDisabled} onclick=\"parent.EFC_DELETE_CERTIFICATE_RECEIPT_V13(CERT)\">حذف الروسي</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\\/script></body></html>`;}"
+          cert=once(cert,old_doc,new_doc,'certificate receipt actions')
+
+          helpers=r'''
+function resolveCertificateReceipt(reference){
+  if(!reference)return null;
+  const id=String(reference.id||''),recordCode=String(reference.recordCode||''),transactionCode=String(reference.transactionCode||'');
+  return state.certificateReceipts.find(item=>(id&&String(item.id)===id)||(recordCode&&String(item.recordCode)===recordCode)||(transactionCode&&String(item.transactionCode)===transactionCode))||null;
+}
+function editingReceipt(){
+  if(!editingReceiptId)return null;
+  const receipt=state.certificateReceipts.find(item=>String(item.id)===String(editingReceiptId))||null;
+  if(!receipt)editingReceiptId=null;
+  return receipt;
+}
+function assertCertificateReceiptMutable(receipt){
+  if(!receipt)return false;
+  if(!canEditCertificates()){alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');return false;}
+  try{window.EFC_FISCAL_V14?.assertDateOpen?.(receipt.date,'تاريخ روسي الشهادة');}
+  catch(error){alert(String(error?.message||error||'لا يمكن تعديل هذا الروسي.'));return false;}
+  return true;
+}
+function closeCertificateReceiptViewers(){document.querySelectorAll('.receipt-viewer-v13').forEach(modal=>modal.remove());}
+function certificateEditDirty(){
+  const receipt=editingReceipt();if(!receipt)return false;
+  const amountInput=document.getElementById('certAmountV13'),methodInput=document.getElementById('certMethodV13');
+  if(!amountInput||!methodInput)return false;
+  return Number(amountInput.value||0)!==Number(receipt.amount||0)||String(methodInput.value||'')!==String(receipt.method||'');
+}
+function clearCertificateEdit(){editingReceiptId=null;document.body.classList.remove('efc-certificate-editing-v44');}
+function cancelCertificateReceiptEdit(){
+  if(!editingReceipt())return false;
+  if(certificateEditDirty()&&!window.confirm('لديك تعديلات غير محفوظة على روسي الشهادة. هل تريد إلغاءها؟'))return false;
+  clearCertificateEdit();renderCertificates();return true;
+}
+function beginCertificateReceiptEdit(reference){
+  const receipt=resolveCertificateReceipt(reference);if(!receipt)return alert('تعذر العثور على روسي الشهادة الأصلي.'),false;
+  if(!assertCertificateReceiptMutable(receipt))return false;
+  editingReceiptId=receipt.id;mode=receipt.studentType==='external'?'external':'internal';historyOpen=false;closeCertificateReceiptViewers();renderCertificates();return true;
+}
+async function deleteCertificateReceipt(reference){
+  if(receiptDeleteInFlight)return false;
+  const receipt=resolveCertificateReceipt(reference);if(!receipt)return alert('تعذر العثور على روسي الشهادة الأصلي.'),false;
+  if(!assertCertificateReceiptMutable(receipt))return false;
+  const message=`هل تريد حذف روسي الشهادة رقم ${padReceipt(receipt.receiptNo)} للطالب ${receipt.studentName}؟\nسيُحذف المبلغ من مالية الشهادات.`;
+  if(!window.confirm(message))return false;
+  const reopenFinance=historyOpen,index=state.certificateReceipts.indexOf(receipt);if(index<0)return false;
+  receiptDeleteInFlight=true;state.certificateReceipts.splice(index,1);
+  try{await persist();}
+  catch(error){state.certificateReceipts.splice(index,0,receipt);writeLocal();console.error('EFC certificate receipt delete failed.',error);alert('تعذر حذف روسي الشهادة. لم يتم تغيير البيانات.');receiptDeleteInFlight=false;return false;}
+  receiptDeleteInFlight=false;if(String(editingReceiptId||'')===String(receipt.id))clearCertificateEdit();closeCertificateReceiptViewers();
+  if(typeof currentPage==='undefined'||currentPage==='certificates'){renderCertificates();if(reopenFinance)setHistoryMode(true);}
+  return true;
+}
+function receiptEditStudentMarkup(receipt){
+  const reg=receipt.reg===null||receipt.reg===undefined||receipt.reg===''?'—':String(receipt.reg).padStart(4,'0');
+  return`<div class="efc-cert-selected-main-v38"><span class="efc-cert-selected-kicker-v38">الطالب المرتبط بالروسي</span><strong>${esc(receipt.studentName||'—')}</strong><div class="efc-cert-selected-facts-v38"><span><small>الهاتف</small><b>${esc(receipt.phone||'—')}</b></span><span><small>رقم السجل</small><b>${esc(reg)}</b></span><span><small>الفرع</small><b>${esc(receipt.branchName||'—')}</b></span><span><small>الدورة</small><b>${esc(receipt.specialtyName||'—')}</b></span></div></div>`;
+}
+function ensureCertificateSelectValue(select,value,label=value){
+  if(!select)return;const normalized=String(value??'');if(!normalized)return;
+  if(![...select.options].some(option=>String(option.value)===normalized))select.add(new Option(String(label||normalized),normalized));
+  select.value=normalized;
+}
+function applyCertificateEditState(receipt){
+  if(!receipt)return;
+  document.body.classList.add('efc-certificate-editing-v44');
+  document.querySelectorAll('.cert-mode-v13 button').forEach(button=>{button.disabled=true;button.classList.toggle('active',button.dataset.mode===mode);});
+  if(receipt.studentType==='internal'){
+    const pane=document.getElementById('certInternalPaneV13'),search=document.querySelector('.efc-cert-student-search-v38'),filters=document.querySelector('.efc-cert-student-filters-v38'),results=document.getElementById('certStudentResultsV13'),host=document.querySelector('.efc-cert-selected-host-v40');
+    pane?.classList.add('efc-cert-edit-pane-v44');search?.classList.add('efc-cert-edit-hidden-v44');filters?.classList.add('efc-cert-edit-hidden-v44');results?.classList.add('efc-cert-edit-hidden-v44');
+    if(host){host.hidden=false;host.innerHTML=receiptEditStudentMarkup(receipt);}
+  }else{
+    const pane=document.getElementById('certExternalPaneV13'),name=document.getElementById('certExternalNameV13'),phone=document.getElementById('certExternalPhoneV13'),reg=document.getElementById('certExternalRegV13'),specialty=document.getElementById('certExternalSpecV13'),branch=document.getElementById('certExternalBranchV13'),addBranch=document.getElementById('certAddBranchV13');
+    pane?.classList.add('efc-cert-edit-pane-v44');if(name){name.value=receipt.studentName||'';name.readOnly=true;}if(phone){phone.value=receipt.phone||'';phone.readOnly=true;}if(reg){reg.value=receipt.reg??'';reg.readOnly=true;}
+    ensureCertificateSelectValue(specialty,receipt.specialtyId,receipt.specialtyName);ensureCertificateSelectValue(branch,receipt.branchId,receipt.branchName);if(specialty)specialty.disabled=true;if(branch)branch.disabled=true;if(addBranch)addBranch.hidden=true;
+  }
+  const amount=document.getElementById('certAmountV13'),method=document.getElementById('certMethodV13'),issue=document.getElementById('certIssueV13');
+  if(amount)amount.value=String(receipt.amount||'');ensureCertificateSelectValue(method,receipt.method,`${receipt.method} · محفوظ سابقًا`);if(method)method.value=String(receipt.method||'');if(issue)issue.textContent='حفظ تعديل الروسي';syncIssueButton();
+}
+function activeCertificateFinanceMode(){return String(document.querySelector('#certFinanceModeV13 [data-mode].active')?.dataset.mode||'daily');}
+function syncCertificateFinanceContextFromDay(){
+  const day=document.getElementById('certFinanceDayV13'),month=document.getElementById('certFinanceMonthV13'),year=document.getElementById('certFinanceYearV13'),match=String(day?.value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!match)return;
+  ensureCertificateSelectValue(year,match[1],match[1]);if(year)year.value=match[1];if(month)month.value=String(Number(match[2]));
+}
+function syncCertificateFinanceDayFromContext(){
+  const day=document.getElementById('certFinanceDayV13'),month=document.getElementById('certFinanceMonthV13'),year=document.getElementById('certFinanceYearV13');if(!day||!month||!year)return;
+  const y=Math.max(1,Number(year.value||today().slice(0,4))),m=Math.max(1,Math.min(12,Number(month.value||today().slice(5,7)))),current=String(day.value||today()),wanted=Math.max(1,Number(current.slice(8,10)||1)),last=new Date(y,m,0).getDate();day.value=`${y}-${pad2(m)}-${pad2(Math.min(wanted,last))}`;
+}
+'''
+          cert=once(cert,"function isOperationalStudent(student){",helpers+"\nfunction isOperationalStudent(student){",'certificate edit helpers')
+
+          cert=once(cert,
+          "function syncIssueButton(){const issue=document.getElementById('certIssueV13');if(issue)issue.disabled=issueInFlight||!canEditCertificates()||(mode==='internal'&&!selectedStudentId);}",
+          "function syncIssueButton(){const issue=document.getElementById('certIssueV13'),editing=Boolean(editingReceipt());if(issue)issue.disabled=issueInFlight||!canEditCertificates()||(!editing&&mode==='internal'&&!selectedStudentId);}",
+          'edit-aware issue button')
+
+          style_block=r'''function ensureCertificateFinanceStyles(){
+  if(document.getElementById('efc-certificate-finance-style-v44'))return;
+  const style=document.createElement('style');style.id='efc-certificate-finance-style-v44';style.textContent=`
+html body.efc-certificate-finance-open-v43 .content:has(.cert-form-v13[data-efc-history-open-v36="1"]){width:min(900px,calc(100% - 24px))!important;max-width:900px!important;min-width:0!important;margin:0 12px 0 auto!important;padding:12px 0 20px!important;box-sizing:border-box!important;overflow:visible!important;transform:none!important}
+html body.efc-certificate-finance-open-v43 .content:has(.cert-form-v13[data-efc-history-open-v36="1"])>.page-title{display:none!important}
+html body.efc-certificate-finance-open-v43 .cert-form-v13[data-efc-history-open-v36="1"],html body.efc-certificate-finance-open-v43 .cert-form-v13>.cert-finance-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+html body.efc-certificate-finance-open-v43 .cert-form-v13[data-efc-history-open-v36="1"]>.efc-cert-workspace-toolbar-v36{display:none!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-v13 .finance-hero-v13{width:min(470px,100%)!important;max-width:470px!important;min-width:0!important;height:76px!important;margin:0 auto 12px!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-topbar-v43{width:100%!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:0 0 7px!important;direction:rtl!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43{display:flex!important;justify-content:flex-start!important;direction:rtl!important;gap:7px!important;width:max-content!important;margin:0!important;padding:0!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43 button{height:36px!important;min-width:112px!important;padding:0 18px!important;border:1px solid #08634f!important;border-radius:9px!important;background:linear-gradient(180deg,#0b775f,#08634f)!important;color:#fff!important;font-family:inherit!important;font-size:12px!important;font-weight:760!important;box-shadow:0 7px 16px rgba(8,99,79,.15)!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-back-v43{height:36px!important;padding:0 14px!important;border-radius:9px!important;box-shadow:0 6px 14px rgba(8,99,79,.07)!important;display:inline-flex!important;align-items:center!important;gap:7px!important}.cert-finance-back-v43 svg{width:16px;height:16px}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:7px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:154px 134px 86px 74px 110px minmax(130px,1fr) 112px!important;box-sizing:border-box!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 label{margin:0!important;gap:5px!important;min-width:0!important;color:#294d43!important;font-size:9px!important;font-weight:760!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 label[hidden]{display:none!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select{width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;border:1px solid #cfddd8!important;border-radius:8px!important;background:#fff!important;color:#162721!important;font-family:inherit!important;font-size:11.5px!important;padding:7px 8px!important;box-shadow:none!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input:focus,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select:focus{border-color:#1b8c70!important;box-shadow:0 0 0 3px rgba(27,140,112,.09)!important;outline:none!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13{height:38px!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4px!important;padding:4px!important;margin:0!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important;box-shadow:inset 0 1px 0 #ffffffb8!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button{height:28px!important;min-width:0!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:10.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="daily"]{background:linear-gradient(180deg,#f6fbff,#eef8fb)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="monthly"]{background:linear-gradient(180deg,#f1fbf7,#e7f6ef)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="yearly"]{background:linear-gradient(180deg,#fffaf0,#fbf3e5)!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button.active{background:linear-gradient(180deg,#0b7b62,#08624f)!important;border-color:#08624f!important;color:#fff!important;box-shadow:0 5px 12px rgba(8,98,79,.16)!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-summary-v44{grid-column:1/-1!important;justify-self:start!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;width:min(430px,100%)!important;min-width:0!important;margin-top:2px!important;direction:rtl!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43{min-height:54px!important;padding:7px 11px!important;border:1px solid #d8e5e0!important;border-radius:11px!important;background:#fff!important;box-shadow:0 6px 15px rgba(22,75,61,.035)!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:2px!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43:first-child{background:linear-gradient(135deg,#f1fbf7,#e9f8f1)!important;border-color:#cbe9dc!important}html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43:last-child{background:linear-gradient(135deg,#eef7ff,#e8f3fb)!important;border-color:#cfdfec!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43 .finance-kpi-line-v13{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important}.cert-finance-summary-card-v43 small{font-size:10px!important;color:#2f4c43!important;font-weight:800!important}.cert-finance-summary-card-v43 b{font-size:15px!important;line-height:1.1!important;color:#111d19!important;white-space:nowrap!important}.cert-finance-summary-card-v43>span{font-size:8.5px!important;color:#657a73!important}
+html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.chart-card{width:100%!important;margin:0 0 8px!important;padding:5px 10px 3px!important;border:1px solid #d8e5e0!important;border-radius:13px!important;background:#fff!important;box-shadow:0 8px 20px rgba(22,75,61,.035)!important;box-sizing:border-box!important}.cert-finance-v13 .finance-chart-wrap-v13{width:100%!important;overflow:hidden!important}.cert-finance-v13 .finance-chart-wrap-v13 svg{display:block!important;width:100%!important;height:auto!important;max-height:205px!important}.cert-finance-v13 .finance-gridline-v13{stroke:#dbe6e2!important}.cert-finance-v13 .finance-line-v13{stroke:#08745b!important;stroke-width:3!important}.cert-finance-v13 .finance-dot-v13{stroke:#08745b!important;fill:#fff!important}
+html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:0 0 8px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns>.card{min-width:0!important;min-height:96px!important;margin:0!important;padding:9px 13px!important;border-radius:12px!important;box-shadow:0 7px 18px rgba(22,75,61,.035)!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(1){background:linear-gradient(135deg,#eef9fb,#e8f5f2)!important;border:1px solid #b9ddd5!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(2){background:linear-gradient(135deg,#fff9ed,#fff3df)!important;border:1px solid #ecdcb7!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(3){background:linear-gradient(135deg,#eef5ff,#e8f1fb)!important;border:1px solid #cadced!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns h3{margin:0 0 8px!important;font-size:11.5px!important;color:#173d34!important}.cert-finance-v13 .break-row{grid-template-columns:minmax(0,1fr) auto!important;gap:3px 9px!important;margin:0 0 6px!important;font-size:9.5px!important}.cert-finance-v13 .break-row>span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.cert-finance-v13 .break-row>div{grid-column:1/-1!important;height:4px!important;border-radius:99px!important;background:#dfe8e4!important;overflow:hidden!important}.cert-finance-v13 .break-row>div>i{height:100%!important;border-radius:99px!important;background:#159577!important}
+html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap{width:100%!important;max-width:100%!important;min-width:0!important;max-height:min(430px,calc(100dvh - 310px))!important;overflow:auto!important;border:1.2px solid #aaccc1!important;border-radius:10px!important;background:#fff!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;font-size:10px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap td{height:35px!important;padding:6px 9px!important;font-size:10px!important}
+html body.efc-certificate-editing-v44 .efc-cert-edit-hidden-v44{display:none!important}
+html body.efc-certificate-editing-v44 .cert-mode-v13 button:disabled{opacity:.68!important;cursor:default!important}
+html body.efc-certificate-editing-v44 .efc-cert-cancel-edit-v44{height:40px!important;min-width:142px!important;padding:0 14px!important;border:1px solid #9c7777!important;border-radius:8px!important;background:#fff!important;color:#8b3030!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;font-family:inherit!important;font-size:12px!important;font-weight:850!important;cursor:pointer!important}
+html body.efc-certificate-editing-v44 .efc-cert-cancel-edit-v44:hover{background:#fff1f1!important;border-color:#8c3a3a!important}html body.efc-certificate-editing-v44 .efc-cert-cancel-edit-v44 svg{width:20px!important;height:20px!important}
+html body.efc-certificate-editing-v44 #certInternalPaneV13.efc-cert-edit-pane-v44{display:grid!important;grid-template-columns:1fr!important;grid-template-rows:auto auto auto!important;min-height:0!important;gap:11px!important;direction:rtl!important}
+html body.efc-certificate-editing-v44 #certInternalPaneV13 .efc-cert-selected-host-v40{grid-column:1!important;grid-row:1!important;min-height:0!important}
+html body.efc-certificate-editing-v44 #certInternalPaneV13>.cert-payment-v13.efc-cert-internal-payment-v40{grid-column:1!important;grid-row:2!important;width:100%!important}
+html body.efc-certificate-editing-v44 #certInternalPaneV13>#certIssueV13.efc-cert-internal-issue-v40{grid-column:1!important;grid-row:3!important;width:100%!important}
+html body.efc-certificate-editing-v44 #certExternalPaneV13 input[readonly],html body.efc-certificate-editing-v44 #certExternalPaneV13 select:disabled{background:#f5faf8!important;color:#465f57!important;opacity:1!important;cursor:default!important}
+@media(max-width:1180px){
+  html body.efc-certificates-workspace-v36 .shell.shell-v13 main>.content{width:min(900px,calc(100% - 24px))!important;max-width:900px!important;min-width:0!important;margin:0 12px 0 auto!important;transform:none!important;transform-origin:top right!important}
+  html body.efc-certificates-workspace-v36 .cert-layout-v13,html body.efc-certificates-workspace-v36 .cert-form-v13,html body.efc-certificates-workspace-v36 .cert-history-v13{width:100%!important;max-width:100%!important;min-width:0!important}
+  html body.efc-certificates-workspace-v36 .page-title,html body.efc-certificates-workspace-v36 .page-title.efc-cert-hero-v35{width:min(470px,100%)!important;max-width:470px!important;min-width:0!important}
+}
+@media(max-width:1100px){
+  html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+  html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns>.card:last-child{grid-column:1/-1!important}
+}
+@media(max-width:940px){
+  html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  html body.efc-certificate-finance-open-v43 #certFinanceModeV13{grid-column:1/-1!important;width:100%!important}
+  html body.efc-certificate-finance-open-v43 .cert-finance-summary-v44{width:100%!important}
+  html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns{grid-template-columns:1fr!important}
+  html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns>.card:last-child{grid-column:auto!important}
+  html body.efc-certificate-finance-open-v43 .cert-finance-topbar-v43{flex-wrap:wrap!important}
+}
+`;
+  document.head.appendChild(style);
+}
+'''
+          cert=block(cert,'function ensureCertificateFinanceStyles(){','function bindCertificateFinanceRows(){',style_block,'finance style v44')
+
+          cert=once(cert,
+          "  const dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue!=='monthly';if(yearWrap)yearWrap.hidden=modeValue==='daily';",
+          "  const dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue==='yearly';if(yearWrap)yearWrap.hidden=false;",
+          'finance period field visibility')
+
+          save_edit=r'''async function saveEditedReceipt(receipt){
+  if(issueInFlight)return;
+  if(!receipt||!assertCertificateReceiptMutable(receipt))return;
+  const amount=Math.max(0,Number(document.getElementById('certAmountV13')?.value||0)),method=String(document.getElementById('certMethodV13')?.value||'').trim();
+  if(amount<=0)return alert('أدخل مبلغًا صحيحًا.');if(!method)return alert('اختر وسيلة الدفع.');
+  const previousAmount=receipt.amount,previousMethod=receipt.method;issueInFlight=true;receipt.amount=amount;receipt.method=method;syncIssueButton();
+  try{await persist();}
+  catch(error){receipt.amount=previousAmount;receipt.method=previousMethod;writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate receipt edit failed.',error);alert('تعذر حفظ تعديل الروسي. لم يتم تغيير البيانات.');return;}
+  issueInFlight=false;clearCertificateEdit();renderCertificates();openReceipt(receipt);
+}
+'''
+          cert=once(cert,'async function issueReceipt(){',save_edit+'\nasync function issueReceipt(){','edited receipt save flow')
+          cert=once(cert,
+          "async function issueReceipt(){\n  if(issueInFlight)return;",
+          "async function issueReceipt(){\n  const edited=editingReceipt();if(edited)return saveEditedReceipt(edited);\n  if(issueInFlight)return;",
+          'issue/edit routing')
+
+          render_block=r'''function renderCertificates(){
+  resetTransientIssueState();ensureCertificateFinanceStyles();
+  currentPage='certificates';document.body.classList.add('efc-certificates-redesign-v35','efc-certificates-workspace-v36');
+  const editing=editingReceipt();document.body.classList.toggle('efc-certificate-editing-v44',Boolean(editing));if(editing)mode=editing.studentType==='external'?'external':'internal';
+  const branchOptions=state.certificateBranches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join(''),editable=canEditCertificates(),date=today(),currentYear=Number(date.slice(0,4)),currentMonth=Number(date.slice(5,7)),financeYears=certificateFinanceYears(),financeBranches=certificateFinanceBranches(),financeSpecialties=certificateFinanceSpecialties(),financeMethods=[...new Set(state.certificateReceipts.map(item=>String(item.method||'').trim()).filter(Boolean))];
+  const title=`<div class="page-title efc-cert-hero-v35 efc-cert-hero-v36"><div><span class="efc-cert-title-icon-v36">${CERT_ICON}</span><h1>${editing?'تعديل روسي الشهادة':'روسي الشهادة'}</h1></div></div>`;
+  const payment=`<div class="grid two cert-payment-v13"><label>المبلغ<input class="input" id="certAmountV13" type="number" min="1" autocomplete="off" placeholder="المبلغ" required ${editable?'':'disabled'}></label><label>وسيلة الدفع<select id="certMethodV13" ${editable?'':'disabled'}>${methods.map(item=>`<option>${esc(item)}</option>`).join('')}</select></label></div><button class="button" type="button" id="certIssueV13" disabled>${editing?'حفظ تعديل الروسي':'إصدار روسي الشهادة'}</button>`;
+  const finance=`<div class="cert-history-v13 cert-finance-v13" hidden><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>مالية الشهادات</h1></section><div class="cert-finance-topbar-v43"><div class="cert-finance-switch-v43"><button class="active" type="button">دخل الشهادات</button></div><button class="button secondary cert-finance-back-v43" id="certFinanceBackV13" type="button">${BACK_ICON}<span>العودة للإصدار</span></button></div><div class="card finance-controls cert-finance-controls-v13"><div class="segmented" id="certFinanceModeV13"><button class="active" type="button" data-mode="daily">يومي</button><button type="button" data-mode="monthly">شهري</button><button type="button" data-mode="yearly">سنوي</button></div><label id="certFinanceDayWrapV13">اليوم<input class="input" id="certFinanceDayV13" type="date" value="${date}"></label><label id="certFinanceMonthWrapV13">الشهر<select id="certFinanceMonthV13">${MONTH_NAMES.map((name,index)=>`<option value="${index+1}" ${index+1===currentMonth?'selected':''}>${name}</option>`).join('')}</select></label><label id="certFinanceYearWrapV13">السنة<select id="certFinanceYearV13">${financeYears.map(year=>`<option value="${year}" ${year===currentYear?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="certFinanceBranchV13"><option value="">كل الفروع</option>${financeBranches.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label>الشهادة / الدورة<select id="certFinanceSpecialtyV13"><option value="">كل الشهادات</option>${financeSpecialties.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label class="cert-finance-method-v44">وسيلة الدفع<select id="certFinanceMethodV13"><option value="">كل وسائل الدفع</option>${financeMethods.map(value=>`<option>${esc(value)}</option>`).join('')}</select></label><div class="cert-finance-summary-v44"><div class="cert-finance-summary-card-v43"><div class="finance-kpi-line-v13"><small id="certFinancePeriodTitleV13">دخل اليوم</small><b id="certFinancePeriodTotalV13">${cash(0)}</b></div><span id="certFinancePeriodRangeV13">${showDate(date)}</span></div><div class="cert-finance-summary-card-v43"><div class="finance-kpi-line-v13"><small>الدخل العام</small><b id="certFinanceOverallTotalV13">${cash(0)}</b></div><span>ضمن الفلاتر الحالية</span></div></div></div><div id="certFinanceBodyV13"></div></div>`;
+  const toolbarAction=editing?`<button type="button" class="efc-cert-cancel-edit-v44" id="certCancelEditV44">${BACK_ICON}<span>إلغاء التعديل</span></button>`:`<button type="button" class="efc-cert-history-toggle-v36" aria-pressed="false">${FINANCE_ICON}<span>مالية الشهادات</span></button>`;
+  shell(`${title}<div class="cert-layout-v13"><div class="card cert-form-v13" data-efc-history-open-v36="0"><div class="efc-cert-workspace-toolbar-v36"><div class="cert-mode-v13"><button type="button" data-mode="internal" ${editing?'disabled':''}>طالب مسجل</button><button type="button" data-mode="external" ${editing?'disabled':''}>طالب خارجي</button></div><div class="efc-cert-history-actions-v36">${toolbarAction}</div></div><div id="certInternalPaneV13"><label class="efc-cert-student-search-v38">ابحث عن الطالب<input class="input" id="certStudentSearchV13" autocomplete="off" placeholder="ابحث عن الطالب"></label><div class="grid two efc-cert-student-filters-v38"><label>الفرع<select id="certInternalBranchV13"><option value="">كل الفروع</option>${branches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>التخصص<select id="certInternalSpecV13"><option value="">كل التخصصات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label></div><div id="certStudentResultsV13" class="cert-results-v13"></div><div class="efc-cert-selected-host-v40" hidden></div>${payment}</div><div id="certExternalPaneV13" hidden><div class="grid two"><label>اسم الطالب<input class="input" id="certExternalNameV13" autocomplete="off" placeholder="اسم الطالب" ${editable?'':'disabled'}></label><label>رقم الهاتف<input class="input" id="certExternalPhoneV13" autocomplete="off" placeholder="رقم الهاتف" ${editable?'':'disabled'}></label><label>رقم التسجيل<input class="input" id="certExternalRegV13" inputmode="numeric" autocomplete="off" placeholder="رقم التسجيل" required ${editable?'':'disabled'}></label><label>الدورة<select id="certExternalSpecV13" ${editable?'':'disabled'}><option value="">اختر الدورة</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>فرع الشهادة<select id="certExternalBranchV13" ${editable?'':'disabled'}><option value="">اختر فرع الشهادة</option>${branchOptions}</select></label></div><button type="button" class="mini" id="certAddBranchV13" ${editable?'':'disabled'}>＋ إضافة فرع شهادة</button></div><span class="efc-cert-payment-anchor-v40" hidden></span>${finance}</div></div>`);
+  document.querySelectorAll('.cert-mode-v13 button').forEach(button=>button.addEventListener('click',()=>{if(editingReceipt())return;setHistoryMode(false);switchMode(button.dataset.mode);}));
+  document.getElementById('certInternalBranchV13').addEventListener('change',renderStudentPicker);
+  document.getElementById('certInternalSpecV13').addEventListener('change',renderStudentPicker);
+  document.getElementById('certStudentSearchV13').addEventListener('input',renderStudentPicker);
+  document.getElementById('certAddBranchV13').addEventListener('click',addBranch);
+  document.getElementById('certIssueV13').addEventListener('click',issueReceipt);
+  document.querySelector('.efc-cert-history-toggle-v36')?.addEventListener('click',()=>setHistoryMode(!historyOpen));
+  document.getElementById('certCancelEditV44')?.addEventListener('click',cancelCertificateReceiptEdit);
+  document.getElementById('certFinanceBackV13')?.addEventListener('click',()=>setHistoryMode(false));
+  document.querySelectorAll('#certFinanceModeV13 [data-mode]').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('#certFinanceModeV13 [data-mode]').forEach(item=>item.classList.toggle('active',item===button));if(button.dataset.mode==='daily')syncCertificateFinanceDayFromContext();drawCertificateFinance();}));
+  document.getElementById('certFinanceDayV13')?.addEventListener('change',()=>{syncCertificateFinanceContextFromDay();drawCertificateFinance();});
+  ['certFinanceMonthV13','certFinanceYearV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>{if(activeCertificateFinanceMode()==='daily')syncCertificateFinanceDayFromContext();drawCertificateFinance();}));
+  ['certFinanceBranchV13','certFinanceSpecialtyV13','certFinanceMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',drawCertificateFinance));
+  syncCertificateFinanceContextFromDay();renderStudentPicker();setHistoryMode(false);switchMode(mode);if(editing)applyCertificateEditState(editing);window.EFC_AUTOCOMPLETE_OFF_V13?.(document.querySelector('.cert-form-v13'));
+}
+'''
+          cert=block(cert,'function renderCertificates(){','function ensureSidebar(){',render_block,'render certificates v44')
+
+          nav_guard=r'''
+document.addEventListener('click',event=>{
+  if(!editingReceiptId)return;
+  const element=event.target instanceof Element?event.target:null;if(!element)return;
+  const logout=element.closest('.user-controls-v13 button'),link=element.closest('a[href^="#"]'),nextHash=String(link?.getAttribute('href')||'');
+  if(!logout&&(!link||nextHash==='#certificates'))return;
+  if(certificateEditDirty()&&!window.confirm('لديك تعديلات غير محفوظة على روسي الشهادة. مغادرة الصفحة ستلغيها. هل تريد المتابعة؟')){event.preventDefault();event.stopImmediatePropagation();return;}
+  clearCertificateEdit();
+},true);
+window.addEventListener('hashchange',()=>{if(editingReceiptId&&location.hash!=='#certificates')clearCertificateEdit();});
+'''
+          cert=once(cert,'async function boot(){',nav_guard+'\nasync function boot(){','certificate edit navigation guard')
+
+          cert=once(cert,
+          "  window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;\n  window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;",
+          "  window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;\n  window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;\n  window.EFC_EDIT_CERTIFICATE_RECEIPT_V13=beginCertificateReceiptEdit;\n  window.EFC_DELETE_CERTIFICATE_RECEIPT_V13=deleteCertificateReceipt;\n  window.EFC_CERTIFICATE_EDIT_V44=Object.freeze({active:()=>Boolean(editingReceipt()),cancel:cancelCertificateReceiptEdit,begin:beginCertificateReceiptEdit});",
+          'certificate edit/delete public api')
+
+          cert=once(cert,
+          "certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true,rollingFinancialYearsFrom2025:true",
+          "certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateReceiptEditDelete:true,certificateReceiptAmountMethodOnlyEdit:true,certificateReceiptFiscalLockAware:true,rollingFinancialYearsFrom2025:true",
+          'certificate capability markers')
+
+          cert_path.write_text(cert,encoding='utf-8')
+
+          verifier=Path('scripts/verify-stop-cert-finance-v17.mjs')
+          verify_text=verifier.read_text(encoding='utf-8')
+          old_line="for(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','current finance visual marker'],['certificateFinanceSummaryInControls:true','summary-in-controls marker'],['certificateFinanceTopbarAligned:true','aligned topbar marker'],['cert-finance-summary-v43','summary strip'],['certFinanceBackV13','finance back action'],['cert-finance-secondary-row-v43','method/summary row']])need(cert,token,label);"
+          new_line="for(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','current finance visual marker'],['certificateFinanceSummaryInControls:true','summary-in-controls marker'],['certificateFinanceTopbarAligned:true','aligned topbar marker'],['certificateFinanceResponsive:true','responsive finance marker'],['certificateFinanceCompactSingleRowFilters:true','compact filter marker'],['certificateFinanceResponsiveBreakdowns:true','responsive breakdown marker'],['certificateReceiptEditDelete:true','certificate receipt mutation marker'],['certificateReceiptAmountMethodOnlyEdit:true','amount/method-only edit marker'],['certificateReceiptFiscalLockAware:true','fiscal-lock mutation marker'],['cert-finance-summary-v44','summary strip'],['certFinanceBackV13','finance back action'],['EFC_EDIT_CERTIFICATE_RECEIPT_V13','receipt edit api'],['EFC_DELETE_CERTIFICATE_RECEIPT_V13','receipt delete api'],['EFC_CERTIFICATE_EDIT_V44','edit session api'],['grid-template-columns:154px 134px 86px 74px 110px minmax(130px,1fr) 112px','wide single-row filter grid'],['#certFinanceBodyV13>.breakdowns{grid-template-columns:1fr','small-screen breakdown stack'],['assertDateOpen','fiscal closed-period guard']])need(cert,token,label);"
+          verify_text=once(verify_text,old_line,new_line,'certificate verifier tokens')
+          verify_text=once(verify_text,
+              "if(cert.includes('#certFinanceBodyV13>.kpis'))throw new Error('Old certificate KPI block styling is still present.');",
+              "if(cert.includes('#certFinanceBodyV13>.kpis'))throw new Error('Old certificate KPI block styling is still present.');\nif(cert.includes('cert-finance-secondary-row-v43'))throw new Error('Old split method/summary finance row is still present.');\nif(!cert.includes(\"receipt.amount=amount;receipt.method=method\"))throw new Error('Certificate edit must only update amount/method in the receipt save path.');",
+              'certificate verifier invariants')
+          verify_text=verify_text.replace("console.log('Stopped-student end dates and current certificate-finance layout verified.');","console.log('Stopped-student dates, editable certificate receipts, and responsive certificate finance verified.');")
+          verifier.write_text(verify_text,encoding='utf-8')
+
+          index=Path('index.html')
+          index_text=index.read_text(encoding='utf-8')
+          index_text=once(index_text,
+              "        const editApi=window.EFC_REGISTRATION_EDIT_V17;\n        if(editApi?.active?.()&&!window.confirm('لديك تعديلات غير محفوظة. إغلاق البرنامج سيلغي التغييرات الحالية فقط. هل تريد المتابعة؟'))return;",
+              "        const editApi=window.EFC_REGISTRATION_EDIT_V17,certificateEditApi=window.EFC_CERTIFICATE_EDIT_V44;\n        if((editApi?.active?.()||certificateEditApi?.active?.())&&!window.confirm('لديك تعديلات غير محفوظة. إغلاق البرنامج سيلغي التغييرات الحالية فقط. هل تريد المتابعة؟'))return;",
+              'close guard for certificate edit')
+          index.write_text(index_text,encoding='utf-8')
+
+          old_version='20260916-stop-end-cert-finance-v17-1'
+          new_version='20260916-cert-management-responsive-v18-1'
+          version_files=[Path('index.html'),Path('assets/production-license-gate-v8.js')]+list(Path('scripts').glob('*.mjs'))
+          replaced=0
+          for path in version_files:
+              text=path.read_text(encoding='utf-8')
+              count=text.count(old_version)
+              if count:
+                  path.write_text(text.replace(old_version,new_version),encoding='utf-8')
+                  replaced+=count
+          if replaced<4:
+              raise SystemExit(f'cache version replacement count unexpectedly low: {replaced}')
+          PY
+
+      - name: Install verification dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Verify certificate management update
+        run: node scripts/verify-stop-cert-finance-v17.mjs
+
+      - name: Verify production source
+        run: npm run check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Commit verified certificate management update
+        shell: bash
+        run: |
+          git config user.name "lami216"
+          git config user.email "iiyad21694@gmail.com"
+          git add assets/production-certificates-v13.js scripts/verify-stop-cert-finance-v17.mjs scripts/*.mjs assets/production-license-gate-v8.js index.html
+          git commit -m "feat: edit certificate receipts and make finance responsive"
+          git push origin HEAD:feature/fiscal-year-current-v14
