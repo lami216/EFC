@@ -34,6 +34,9 @@ for(const token of [
   'receiptNumbersNeverReused:true',
   'registrationNumbersNeverReused:true',
   'persistedHighWaterMarks:true',
+  'historicalReceiptNumbersPreserved:true',
+  'scopeMutationsCapturedOnPersist:true',
+  'seedIdentityFromCurrent();writeIdentityLocal(false);',
   "EFC_REGISTER_STATE_CONTRIBUTOR?.('identity-sequences-v11'"
 ])need(sequence,token,`receipt/registration high-water ${token}`);
 
@@ -85,4 +88,4 @@ const committedLicenseLedger=license.indexOf('persist_ledger(&ledger)',preparedL
 if(preparedLicense<0||committedLicenseLedger<preparedLicense)throw new Error('A license must be installed before its id is committed as consumed, so a file-install failure remains retryable.');
 if(/R-\$\{|S-\$\{/.test(sequence))throw new Error('Receipt v10 must not generate letter-prefixed receipt numbers.');
 
-console.log('V10 checks passed: numeric receipts, permanent high-water numbering, locked certificate identity editing, backup-safe certificate sequence, native registration, and license key v3.');
+console.log('V10 checks passed: numeric receipts, permanent high-water numbering, preserved historical ids, scope-change capture, locked certificate identity editing, backup-safe certificate sequence, native registration, and license key v3.');
