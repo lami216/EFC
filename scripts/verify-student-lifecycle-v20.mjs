@@ -15,8 +15,12 @@ for(const [token,label] of [
   ['latestRegistrationNumberReusableUntilSuccessor:true','latest registration remains reusable'],
   ['olderRegistrationNumbersStayReserved:true','older registration numbers stay reserved'],
   ['function previewRegistrationNumber(branch,specialty)','target-scope number preview'],
+  ['function markRegistrationReleased(branch,specialty,number)','explicit latest-number release'],
+  ['function sealRegistrationNumber(branch,specialty,number)','explicit permanent sealing'],
   ['function updateStudentRegistration(student,changes={})','automatic scope-change edit wrapper'],
   ['commitRegistrationNumber(targetBranch,targetSpecialty,candidate)','scope change commits automatic target number'],
+  ['markRegistrationReleased(old.branch,old.specialty,old.reg)','old scope releases only its provisional latest number'],
+  ['closedFiscalFinancialIdentityEditBlocked:true','closed fiscal history cannot be reclassified'],
   ['function deleteStudentPermanently(student)','permanent student delete path'],
   ['studentLifecycleV20:clone(state)','backup contributor contains lifecycle state'],
   ['filterDeletedStudents(incoming)','deleted students are filtered from restores'],
@@ -27,7 +31,8 @@ for(const [token,label] of [
   ['student-edit-info-v20','student edit action'],
   ['student-delete-v20','student delete action'],
   ['previewRegistrationNumber?.(branch,specialty)','automatic register preview on course/branch change'],
-  ['رقم السجل يتحدد تلقائيًا حسب المركز والدورة عند الحفظ','automatic numbering explanation']
+  ['رقم السجل يتحدد تلقائيًا حسب المركز والدورة عند الحفظ','automatic numbering explanation'],
+  ['تغيير المركز أو الدورة هنا يُعامل كتصحيح لنفس ملف الطالب','scope-change correction warning']
 ])need(ui,token,label);
 need(gate,"'./assets/production-student-lifecycle-domain-v20.js'",'domain runtime in gate');
 need(gate,"'./assets/production-student-lifecycle-ui-v20.js'",'UI runtime in gate');
@@ -51,7 +56,7 @@ const baseDomain={
   addDays,paymentTotal:s=>(s?.payments||[]).reduce((sum,p)=>sum+Number(p?.[1]||0),0),
   showDate:v=>v||'—',cash:v=>String(v),
   saveStudents:()=>{},
-  updateStudentRegistration:(student,changes)=>{student.branch=String(changes.branch??student.branch);student.specialty=String(changes.specialty??student.specialty);student.updatedAt=Date.now();return{student,paymentIndex:null};}
+  updateStudentRegistration:(student,changes)=>{student.branch=String(changes.branch??student.branch);student.specialty=String(changes.specialty??student.specialty);if(changes.start!==undefined)student.start=String(changes.start);if(changes.fee!==undefined)student.snapshot={...(student.snapshot||{}),fee:Number(changes.fee)};student.updatedAt=Date.now();return{student,paymentIndex:null};}
 };
 const window={
   EFC_DOMAIN_V13:baseDomain,EFC_RECEIPT_SEQUENCES_V10:sequenceBase,
@@ -79,13 +84,22 @@ students.push({id:'target3',recordCode:'target3',branch:'B',specialty:'FR',reg:3
 const moving={id:'moving',recordCode:'moving',branch:'A',specialty:'F',reg:6,start:'2026-09-16',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[]};students.push(moving);seq.noteRegistrationNumber('A','F',6);
 D.updateStudentRegistration(moving,{branch:'B',specialty:'FR'});
 if(moving.reg!==4)throw new Error(`Scope change must assign target branch/course number #4 automatically, received #${moving.reg}.`);
+if(seq.previewRegistrationNumber('A','F')!==6)throw new Error('Moving the provisional latest student must release that old-scope number for reuse.');
 
-const monthly={id:'month',recordCode:'month',branch:'B',specialty:'FR',reg:5,start:'2026-09-16',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[["2026-09-16",1000,'cash','08:00',1,'', 'tx1',1,null,null,[{monthNumber:1,amount:1000}]]]};
+const archived={id:'archive2',recordCode:'archive2',branch:'C',specialty:'EN',reg:2,start:'2026-01-01',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[]};students.push(archived);seq.noteRegistrationNumber('C','EN',2);await Promise.resolve();students.splice(students.indexOf(archived),1);
+if(seq.previewRegistrationNumber('C','EN')!==3)throw new Error('A latest number that disappears without an explicit delete/move release must be sealed, as with fiscal archival cleanup.');
+
+const monthly={id:'month',recordCode:'month',branch:'B',specialty:'FR',reg:5,start:'2026-09-16',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[["2026-09-16",1000,'cash','08:00',1,'','tx1',1,null,null,[{monthNumber:1,amount:1000}]]]};
 if(D.monthlyCoverageEnd(monthly)!=='2026-10-15')throw new Error(`Month 1 end must be 2026-10-15, got ${D.monthlyCoverageEnd(monthly)}.`);
 monthly.payments.push(["2026-10-16",1000,'cash','08:00',2,'','tx2',2,null,null,[{monthNumber:2,amount:1000}]]);
 if(D.monthlyCoverageEnd(monthly)!=='2026-11-15')throw new Error(`Latest paid month end must advance to 2026-11-15, got ${D.monthlyCoverageEnd(monthly)}.`);
 
+window.EFC_FISCAL_V14={isDateClosed:date=>String(date)<='2025-12-31'};
+const closed={id:'closed',recordCode:'closed',branch:'D',specialty:'AR',reg:1,start:'2025-12-01',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[["2025-12-01",1000,'cash']]};students.push(closed);seq.noteRegistrationNumber('D','AR',1);let blocked=false;
+try{D.updateStudentRegistration(closed,{branch:'B',specialty:'FR'});}catch{blocked=true;}
+if(!blocked)throw new Error('A student with closed-year financial history must not be reclassified to another branch/course.');
+
 await window.EFC_APPLY_RESTORED_STATE({students:[{id:'s5',recordCode:'r5',branch:'A',specialty:'F',reg:5}]});
 if(restored.students.length!==0)throw new Error('A permanently deleted student must not be resurrected by an older backup.');
 
-console.log('Student lifecycle v20 verified: latest registration reuse until successor, sealed older numbers, automatic target-scope numbering, monthly paid-through end date, and deletion tombstones.');
+console.log('Student lifecycle v20 verified: latest registration reuse until successor, sealed older/archive numbers, automatic target-scope numbering, closed-period reclassification protection, monthly paid-through end date, and deletion tombstones.');
