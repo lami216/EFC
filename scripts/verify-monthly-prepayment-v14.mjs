@@ -11,7 +11,7 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Monthly prepayment v14 missing: ${label}`);};
 for(const [token,label] of [
   ['prepayAcrossMonths:true','domain prepayment marker'],['allocationPersisted:true','persisted allocation marker'],['nextMonthVisibleBeforeRenewal:true','early next-month visibility'],['dueAfterMonthStarts:true','due timing marker'],['monthlyDueGraceDays:DUE_GRACE_DAYS','grace-day export'],['payment[10]','payment allocation metadata'],['allocationSummary','shared allocation statement'],['month.openDate','pre-renewal reminder window'],['month.dueFrom','due threshold after month start'],
-  ['registrationEditAtomic:true','atomic registration edit marker'],['registrationEditStudentScoped:true','student-scoped registration edit marker'],['monthlyReallocationOnEdit:true','monthly reallocation edit marker'],['historicalCourseSnapshotPreservedOnEdit:true','historical course snapshot protection'],['registrationNumberCollisionGuard:true','registration number collision guard'],['zeroPaymentRegistrationCanCreateTransaction:true','zero-payment registration edit support'],['rollbackOnLocalSaveFailure:true','rollback on local persistence failure'],['revisionStampedPayments:true','payment revision stamping'],['function updateStudentRegistration(student,changes={})','source registration update function'],['const draft=clone(student)','edit validation happens on a draft'],['Object.assign(student,draft)','validated edit commits atomically']
+  ['registrationEditAtomic:true','atomic registration edit marker'],['registrationEditStudentScoped:true','student-scoped registration edit marker'],['monthlyReallocationOnEdit:true','monthly reallocation edit marker'],['historicalCourseSnapshotPreservedOnEdit:true','historical course snapshot protection'],['registrationNumberCollisionGuard:true','registration number collision guard'],['zeroPaymentRegistrationCanCreateTransaction:true','zero-payment registration edit support'],['rollbackOnLocalSaveFailure:true','rollback on local persistence failure'],['revisionStampedPayments:true','payment revision stamping'],['stoppedStudentHasEndDate:true','stopped student end-date marker'],['stoppedMonthlyPaidThroughProtected:true','paid-through stop protection marker'],['function updateStudentRegistration(student,changes={})','source registration update function'],['const draft=clone(student)','edit validation happens on a draft'],['Object.assign(student,draft)','validated edit commits atomically']
 ])requireText(source.patch,token,label);
 for(const [token,label] of [
   ['registrationOverpayment:true','registration overpayment UI'],['paymentOverMonthValue:true','payment larger than month UI'],['studentPrepaidMonthBadges:true','prepaid month badge UI'],['monthReceiptUsesAllocations:true','month receipt allocation UI'],['ledgerUsesAllocationSummary:true','ledger allocation statement UI'],['يمكن إدخال قيمة أكبر من قيمة الشهر','overpayment explanation']
@@ -70,6 +70,18 @@ if(Number(editA.payments[aIndex][11]||0)<revisionBefore||!Number(editA.updatedAt
 for(const payment of editA.payments){if(Math.round(allocationTotal(payment)*100)!==Math.round(Number(payment[1]||0)*100))throw new Error('Edited monthly payment allocation no longer equals its transaction amount.');}
 if(!editA.payments[aIndex][5].includes('تصحيح إداري'))throw new Error('Custom edited payment description was not preserved with allocation summary.');
 if(!Array.isArray(editA.registrationEditHistory)||!editA.registrationEditHistory.length)throw new Error('Receipt edit audit metadata was not recorded.');
+
+
+// Stopping a student records a stable end date. Monthly students keep fully-paid entitlement, while partial/unpaid time does not extend the end.
+context.DEMO_TODAY='2026-09-16';
+const stoppedPaid=makeStudent('stopped-paid','normal',600);stoppedPaid.reg=30;students.push(stoppedPaid);D.appendPayment(stoppedPaid,{amount:1200,method:'نقداً',date:'2026-09-09',targetMonth:1,persist:false});D.stopStudent(stoppedPaid,'توقف');
+if(stoppedPaid.active!==false||stoppedPaid.status!=='inactive'||stoppedPaid.stoppedAt!=='2026-09-16')throw new Error('Stopped monthly student status was not persisted.');
+if(stoppedPaid.end!=='2026-11-08'||stoppedPaid.stopEndBasis!=='paid-through')throw new Error(`Stopped prepaid monthly student must end after the last fully paid month, got ${stoppedPaid.end}.`);
+const stoppedPartial=makeStudent('stopped-partial','normal',600);stoppedPartial.reg=31;students.push(stoppedPartial);D.appendPayment(stoppedPartial,{amount:300,method:'Bankily',date:'2026-09-09',targetMonth:1,persist:false});D.stopStudent(stoppedPartial,'توقف');
+if(stoppedPartial.end!=='2026-09-16'||stoppedPartial.stopEndBasis!=='stopped-at')throw new Error('Partial monthly payment must not extend a stopped student beyond the stop date.');
+const stoppedQuick=makeStudent('stopped-quick','quick',1000);stoppedQuick.reg=32;students.push(stoppedQuick);D.stopStudent(stoppedQuick,'توقف');
+if(stoppedQuick.end!=='2026-09-16'||stoppedQuick.scheduledEndBeforeStop!=='2026-10-09')throw new Error('Quick-course stop must record the actual stop date while preserving the previous planned end.');
+context.DEMO_TODAY='2026-09-09';
 
 // Quick course fee/payment editing must remain isolated and reject contradictory totals atomically.
 const quickA=makeStudent('quick-a','quick',1000),quickB=makeStudent('quick-b','quick',1000);quickA.reg=20;quickB.reg=21;students.push(quickA,quickB);

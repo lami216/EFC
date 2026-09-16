@@ -220,8 +220,8 @@ requireText(index,"invoke('export_backup'",'exit backup uses existing full backu
 requireText(index,'editApi?.active?.()','native close checks for an active unsaved receipt edit');
 requireText(index,'إغلاق البرنامج سيلغي التغييرات الحالية فقط','native close warns before discarding the current draft');
 forbidText(index,'requestLeave()===false','native close must not clear the edit draft before a backup Save As can be cancelled');
-requireText(index,'20260916-receipt-source-hours-v16-1','updated branch cache token');
-requireText(gate,"RUNTIME_VERSION='20260916-receipt-source-hours-v16-1'",'runtime cache token matches index after certificate finance simplification');
+requireText(index,'20260916-stop-end-cert-finance-v17-1','updated branch cache token');
+requireText(gate,"RUNTIME_VERSION='20260916-stop-end-cert-finance-v17-1'",'runtime cache token matches index after certificate finance simplification');
 requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close interception');
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');

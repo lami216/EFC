@@ -246,10 +246,21 @@ function financialStatusV14(student){
   const focus=monthlyFocus(student);if(!focus)return remainingAmount(student)>0?'لم يدفع':'مدفوع كامل';
   if(focus.state==='complete')return'مدفوع كامل';if(focus.prepaid&&focus.state==='partial')return'دفع جزئي مقدمًا';if(focus.state==='partial')return'دفع جزئي';if(focus.state==='overdue')return'متأخر';if(focus.state==='due')return'مستحق الآن';return paymentTotal(student)>0?'مدفوع كامل':'لم يدفع';
 }
+function stoppedStudentEndDate(student,stopDate=today()){
+  const stopped=String(stopDate||today()),previous=String(student?.end||'').trim();
+  if(!isDynamicMonthly(student))return previous&&previous<stopped?previous:stopped;
+  const paidPlan=installmentPlan(student,stopped),lastFullyPaid=[...paidPlan].reverse().find(month=>Number(month?.fee||0)>0&&Number(month?.paid||0)>=Number(month?.fee||0));
+  if(!lastFullyPaid)return stopped;
+  const paidThrough=addDays(addDuration(student.start,Number(lastFullyPaid.number||1),'month'),-1);
+  return paidThrough>stopped?paidThrough:stopped;
+}
 function stopStudent(student,reason=''){
   if(!student)return;
-  if(isDynamicMonthly(student)){const plan=installmentPlan(student,today());student.frozenMonths=plan.filter(month=>month.dueDate<=today()||month.paid>0).length;}
-  student.active=false;student.status='inactive';student.stoppedAt=today();student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student);saveStudentsClean();
+  const stopped=today(),previousEnd=String(student.end||'').trim();
+  if(previousEnd&&!student.scheduledEndBeforeStop)student.scheduledEndBeforeStop=previousEnd;
+  if(isDynamicMonthly(student)){const plan=installmentPlan(student,stopped);student.frozenMonths=plan.filter(month=>month.dueDate<=stopped||month.paid>0).length;}
+  student.end=stoppedStudentEndDate(student,stopped);student.stopEndBasis=student.end>stopped?'paid-through':'stopped-at';
+  student.active=false;student.status='inactive';student.stoppedAt=stopped;student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student,stopped);saveStudentsClean();
 }
 function notificationsForStudent(student){
   if(!student||isInactive(student))return[];
@@ -292,7 +303,7 @@ allocV4=function(student,paymentIndex){
 financialStatus=financialStatusV14;
 monthBadgeV3=function(student,asOf=today(),paidOverride=null){const focus=monthlyFocus(student,asOf,paidOverride);if(!focus)return'';const cls=focus.state==='complete'?'good':focus.state==='overdue'?'bad':focus.state==='upcoming'?'neutral':'warn';return`<span class="badge ${cls}">${B.esc(focus.label)}</span>`;};
 
-const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
+const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();

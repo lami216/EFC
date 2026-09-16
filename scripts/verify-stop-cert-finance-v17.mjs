@@ -1,0 +1,11 @@
+import {readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const cert=readFileSync('assets/production-certificates-v13.js','utf8');
+const domain=readFileSync('assets/production-monthly-prepayment-domain-v14.js','utf8');
+execFileSync(process.execPath,['--check','assets/production-certificates-v13.js'],{stdio:'inherit'});
+execFileSync(process.execPath,['--check','assets/production-monthly-prepayment-domain-v14.js'],{stdio:'inherit'});
+const need=(text,token,label)=>{if(!text.includes(token))throw new Error(`Missing ${label}: ${token}`);};
+for(const [token,label] of [['stoppedStudentHasEndDate:true','stop end marker'],['stoppedMonthlyPaidThroughProtected:true','paid-through marker'],['function stoppedStudentEndDate','stop end calculator'],["student.end=stoppedStudentEndDate(student,stopped)",'stored stopped end']])need(domain,token,label);
+for(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','current finance visual marker'],['certificateFinanceSummaryInControls:true','summary-in-controls marker'],['certificateFinanceTopbarAligned:true','aligned topbar marker'],['cert-finance-summary-v43','summary strip'],['certFinanceBackV13','finance back action'],['cert-finance-secondary-row-v43','method/summary row']])need(cert,token,label);
+if(cert.includes('#certFinanceBodyV13>.kpis'))throw new Error('Old certificate KPI block styling is still present.');
+console.log('Stopped-student end dates and current certificate-finance layout verified.');
