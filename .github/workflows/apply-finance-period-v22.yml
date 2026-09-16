@@ -1,0 +1,207 @@
+name: Apply finance period v22
+
+on:
+  push:
+    branches:
+      - fix/accounting-integrity-v21
+    paths:
+      - .github/workflows/apply-finance-period-v22.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/accounting-integrity-v21
+          fetch-depth: 0
+      - name: Integrate finance period changes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path, old, new, label):
+              p=Path(path); text=p.read_text(encoding='utf-8')
+              count=text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected 1 match in {path}, got {count}')
+              p.write_text(text.replace(old,new,1),encoding='utf-8')
+
+          finance='assets/production-finance-ui-v13.js'
+          patch(finance,
+          "function monthBounds(year,month){const last=new Date(Number(year),Number(month),0).getDate();return{from:`${year}-${pad2(month)}-01`,to:`${year}-${pad2(month)}-${pad2(last)}`};}\nfunction yearBounds(year){return{from:`${year}-01-01`,to:`${year}-12-31`};}",
+          "function dayBounds(day){const value=String(day||today());return{from:value,to:value};}\nfunction monthBounds(year,month){const last=new Date(Number(year),Number(month),0).getDate();return{from:`${year}-${pad2(month)}-01`,to:`${year}-${pad2(month)}-${pad2(last)}`};}\nfunction yearBounds(year){return{from:`${year}-01-01`,to:`${year}-12-31`};}",
+          'finance day bounds')
+          patch(finance,
+          "</div><label id=\"monthWrapV13\">الشهر<select id=\"monthV13\">",
+          "</div><label id=\"dayWrapV13\" hidden>اليوم<input class=\"input\" id=\"dayV13\" type=\"date\" value=\"${current}\"></label><label id=\"monthWrapV13\">الشهر<select id=\"monthV13\">",
+          'finance day control')
+          patch(finance,
+          "const specEl=document.getElementById('specV13'),monthWrap=document.getElementById('monthWrapV13'),yearWrap=document.getElementById('yearWrapV13'),action=document.getElementById('financePrimaryActionV13');",
+          "const specEl=document.getElementById('specV13'),dayWrap=document.getElementById('dayWrapV13'),monthWrap=document.getElementById('monthWrapV13'),yearWrap=document.getElementById('yearWrapV13'),action=document.getElementById('financePrimaryActionV13');",
+          'finance control refs')
+          patch(finance,
+          "monthWrap.hidden=mode!=='daily';yearWrap.hidden=mode==='yearly';",
+          "dayWrap.hidden=mode!=='daily';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=mode==='daily';",
+          'finance mode visibility')
+          patch(finance,
+          "renderProfitabilityDetails({mode,year:document.getElementById('yearV13').value,month:document.getElementById('monthV13').value,branch:document.getElementById('branchV13').value,specialty:specEl.value})",
+          "renderProfitabilityDetails({mode,day:document.getElementById('dayV13').value,year:document.getElementById('yearV13').value,month:document.getElementById('monthV13').value,branch:document.getElementById('branchV13').value,specialty:specEl.value})",
+          'profitability context day')
+          patch(finance,
+          "function bounds(year,month){return mode==='daily'?monthBounds(year,month):mode==='monthly'?yearBounds(year):tenYears();}",
+          "function bounds(year,month,day){return mode==='daily'?dayBounds(day):mode==='monthly'?monthBounds(year,month):yearBounds(year);}",
+          'finance selected range semantics')
+          patch(finance,
+          "month=Number(document.getElementById('monthV13').value||currentMonth),branch=document.getElementById('branchV13').value",
+          "month=Number(document.getElementById('monthV13').value||currentMonth),day=document.getElementById('dayV13').value||current,branch=document.getElementById('branchV13').value",
+          'finance draw selected day')
+          patch(finance,"range=bounds(year,month)","range=bounds(year,month,day)",'finance bounds call')
+          patch(finance,
+          "period=mode==='daily'?`${monthNames[month-1]} ${year}`:mode==='monthly'?`سنة ${year}`:`${range.start} — ${range.end}`;let html='';",
+          "period=mode==='daily'?showDate(day):mode==='monthly'?`${monthNames[month-1]} ${year}`:`سنة ${year}`;let html='';",
+          'finance period label')
+          patch(finance,
+          "</div><div class=\"card chart-card\">${chart(series(income,mode,year,month),'income')}</div><div class=\"grid three breakdowns\">",
+          "</div><div class=\"grid three breakdowns\">",
+          'remove income chart')
+          patch(finance,
+          "</div><div class=\"card chart-card\">${chart(series(costs,mode,year,month),'expense')}</div><div class=\"grid three breakdowns\">",
+          "</div><div class=\"grid three breakdowns\">",
+          'remove expense chart')
+          old_profit="const net=incomeTotal-expenseTotal;let running=0;const profitSeries=visibleBuckets(mode,year,month).map(bucket=>{running+=income.filter(row=>bucket.match(row.date)).reduce((sum,row)=>sum+Number(row.amount||0),0)-costs.filter(row=>bucket.match(row.date)).reduce((sum,row)=>sum+Number(row.amount||0),0);return{label:bucket.label,value:running};});"
+          patch(finance,old_profit,"const net=incomeTotal-expenseTotal;",'remove profit chart calculation')
+          patch(finance,
+          "</div><div class=\"card chart-card\"><h3>صافي الربح التراكمي</h3>${chart(profitSeries,'profit')}</div>`;",
+          "</div>`;",
+          'remove profit chart')
+          patch(finance,
+          "const body=document.getElementById('financeBodyV13');body.innerHTML=html;bindChartTooltips(body);document.querySelectorAll('.edit-expense-v13')",
+          "const body=document.getElementById('financeBodyV13');body.innerHTML=html;document.querySelectorAll('.edit-expense-v13')",
+          'remove finance chart binding')
+          patch(finance,
+          "['monthV13','yearV13','branchV13','specV13']",
+          "['dayV13','monthV13','yearV13','branchV13','specV13']",
+          'finance day change binding')
+          patch(finance,
+          "month=Number(context.month||currentMonth),branch=String(context.branch||''),specialty=String(context.specialty||''),range=mode==='daily'?monthBounds(year,month):mode==='monthly'?yearBounds(year):tenYears(),effectiveTo=range.to<current?range.to:current,period=mode==='daily'?`${monthNames[month-1]} ${year}`:mode==='monthly'?`سنة ${year}`:`${range.start} — ${range.end}`",
+          "month=Number(context.month||currentMonth),day=String(context.day||current),branch=String(context.branch||''),specialty=String(context.specialty||''),range=mode==='daily'?dayBounds(day):mode==='monthly'?monthBounds(year,month):yearBounds(year),effectiveTo=range.to<current?range.to:current,period=mode==='daily'?showDate(day):mode==='monthly'?`${monthNames[month-1]} ${year}`:`سنة ${year}`",
+          'profitability selected range semantics')
+          patch(finance,
+          ".content:has(.finance-switch-v13) .finance-controls-v13 label{margin:0!important;gap:5px!important;color:#294d43!important;font-size:9px!important;font-weight:760!important}.content:has(.finance-switch-v13) .finance-controls-v13 select{height:38px!important;",
+          ".content:has(.finance-switch-v13) .finance-controls-v13 label{margin:0!important;gap:5px!important;color:#294d43!important;font-size:9px!important;font-weight:760!important}.content:has(.finance-switch-v13) .finance-controls-v13 label[hidden]{display:none!important}.content:has(.finance-switch-v13) .finance-controls-v13 select,.content:has(.finance-switch-v13) .finance-controls-v13 input{height:38px!important;",
+          'finance hidden and date control styles')
+          patch(finance,
+          ".content:has(.finance-switch-v13) .finance-controls-v13 select:focus{border-color:#1b8c70!important;",
+          ".content:has(.finance-switch-v13) .finance-controls-v13 select:focus,.content:has(.finance-switch-v13) .finance-controls-v13 input:focus{border-color:#1b8c70!important;",
+          'finance date focus style')
+          patch(finance,
+          "financePresentationShared:true});",
+          "financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true});",
+          'finance behavior markers')
+
+          cert='assets/production-certificates-v13.js'
+          patch(cert,
+          "const dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue==='yearly';if(yearWrap)yearWrap.hidden=false;",
+          "const controls=document.querySelector('.cert-finance-controls-v13'),dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(controls)controls.dataset.mode=modeValue;if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue!=='monthly';if(yearWrap)yearWrap.hidden=modeValue==='daily';",
+          'certificate period control visibility')
+          old_totals="const periodTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0),overallTotal=allRows.reduce((sum,row)=>sum+Number(row.amount||0),0),periodTitle=modeValue==='daily'?'دخل اليوم':modeValue==='monthly'?'دخل الشهر':'دخل السنة',presentation=window.EFC_FINANCE_PRESENTATION_V13,financeSeries=certificateFinanceSeries(rows,modeValue,year,month,day),chartHtml=presentation?.chart?presentation.chart(financeSeries,'income'):'<div class=\"empty small\">لا توجد بيانات للرسم.</div>',breakdownHtml=(keyFn)=>presentation?.breakdown&&presentation?.groupRows?presentation.breakdown(presentation.groupRows(rows,keyFn),periodTotal):certificateFinanceBreakdown(rows,keyFn,periodTotal);"
+          new_totals="const periodTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0),periodTitle=modeValue==='daily'?'دخل اليوم':modeValue==='monthly'?'دخل الشهر':'دخل السنة',presentation=window.EFC_FINANCE_PRESENTATION_V13,periodDescriptor=modeValue==='daily'?`يوم ${showDate(day)}`:modeValue==='monthly'?`شهر ${MONTH_NAMES[Math.max(0,Number(month)-1)]} ${year}`:`سنة ${year}`,branchLabel=branch?String(document.getElementById('certFinanceBranchV13')?.selectedOptions?.[0]?.textContent||'').trim():'',specialtyLabel=specialty?String(document.getElementById('certFinanceSpecialtyV13')?.selectedOptions?.[0]?.textContent||'').trim():'',methodLabel=method?String(document.getElementById('certFinanceMethodV13')?.selectedOptions?.[0]?.textContent||'').trim():'',detailParts=[branchLabel?`من ${branchLabel}`:'',specialtyLabel?`في ${specialtyLabel}`:'',methodLabel?`عبر ${methodLabel}`:''].filter(Boolean),summaryText=`هذا دخل ${periodDescriptor}${detailParts.length?` ${detailParts.join(' ')}`:''}`,breakdownHtml=(keyFn)=>presentation?.breakdown&&presentation?.groupRows?presentation.breakdown(presentation.groupRows(rows,keyFn),periodTotal):certificateFinanceBreakdown(rows,keyFn,periodTotal);"
+          patch(cert,old_totals,new_totals,'certificate filtered period summary')
+          patch(cert,
+          "const titleEl=document.getElementById('certFinancePeriodTitleV13'),periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13'),overallValue=document.getElementById('certFinanceOverallTotalV13');if(titleEl)titleEl.textContent=periodTitle;if(periodValue)periodValue.textContent=cash(periodTotal);if(periodRange)periodRange.textContent=range.label;if(overallValue)overallValue.textContent=cash(overallTotal);",
+          "const titleEl=document.getElementById('certFinancePeriodTitleV13'),periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13');if(titleEl)titleEl.textContent=periodTitle;if(periodValue)periodValue.textContent=cash(periodTotal);if(periodRange)periodRange.textContent=summaryText;",
+          'certificate summary update')
+          patch(cert,
+          "root.innerHTML=`<div class=\"card chart-card\">${chartHtml}</div><div class=\"grid three breakdowns\">",
+          "root.innerHTML=`<div class=\"grid three breakdowns\">",
+          'remove certificate chart')
+          patch(cert,
+          "  presentation?.bindChartTooltips?.(root);bindCertificateFinanceRows();",
+          "  bindCertificateFinanceRows();",
+          'remove certificate chart binding')
+          summary_old="<div class=\"cert-finance-summary-v44\"><div class=\"cert-finance-summary-card-v43\"><div class=\"finance-kpi-line-v13\"><small id=\"certFinancePeriodTitleV13\">دخل اليوم</small><b id=\"certFinancePeriodTotalV13\">${cash(0)}</b></div><span id=\"certFinancePeriodRangeV13\">${showDate(date)}</span></div><div class=\"cert-finance-summary-card-v43\"><div class=\"finance-kpi-line-v13\"><small>الدخل العام</small><b id=\"certFinanceOverallTotalV13\">${cash(0)}</b></div><span>ضمن الفلاتر الحالية</span></div></div>"
+          patch(cert,summary_old,"",'remove certificate lifetime summary from filters')
+          patch(cert,
+          "</g></svg><h1>مالية الشهادات</h1></section><div class=\"cert-finance-topbar-v43\">",
+          "</g></svg><h1>مالية الشهادات</h1></section><div class=\"cert-finance-primary-summary-v45\"><div class=\"cert-finance-summary-card-v43\"><div class=\"finance-kpi-line-v13\"><small id=\"certFinancePeriodTitleV13\">دخل اليوم</small><b id=\"certFinancePeriodTotalV13\">${cash(0)}</b></div><span id=\"certFinancePeriodRangeV13\">هذا دخل يوم ${showDate(date)}</span></div></div><div class=\"cert-finance-topbar-v43\">",
+          'move certificate period summary above filters')
+          patch(cert,
+          "html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:7px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:132px 126px 84px 70px 106px minmax(126px,1fr) 108px!important;box-sizing:border-box!important}",
+          "html body.efc-certificate-finance-open-v43 .cert-finance-primary-summary-v45{width:min(430px,100%)!important;margin:0 auto 8px!important;direction:rtl!important}\nhtml body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:7px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:132px 126px 84px 70px 106px minmax(126px,1fr) 108px!important;box-sizing:border-box!important}\nhtml body.efc-certificate-finance-open-v43 .cert-finance-controls-v13[data-mode=\"daily\"]{grid-template-columns:132px 154px 110px minmax(150px,1fr) 120px!important}\nhtml body.efc-certificate-finance-open-v43 .cert-finance-controls-v13[data-mode=\"monthly\"]{grid-template-columns:132px 96px 78px 110px minmax(140px,1fr) 120px!important}\nhtml body.efc-certificate-finance-open-v43 .cert-finance-controls-v13[data-mode=\"yearly\"]{grid-template-columns:132px 84px 110px minmax(150px,1fr) 120px!important}",
+          'certificate mode-aware compact grid')
+          patch(cert,
+          "html body.efc-certificate-finance-open-v43 .cert-finance-summary-v44{grid-column:1/-1!important;justify-self:start!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;width:min(430px,100%)!important;min-width:0!important;margin-top:2px!important;direction:rtl!important}\n",
+          "",
+          'remove old certificate summary strip css')
+          patch(cert,
+          "html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}",
+          "html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13[data-mode]{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}",
+          'certificate medium responsive grid')
+          patch(cert,
+          "html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{grid-template-columns:repeat(2,minmax(0,1fr))!important}",
+          "html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13[data-mode]{grid-template-columns:repeat(2,minmax(0,1fr))!important}",
+          'certificate small responsive grid')
+          patch(cert,
+          "certificateFinancePeriodAndLifetimeTotals:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryInControls:true,certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true,certificateFinanceResponsive:true",
+          "certificateFinancePeriodSummary:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryAboveFilters:true,certificateFinanceTopbarAligned:true,certificateFinanceNoChart:true,certificateFinanceDailyDateOnly:true,certificateFinanceFilterSummaryText:true,certificateFinanceResponsive:true",
+          'certificate finance markers')
+
+          integrity='assets/production-accounting-integrity-v21.js'
+          old_range="function financeRange(){\n  const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));if(!year)return null;\n  if(mode==='daily'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}\n  if(mode==='monthly')return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};\n  const current=Math.max(2025,Number(D()?.today?.().slice(0,4)||new Date().getFullYear())),start=current-2025+1<=10?2025:current-9;return{from:`${start}-01-01`,to:`${current}-12-31`,label:'الفترة السنوية'};\n}"
+          new_range="function financeRange(){\n  const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),day=text(document.getElementById('dayV13')?.value),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));\n  if(mode==='daily'&&day)return{from:day,to:day,label:'اليوم المختار'};if(!year)return null;\n  if(mode==='monthly'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}\n  return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};\n}"
+          patch(integrity,old_range,new_range,'accounting finance range guard')
+          old_summary="function syncCertificateFinanceSummaryGuard(range){\n  const info=range?rangeState(range.from,range.to):null,periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13'),summaryCards=document.querySelectorAll('.cert-finance-summary-card-v43'),overallCard=summaryCards?.[1],overallTitle=overallCard?.querySelector?.('small'),overallHint=overallCard?.querySelector?.(':scope>span'),limit=text(fiscal()?.lockedThrough?.());\n  if(info&&info.status!=='open'){if(periodValue)periodValue.textContent='—';if(periodRange)periodRange.textContent=info.status==='closed'?'راجع الأرشيف المالي':`حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough} أرشيف · من ${D()?.showDate?.(info.openFrom)||info.openFrom} بيانات مفتوحة`;}\n  if(overallTitle)overallTitle.textContent=limit?'الدخل الحالي':'الدخل العام';if(overallHint)overallHint.textContent=limit?'من البيانات الحية بعد آخر إقفال مالي':'ضمن الفلاتر الحالية';\n}"
+          new_summary="function syncCertificateFinanceSummaryGuard(range){\n  const info=range?rangeState(range.from,range.to):null,periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13');\n  if(info&&info.status!=='open'){if(periodValue)periodValue.textContent='—';if(periodRange)periodRange.textContent=info.status==='closed'?'راجع الأرشيف المالي':`حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough} أرشيف · من ${D()?.showDate?.(info.openFrom)||info.openFrom} بيانات مفتوحة`;}\n}"
+          patch(integrity,old_summary,new_summary,'certificate summary archive guard')
+
+          stop='scripts/verify-stop-cert-finance-v17.mjs'
+          p=Path(stop); s=p.read_text(encoding='utf-8')
+          s=s.replace("['certificateFinanceSummaryInControls:true','summary-in-controls marker']","['certificateFinanceSummaryAboveFilters:true','summary-above-filters marker']")
+          s=s.replace("['cert-finance-summary-v44','summary strip']","['cert-finance-primary-summary-v45','primary period summary']")
+          s=s.replace("['grid-template-columns:132px 126px 84px 70px 106px minmax(126px,1fr) 108px','compact wide single-row filter grid']","['cert-finance-controls-v13[data-mode=\\\"daily\\\"]','daily mode compact filter grid']")
+          s=s.replace("if(cert.includes('cert-finance-secondary-row-v43'))throw new Error('Old split method/summary finance row is still present.');","if(cert.includes('cert-finance-secondary-row-v43'))throw new Error('Old split method/summary finance row is still present.');\nif(cert.includes('id=\\\"certFinanceOverallTotalV13\\\"'))throw new Error('Certificate finance must not render a lifetime total card.');\nif(cert.includes('root.innerHTML=`<div class=\\\"card chart-card\\\">'))throw new Error('Certificate finance chart returned.');\nneed(cert,'certificateFinanceDailyDateOnly:true','daily date-only marker');\nneed(cert,'certificateFinanceFilterSummaryText:true','filtered summary sentence marker');")
+          p.write_text(s,encoding='utf-8')
+
+          prod='scripts/verify-production-v13.mjs'
+          p=Path(prod); s=p.read_text(encoding='utf-8')
+          s=s.replace("'certificateFinancePeriodAndLifetimeTotals:true'","'certificateFinancePeriodSummary:true'")
+          s=s.replace("'certificateFinanceUsesGeneralChart:true'","'certificateFinanceNoChart:true'")
+          p.write_text(s,encoding='utf-8')
+
+          feedback='scripts/verify-finance-feedback-v13.mjs'
+          p=Path(feedback); s=p.read_text(encoding='utf-8')
+          insert="""\nfor(const [token,label] of [\n  ['chartsRemovedFromFinance:true','finance dashboards no longer render graphs'],\n  ['dailyDateFilter:true','daily finance uses one full date'],\n  ['monthlySelectedMonth:true','monthly finance uses the selected month'],\n  ['yearlySelectedYear:true','yearly finance uses the selected year'],\n  ['id=\\\"dayV13\\\" type=\\\"date\\\"','daily finance date picker'],\n  [\"dayWrap.hidden=mode!=='daily';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=mode==='daily'\",'period-specific finance controls']\n])requireFinance(token,label);\nforbidFinance('<div class=\\\"card chart-card\\\">${chart(series(income','income chart must stay removed');\nforbidFinance('<div class=\\\"card chart-card\\\">${chart(series(costs','expense chart must stay removed');\nforbidFinance('صافي الربح التراكمي','profit chart must stay removed');\n"""
+          marker="const topbarPos=finance.indexOf('finance-topbar-v13');"
+          if marker not in s: raise SystemExit('finance feedback insertion marker missing')
+          s=s.replace(marker,insert+'\n'+marker,1)
+          p.write_text(s,encoding='utf-8')
+
+          accounting='scripts/verify-accounting-integrity-v21.mjs'
+          p=Path(accounting); s=p.read_text(encoding='utf-8')
+          s=s.replace("['syncCertificateFinanceSummaryGuard','certificate finance summary is neutralized for archived/mixed ranges'],","['syncCertificateFinanceSummaryGuard','certificate finance summary is neutralized for archived/mixed ranges'],\n  [\"document.getElementById('dayV13')\",'main finance guard follows the selected daily date'],")
+          s=s.replace("requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260916-accounting-integrity-v21-2'","requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260916-finance-period-v22-1'")
+          p.write_text(s,encoding='utf-8')
+
+          gate='assets/production-license-gate-v8.js'
+          p=Path(gate); s=p.read_text(encoding='utf-8')
+          old="const RUNTIME_VERSION='20260916-accounting-integrity-v21-2';"; new="const RUNTIME_VERSION='20260916-finance-period-v22-1';"
+          if s.count(old)!=1: raise SystemExit('license runtime cache token mismatch')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          index='index.html'
+          p=Path(index); s=p.read_text(encoding='utf-8')
+          if '20260916-accounting-integrity-v21-2' not in s: raise SystemExit('index old cache token missing')
+          p.write_text(s.replace('20260916-accounting-integrity-v21-2','20260916-finance-period-v22-1'),encoding='utf-8')
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/production-finance-ui-v13.js assets/production-certificates-v13.js assets/production-accounting-integrity-v21.js assets/production-license-gate-v8.js index.html scripts/verify-stop-cert-finance-v17.mjs scripts/verify-production-v13.mjs scripts/verify-finance-feedback-v13.mjs scripts/verify-accounting-integrity-v21.mjs
+          git diff --cached --check
+          git commit -m "feat: simplify finance periods and remove dashboard graphs"
+          git push origin HEAD:fix/accounting-integrity-v21
