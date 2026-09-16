@@ -15,8 +15,10 @@ const receipts=read('assets/production-receipts-v13.js');
 const certificate=read('assets/production-certificates-v13.js');
 const sequence=read('assets/production-receipt-sequences-v10.js');
 const domain=read('assets/production-domain-v13.js');
+const monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');
 const studentUi=read('assets/production-student-ui-v13.js');
 const financeUi=read('assets/production-finance-ui-v13.js');
+const fiscal=read('assets/production-fiscal-year-v14.js');
 const securityUi=read('assets/production-security-ui-v13.js');
 const build=read('scripts/build-production.mjs');
 const tauri=read('src-tauri/tauri.conf.json');
@@ -29,9 +31,11 @@ const activeRuntimeFiles=[
   'assets/production-receipts-v13.js',
   'assets/production-certificates-v13.js',
   'assets/production-domain-v13.js',
+  'assets/production-monthly-prepayment-domain-v14.js',
   'assets/production-receipt-sequences-v10.js',
   'assets/production-student-ui-v13.js',
   'assets/production-finance-ui-v13.js',
+  'assets/production-fiscal-year-v14.js',
   'assets/production-security-ui-v13.js'
 ];
 for(const path of activeRuntimeFiles)execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
@@ -53,7 +57,7 @@ forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'demo.css','demo stylesheet reference');
 forbidText(index,'./demo-app.js','demo runtime documentation');
 
-const gateOrder=['production-loader.js','production-foundation-v13.js','production-receipts-v13.js','production-certificates-v13.js','production-domain-v13.js','production-receipt-sequences-v10.js','production-student-ui-v13.js','production-finance-ui-v13.js','production-security-ui-v13.js'];
+const gateOrder=['production-loader.js','production-foundation-v13.js','production-receipts-v13.js','production-certificates-v13.js','production-domain-v13.js','production-receipt-sequences-v10.js','production-student-ui-v13.js','production-finance-ui-v13.js','production-fiscal-year-v14.js','production-security-ui-v13.js'];
 let last=-1;for(const token of gateOrder){const position=gate.indexOf(token);if(position<0)throw new Error(`Gate does not contain ${token}`);if(position<last)throw new Error(`Gate runtime order is wrong at ${token}`);last=position;}
 for(const obsolete of ['demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-student-profile-v3.js','production-registration-receipt-v4.js','production-ledger-finance-ui-v5.js','production-ledger-pdf-v6.js','production-center-ops-v11.js','production-center-ops-v12.js'])forbidText(gate,obsolete,`legacy gate layer ${obsolete}`);
 for(const token of ['silentValidStartup:true','activationUiOnlyWhenInvalid:true','noStartupSplash:true','noLegacyDemoRuntime:true','foundationV13:true','standaloneReceiptsV13:true','domainBeforeReceiptSequence:true','singleStartupRender:true'])requireText(gate,token,`gate ${token}`);
@@ -73,7 +77,7 @@ forbidText(receipts,'window.open=function','receipt global window.open patch');
 forbidText(receipts,'window.open(','external receipt window');
 forbidText(receipts,'new MutationObserver(','receipt observer');
 
-for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','separateCertificateFinance:true','certificateFinanceDailyMonthlyYearly:true','certificateFinanceByBranch:true','certificateFinanceByPaymentMethod:true','certificateFinancePeriodAndLifetimeTotals:true','certificateFinanceSimplifiedUi:true','certificateFinanceMatchesGeneralLayout:true','certificateFinanceUsesGeneralChart:true','rollingFinancialYearsFrom2025:true','certificateIncomeExcludedFromMainFinance:true','certificateIncomeExcludedFromLedger:true','certificateIncomeInLedgerAndFinance:false','window.EFC_CERTIFICATE_PAYMENTS_V13','certificateManagementTitleBelowHeader:true','paymentMethodsFromSettings:true','externalReceiptIssueEnabled:true','certificateReceiptHeaderSimplified:true','certificateFeeNoteRemoved:true','cert-section-title','للغات والمعلوماتية','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
+for(const token of ['externalRegistrationNative:true','internalBranchAndSpecialtyFilter:true','internalSearchWithoutRequiredFilters:true','certificateStudentResultsClickable:true','certificateReceiptInAppViewer:true','كل الفروع','كل التخصصات','receipt-viewer-frame-v13','receiptHeaderUnified:true','separateCertificateFinance:true','certificateFinanceDailyMonthlyYearly:true','certificateFinanceByBranch:true','certificateFinanceByPaymentMethod:true','certificateFinancePeriodAndLifetimeTotals:true','certificateFinanceSimplifiedUi:true','certificateFinanceMatchesGeneralLayout:true','certificateFinanceUsesGeneralChart:true','rollingFinancialYearsFrom2025:true','certificateIncomeExcludedFromMainFinance:true','certificateIncomeExcludedFromLedger:true','certificateIncomeInLedgerAndFinance:false','window.EFC_CERTIFICATE_PAYMENTS_V13','window.EFC_CERTIFICATE_STATE_V14','certificateManagementTitleBelowHeader:true','paymentMethodsFromSettings:true','externalReceiptIssueEnabled:true','certificateReceiptHeaderSimplified:true','certificateFeeNoteRemoved:true','cert-section-title','للغات والمعلوماتية','window.EFC_RENDER_CERTIFICATES_V13','noRouterHook:true','cleanReceiptDependency:true','EFC_RECEIPTS_V13?.ready'])requireText(certificate,token,`certificate ${token}`);
 forbidText(certificate,'const baseAllPayments=allPayments','certificate income must not wrap the canonical student payment stream');
 forbidText(certificate,'allPayments=function(){const combined','certificate income must not enter main finance or daily ledger');
 forbidText(certificate,'اختر الفرع والتخصص أولًا','certificate search must not require branch/specialty');
@@ -89,14 +93,16 @@ forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
 
 for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
+for(const token of ["EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة'","EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة'",'historicalCourseSnapshotPreservedOnEdit:true'])requireText(monthlyDomain,token,`monthly domain fiscal integration ${token}`);
+for(const token of ['currentLevelImplementation:true','ownerChoosesStartDate:true','automaticEndDate:true','annualSameAnchor:true','continuingStudentsRetained:true','debtorsRetained:true','separateCourseAndCertificateIncome:true','tombstoneRestoreProtection:true','pendingCloseJournal:true','closedPeriodsImmutable:true','noRouterHook:true'])requireText(fiscal,token,`fiscal ${token}`);
 for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','legacyRecordsUseRestoredStudentFile:true','snapshot.billing===\'monthly\'','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);
 forbidText(studentUi,'legacyOpenStudent(id,mode)','legacy records must use the restored student-file UI');
-for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true','FINANCE_FIRST_YEAR=2025','rollingFinancialYearsFrom2025:true','financialYearWindowMaxTen:true','expenseReceipts:true','expenseReceiptUsesNaturalHeader:true','expenseReceiptPdfSaveAs:true','window.EFC_OPEN_EXPENSE_RECEIPT_V13','window.EFC_FINANCE_PRESENTATION_V13','سند مصروف'])requireText(financeUi,token,`finance UI ${token}`);
-for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','loginAttemptThrottle:true','notificationBell:true'])requireText(securityUi,token,`security UI ${token}`);
+for(const token of ['financePrimaryActionV13','renderFinance=function','renderLedger=function','مصروف عام','paymentMethodsNoDelete:true','FINANCE_FIRST_YEAR=2025','rollingFinancialYearsFrom2025:true','financialYearWindowMaxTen:true','expenseReceipts:true','expenseReceiptUsesNaturalHeader:true','expenseReceiptPdfSaveAs:true','window.EFC_OPEN_EXPENSE_RECEIPT_V13','window.EFC_FINANCE_PRESENTATION_V13','سند مصروف',"EFC_FISCAL_V14?.assertDateOpen?.(record.date,'تاريخ المصروف'"])requireText(financeUi,token,`finance UI ${token}`);
+for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','EFC_ENHANCE_FISCAL_SETTINGS_V14','loginAttemptThrottle:true','notificationBell:true'])requireText(securityUi,token,`security UI ${token}`);
 
-const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,studentUi,financeUi,securityUi].join('\n');
+const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].join('\n');
 for(const forbidden of ['new MutationObserver(','window.MutationObserver =','window.MutationObserver=','window.open=function','Storage.prototype.setItem =','Storage.prototype.setItem=','Storage.prototype.removeItem =','Storage.prototype.removeItem='])forbidText(activeCombined,forbidden,`active runtime global side effect ${forbidden}`);
-const hashOwners=[foundation,receipts,certificate,sequence,domain,studentUi,financeUi,securityUi].filter(source=>source.includes("addEventListener('hashchange'")||source.includes('addEventListener("hashchange"'));
+const hashOwners=[foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].filter(source=>source.includes("addEventListener('hashchange'")||source.includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!==securityUi)throw new Error(`Expected exactly one hashchange router owner; found ${hashOwners.length}.`);
 
 const runtimeBlock=build.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
@@ -105,7 +111,7 @@ const packagedRuntime=[...runtimeBlock.matchAll(/'([^']+)'/g)].map(match=>match[
 for(const path of packagedRuntime.filter(path=>path.endsWith('.js')))execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 for(const ref of [...index.matchAll(/(?:src|href)="\.\/([^?"']+)/g)].map(match=>match[1]).filter(path=>path!=='efc-logo.svg'))if(!packagedRuntime.includes(ref))throw new Error(`Index runtime is not packaged: ${ref}`);
 for(const legacy of obsoleteSourceFiles)forbidText(runtimeBlock,`'${legacy}'`,`obsolete packaged runtime ${legacy}`);
-for(const required of ['assets/production-ui-v13.css','assets/production-certificates-ui-v13.css','assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-security-ui-v13.js'])requireText(runtimeBlock,required,`clean packaged runtime ${required}`);
+for(const required of ['assets/production-ui-v13.css','assets/production-certificates-ui-v13.css','assets/production-foundation-v13.js','assets/production-receipts-v13.js','assets/production-fiscal-year-v14.js','assets/production-security-ui-v13.js'])requireText(runtimeBlock,required,`clean packaged runtime ${required}`);
 requireText(build,'forbiddenProductionFiles','obsolete source/dist guard');
 forbidText(build,"await cp('assets', 'dist/assets', { recursive: true });",'recursive assets copy');
 requireText(tauri,'"frontendDist": "../dist"','Tauri packaged frontend');
@@ -115,5 +121,6 @@ if(String(packageJson.scripts?.build||'')!=='node scripts/build-production.mjs')
 if('harden' in (packageJson.scripts||{}))throw new Error('Obsolete harden script must not remain in package scripts.');
 if(!String(packageJson.scripts?.check||'').includes('verify-runtime-core-v13.mjs'))throw new Error('package check does not run runtime v13 verifier.');
 if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');
+if(!String(packageJson.scripts?.check||'').includes('verify-fiscal-current-v14.mjs'))throw new Error('package check does not run fiscal v14 verifier.');
 
 console.log('Production v13 verification passed: clean runtime with student finance and certificate finance kept as separate accounting streams, optional certificate filters, settings-driven certificate receipts, external certificate issuing, safe persistence, single router and canonical payments.');

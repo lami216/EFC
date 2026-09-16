@@ -36,6 +36,7 @@ const runtimeFiles = [
   'assets/production-search-detail-polish-v32.js',
   'assets/production-period-count-and-grid-polish-v33.js',
   'assets/production-search-title-grid-unify-v34.js',
+  'assets/production-fiscal-year-v14.js',
   'assets/production-security-ui-v13.js',
   'assets/production-login-ui-v13.js'
 ];

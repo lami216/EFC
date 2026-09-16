@@ -29,10 +29,11 @@ const RUNTIME=[
   './assets/production-search-detail-polish-v32.js',
   './assets/production-period-count-and-grid-polish-v33.js',
   './assets/production-search-title-grid-unify-v34.js',
+  './assets/production-fiscal-year-v14.js',
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260915-receipt-edit-hour-duration-6';
+const RUNTIME_VERSION='20260916-fiscal-year-current-v14-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -123,9 +124,12 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_SEARCH_TITLE_GRID_UNIFY_V34?.ready,'توحيد جداول البحث');
 
     await loadScript(RUNTIME[25]);
-    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+    await waitUntil(()=>window.EFC_FISCAL_V14?.ready,'السنة المالية');
 
     await loadScript(RUNTIME[26]);
+    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
+    await loadScript(RUNTIME[27]);
     await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');
 
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');

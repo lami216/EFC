@@ -139,7 +139,7 @@ document.addEventListener('click',event=>{
   setTimeout(applyPermissions,0);
 },true);
 document.addEventListener('submit',event=>{if(!D.getSecurity().users.length||event.target.closest('.login-overlay-v13'))return;const page=currentSection();if(!canEdit(page)){event.preventDefault();event.stopImmediatePropagation();alert('الحساب الحالي لا يملك صلاحية التعديل.');}},true);
-function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();enhanceSecuritySettings();mountUser();applyPermissions();mountBell();mountLogin();}
+function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();enhanceSecuritySettings();mountUser();applyPermissions();mountBell();mountLogin();}
 window.afterRenderV13=afterRenderV13;
 const baseShell=shell;
 shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;setTimeout(afterRenderV13,0);};

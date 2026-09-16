@@ -124,6 +124,7 @@ function allocationMonthLabel(student,paymentIndex,asOf=today()){
 function defaultDescription(value){const text=String(value||'').trim();return !text||/^دفعة(?:\s+الشهر|\s+تسجيل|\s+مستحقات)/.test(text);}
 function appendPayment(student,{amount,method,date=today(),time=nowTime(),description='',targetMonth=null,debtDueDate=null,persist=true}={}){
   if(!student)throw new Error('الطالب غير موجود.');
+  window.EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة');
   if(!isDynamicMonthly(student)){
     const index=B.appendPayment(student,{amount,method,date,time,description,targetMonth,debtDueDate,persist:false}),stamp=Date.now();
     if(student.payments?.[index])student.payments[index][11]=stamp;
@@ -191,6 +192,7 @@ function updateStudentRegistration(student,changes={}){
   }
   const editStamp=Date.now();
   if(effectiveIndex!==null){
+    const existingPayment=draft.payments[effectiveIndex],candidatePaymentDate=String(changes.paymentDate??existingPayment?.[0]??start);window.EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة');
     const payment=draft.payments[effectiveIndex],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
     const method=String(changes.paymentMethod??payment[2]??'').trim();if(!method)throw new Error('اختر وسيلة الدفع.');
     payment[0]=String(changes.paymentDate??payment[0]??start);payment[1]=amount;payment[2]=method;

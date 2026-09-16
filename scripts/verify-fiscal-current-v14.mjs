@@ -3,6 +3,11 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const source=readFileSync('assets/production-fiscal-year-v14.js','utf8');
+const monthlySource=readFileSync('assets/production-monthly-prepayment-domain-v14.js','utf8');
+const financeSource=readFileSync('assets/production-finance-ui-v13.js','utf8');
+const securitySource=readFileSync('assets/production-security-ui-v13.js','utf8');
+const certificateSource=readFileSync('assets/production-certificates-v13.js','utf8');
+for(const [text,token] of [[monthlySource,"EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة'"],[monthlySource,"EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة'"],[financeSource,"EFC_FISCAL_V14?.assertDateOpen?.(record.date,'تاريخ المصروف'"],[securitySource,'EFC_ENHANCE_FISCAL_SETTINGS_V14'],[certificateSource,'EFC_CERTIFICATE_STATE_V14']])assert.equal(text.includes(token),true,`missing fiscal integration: ${token}`);
 for(const forbidden of ["addEventListener('hashchange'",'new MutationObserver(','window.open='])assert.equal(source.includes(forbidden),false,`forbidden fiscal runtime pattern: ${forbidden}`);
 for(const required of ['currentLevelImplementation:true','ownerChoosesStartDate:true','automaticEndDate:true','annualSameAnchor:true','continuingStudentsRetained:true','debtorsRetained:true','separateCourseAndCertificateIncome:true','tombstoneRestoreProtection:true','pendingCloseJournal:true','closedPeriodsImmutable:true','noRouterHook:true'])assert.equal(source.includes(required),true,`missing fiscal contract: ${required}`);
 
