@@ -30,8 +30,10 @@ function normalizeCleanup(value){
     studentsDeleted:Math.max(0,Number(source.studentsDeleted||0)),
     expensesDeleted:Math.max(0,Number(source.expensesDeleted||0)),
     certificatesDeleted:Math.max(0,Number(source.certificatesDeleted||0)),
+    studentIds:Array.isArray(source.studentIds)?source.studentIds.map(String).filter(Boolean):[],
     studentRecordCodes:Array.isArray(source.studentRecordCodes)?source.studentRecordCodes.map(String).filter(Boolean):[],
     expenseIds:Array.isArray(source.expenseIds)?source.expenseIds.map(String).filter(Boolean):[],
+    certificateIds:Array.isArray(source.certificateIds)?source.certificateIds.map(String).filter(Boolean):[],
     certificateRecordCodes:Array.isArray(source.certificateRecordCodes)?source.certificateRecordCodes.map(String).filter(Boolean):[],
     certificateTransactionCodes:Array.isArray(source.certificateTransactionCodes)?source.certificateTransactionCodes.map(String).filter(Boolean):[]
   };
@@ -136,13 +138,13 @@ function studentContinuesAfter(student,periodEnd){if(student?.active===false||st
 function eligibleStudent(student,plan){if(!student||studentContinuesAfter(student,plan.periodEnd))return false;if(remainingAmount(student)>0)return false;const last=latestStudentActivity(student);return Boolean(last&&last<=plan.periodEnd);}
 function cleanupPlan(plan){
   const studentRows=students.filter(student=>eligibleStudent(student,plan)),expenses=D.getExpenses().filter(row=>inPeriod(row?.date,plan.periodStart,plan.periodEnd)),certificateState=certificateApi()?.snapshot?.()||{certificateReceipts:[]},certificates=(certificateState.certificateReceipts||[]).filter(row=>inPeriod(row?.date,plan.periodStart,plan.periodEnd));
-  return normalizeCleanup({studentRecordCodes:studentRows.map(student=>String(student.recordCode||student.id)).filter(Boolean),expenseIds:expenses.map(row=>String(row.id)).filter(Boolean),certificateRecordCodes:certificates.map(row=>String(row.recordCode||'')).filter(Boolean),certificateTransactionCodes:certificates.map(row=>String(row.transactionCode||'')).filter(Boolean)});
+  return normalizeCleanup({studentIds:studentRows.map(student=>String(student.id||'')).filter(Boolean),studentRecordCodes:studentRows.map(student=>String(student.recordCode||'')).filter(Boolean),expenseIds:expenses.map(row=>String(row.id)).filter(Boolean),certificateIds:certificates.map(row=>String(row.id||'')).filter(Boolean),certificateRecordCodes:certificates.map(row=>String(row.recordCode||'')).filter(Boolean),certificateTransactionCodes:certificates.map(row=>String(row.transactionCode||'')).filter(Boolean)});
 }
 function tombstones(fromState=state){
-  const studentRecordCodes=new Set(),expenseIds=new Set(),certificateRecordCodes=new Set(),certificateTransactionCodes=new Set();
-  const add=cleanup=>{const value=normalizeCleanup(cleanup);value.studentRecordCodes.forEach(x=>studentRecordCodes.add(x));value.expenseIds.forEach(x=>expenseIds.add(x));value.certificateRecordCodes.forEach(x=>certificateRecordCodes.add(x));value.certificateTransactionCodes.forEach(x=>certificateTransactionCodes.add(x));};
+  const studentIds=new Set(),studentRecordCodes=new Set(),expenseIds=new Set(),certificateIds=new Set(),certificateRecordCodes=new Set(),certificateTransactionCodes=new Set();
+  const add=cleanup=>{const value=normalizeCleanup(cleanup);value.studentIds.forEach(x=>studentIds.add(x));value.studentRecordCodes.forEach(x=>studentRecordCodes.add(x));value.expenseIds.forEach(x=>expenseIds.add(x));value.certificateIds.forEach(x=>certificateIds.add(x));value.certificateRecordCodes.forEach(x=>certificateRecordCodes.add(x));value.certificateTransactionCodes.forEach(x=>certificateTransactionCodes.add(x));};
   fromState.archives.forEach(item=>add(item.cleanup));if(fromState.pendingClose)add(fromState.pendingClose.cleanupPlan);
-  return{studentRecordCodes,expenseIds,certificateRecordCodes,certificateTransactionCodes};
+  return{studentIds,studentRecordCodes,expenseIds,certificateIds,certificateRecordCodes,certificateTransactionCodes};
 }
 function lockedThrough(fromState=state){const ends=[...fromState.archives.map(item=>item.periodEnd),fromState.pendingClose?.archive?.periodEnd].filter(Boolean).sort();return ends.at(-1)||'';}
 function isDateClosed(value){const date=safeDate(value),limit=lockedThrough();return Boolean(date&&limit&&date<=limit);}
@@ -156,16 +158,16 @@ async function ensureSafetyBackup(plan){
   return String(path);
 }
 async function applyCleanup(pending){
-  const cleanup=normalizeCleanup(pending.cleanupPlan),periodEnd=pending.archive.periodEnd,studentCodes=new Set(cleanup.studentRecordCodes);
+  const cleanup=normalizeCleanup(pending.cleanupPlan),periodEnd=pending.archive.periodEnd,studentIds=new Set(cleanup.studentIds),studentCodes=new Set(cleanup.studentRecordCodes);
   let deletedStudents=0;
   const keptStudents=students.filter(student=>{
-    const code=String(student.recordCode||student.id||'');if(!studentCodes.has(code))return true;
+    const id=String(student.id||''),code=String(student.recordCode||'');if(!studentIds.has(id)&&!studentCodes.has(code))return true;
     if(!eligibleStudent(student,{periodEnd,periodStart:pending.archive.periodStart}))return true;
     deletedStudents+=1;return false;
   });
   if(keptStudents.length!==students.length){students.splice(0,students.length,...keptStudents);D.saveStudents();}
   const expenseIds=new Set(cleanup.expenseIds),currentExpenses=D.getExpenses(),keptExpenses=currentExpenses.filter(row=>!expenseIds.has(String(row.id))),expensesDeleted=currentExpenses.length-keptExpenses.length;if(expensesDeleted)D.saveExpenses(keptExpenses);
-  const certResult=await certificateApi()?.purgeReceiptsByCodes?.(cleanup.certificateRecordCodes,cleanup.certificateTransactionCodes),certificatesDeleted=Math.max(0,Number(certResult?.deleted||0));
+  const certResult=await certificateApi()?.purgeReceiptsByIdentity?.({ids:cleanup.certificateIds,recordCodes:cleanup.certificateRecordCodes,transactionCodes:cleanup.certificateTransactionCodes}),certificatesDeleted=Math.max(0,Number(certResult?.deleted||0));
   return{deletedStudents,expensesDeleted,certificatesDeleted};
 }
 async function finalizePending(){
@@ -193,22 +195,22 @@ async function configure(anchorDate){
 }
 
 function mergeFiscalStates(currentRaw,incomingRaw){
-  const current=normalizeState(currentRaw),incoming=normalizeState(incomingRaw);if(!incoming.config)return current;if(!current.config)return incoming;if(incoming.config.anchorDate!==current.config.anchorDate)return current;
+  const current=normalizeState(currentRaw),incoming=normalizeState(incomingRaw);if(!incoming.config)return current;if(!current.config)return incoming;if(incoming.config.anchorDate!==current.config.anchorDate)throw new Error('النسخة الاحتياطية تستخدم بداية سنة مالية مختلفة عن النظام الحالي. لا يمكن دمج أرشيفين ماليين بحدود مختلفة.');
   const byBoundary=new Map(current.archives.map(item=>[item.boundary,item]));incoming.archives.forEach(item=>{const existing=byBoundary.get(item.boundary);if(!existing||Number(item.closedAt||0)>Number(existing.closedAt||0))byBoundary.set(item.boundary,item);});
   return normalizeState({...current,archives:[...byBoundary.values()].sort((a,b)=>a.number-b.number),pendingClose:current.pendingClose||incoming.pendingClose,updatedAt:Math.max(current.updatedAt,incoming.updatedAt)});
 }
 function filterImportedState(incoming,prospectiveState=state){
   const source=clone(incoming&&typeof incoming==='object'?incoming:{}),dead=tombstones(prospectiveState);
-  if(Array.isArray(source.students))source.students=source.students.filter(student=>!dead.studentRecordCodes.has(String(student?.recordCode||student?.id||'')));
+  if(Array.isArray(source.students))source.students=source.students.filter(student=>!dead.studentIds.has(String(student?.id||''))&&!dead.studentRecordCodes.has(String(student?.recordCode||'')));
   if(Array.isArray(source.expenses))source.expenses=source.expenses.filter(row=>!dead.expenseIds.has(String(row?.id||'')));
-  if(Array.isArray(source.certificateReceipts))source.certificateReceipts=source.certificateReceipts.filter(row=>!dead.certificateRecordCodes.has(String(row?.recordCode||''))&&!dead.certificateTransactionCodes.has(String(row?.transactionCode||'')));
+  if(Array.isArray(source.certificateReceipts))source.certificateReceipts=source.certificateReceipts.filter(row=>!dead.certificateIds.has(String(row?.id||''))&&!dead.certificateRecordCodes.has(String(row?.recordCode||''))&&!dead.certificateTransactionCodes.has(String(row?.transactionCode||'')));
   return source;
 }
 async function sanitizeClosedDetails(){
   const dead=tombstones();let changed=false;
-  const keptStudents=students.filter(student=>!dead.studentRecordCodes.has(String(student?.recordCode||student?.id||'')));if(keptStudents.length!==students.length){students.splice(0,students.length,...keptStudents);D.saveStudents();changed=true;}
+  const keptStudents=students.filter(student=>!dead.studentIds.has(String(student?.id||''))&&!dead.studentRecordCodes.has(String(student?.recordCode||'')));if(keptStudents.length!==students.length){students.splice(0,students.length,...keptStudents);D.saveStudents();changed=true;}
   const expenses=D.getExpenses(),keptExpenses=expenses.filter(row=>!dead.expenseIds.has(String(row?.id||'')));if(keptExpenses.length!==expenses.length){D.saveExpenses(keptExpenses);changed=true;}
-  const certResult=await certificateApi()?.purgeReceiptsByCodes?.([...dead.certificateRecordCodes],[...dead.certificateTransactionCodes]);if(Number(certResult?.deleted||0)>0)changed=true;
+  const certResult=await certificateApi()?.purgeReceiptsByIdentity?.({ids:[...dead.certificateIds],recordCodes:[...dead.certificateRecordCodes],transactionCodes:[...dead.certificateTransactionCodes]});if(Number(certResult?.deleted||0)>0)changed=true;
   return changed;
 }
 

@@ -35,7 +35,7 @@ let appliedIncoming=null;
 const context={console,structuredClone,JSON,Date,Math,Intl,Promise,setTimeout,clearTimeout,localStorage,document,location:{hash:'#register',href:'http://localhost/'},confirm:()=>true,alert(){},students,specialties:[{id:'sp1',name:'فرنسية'}],methods:['نقداً','Bankily'],branchName:id=>id==='main'?'الفرع الرئيسي':String(id),spec:id=>id==='sp1'?{name:'فرنسية'}:null,allPayments:paymentRows};
 context.window=context;
 context.window.EFC_CERTIFICATES_V13={ready:true};
-context.window.EFC_CERTIFICATE_STATE_V14={snapshot:()=>structuredClone(certificateState),purgeReceiptsByCodes:async(recordCodes=[],transactionCodes=[])=>{const records=new Set(recordCodes.map(String)),transactions=new Set(transactionCodes.map(String)),before=certificateState.certificateReceipts.length;certificateState={...certificateState,certificateReceipts:certificateState.certificateReceipts.filter(row=>!records.has(String(row.recordCode||''))&&!transactions.has(String(row.transactionCode||'')))};return{deleted:before-certificateState.certificateReceipts.length};}};
+context.window.EFC_CERTIFICATE_STATE_V14={snapshot:()=>structuredClone(certificateState),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set(ids.map(String)),records=new Set(recordCodes.map(String)),transactions=new Set(transactionCodes.map(String)),before=certificateState.certificateReceipts.length;certificateState={...certificateState,certificateReceipts:certificateState.certificateReceipts.filter(row=>!idSet.has(String(row.id||''))&&!records.has(String(row.recordCode||''))&&!transactions.has(String(row.transactionCode||'')))};return{deleted:before-certificateState.certificateReceipts.length};}};
 context.window.EFC_AUTH_V13={currentUser:()=>({username:'Admin',role:'admin'})};
 context.window.EFC_REGISTER_STATE_CONTRIBUTOR=(name,fn)=>contributors.set(name,fn);
 context.window.EFC_FORCE_PERSIST=async()=>{let snapshot={students:structuredClone(students),specialties:[],paymentMethods:['نقداً','Bankily']};for(const fn of contributors.values())snapshot=await fn(snapshot)||snapshot;return snapshot;};
@@ -73,8 +73,10 @@ assert.equal(students.some(s=>s.recordCode==='reg-ended'),false,'ended settled s
 assert.equal(students.some(s=>s.recordCode==='reg-debt'),true,'debtor must remain');
 assert.deepEqual(expenses.map(x=>x.id),['e-new']);
 assert.deepEqual(certificateState.certificateReceipts.map(x=>x.recordCode),['cr-new']);
+assert.equal(first.cleanup.studentIds.includes('ended-settled'),true);
 assert.equal(first.cleanup.studentRecordCodes.includes('reg-ended'),true);
 assert.equal(first.cleanup.expenseIds.includes('e-old'),true);
+assert.equal(first.cleanup.certificateIds.includes('cert-old'),true);
 assert.equal(first.cleanup.certificateRecordCodes.includes('cr-old'),true);
 assert.equal(F.lockedThrough(),'2026-09-14');
 assert.equal(F.isDateClosed('2026-09-14'),true);
@@ -91,11 +93,13 @@ assert.equal(preview.totals.courseIncome,300,'next archive must not recount prev
 assert.equal(preview.totals.certificateIncome,400);
 assert.equal(preview.totals.expenses,50);
 
-const imported={students:[{id:'old',recordCode:'reg-ended',payments:[]}],expenses:[{id:'e-old',amount:100}],certificateReceipts:[{recordCode:'cr-old',transactionCode:'ctx-old'}],specialties:[],paymentMethods:[],fiscalState:F.getState()};
+const imported={students:[{id:'ended-settled',payments:[]}],expenses:[{id:'e-old',amount:100}],certificateReceipts:[{id:'cert-old'}],specialties:[],paymentMethods:[],fiscalState:F.getState()};
 await context.window.EFC_APPLY_RESTORED_STATE(imported);
 assert.equal(appliedIncoming.students.length,0,'closed student tombstone must filter restored backup');
 assert.equal(appliedIncoming.expenses.length,0,'closed expense tombstone must filter restored backup');
 assert.equal(appliedIncoming.certificateReceipts.length,0,'closed certificate tombstone must filter restored backup');
+const mismatch=structuredClone(F.getState());mismatch.config.anchorDate='2025-10-01';mismatch.config.firstEndDate='2026-09-30';
+await assert.rejects(context.window.EFC_APPLY_RESTORED_STATE({students:[],specialties:[],paymentMethods:[],fiscalState:mismatch}),/بداية سنة مالية مختلفة/,'different fiscal anchors must never be silently merged');
 
 saved=F.getState();
 assert.equal(saved.archives.length,1);
