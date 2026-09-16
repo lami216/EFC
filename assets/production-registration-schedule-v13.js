@@ -21,9 +21,10 @@ const noteOne='ملاحظة 1: لا يمكن استرجاع المبلغ الم�
 const paymentOptions=()=>methods.map(value=>`<option>${esc(value)}</option>`).join('');
 const branchOptions=()=>`<option value="">اختر المركز</option>${opts(branches)}`;
 const specialtyOptions=()=>`<option value="">اختر الدورة</option>${opts(specialties)}`;
+const ALLOWED_HOURS=[8,10,12,14,16,18,20];
 const hourOptions=(selected='')=>{
   const current=String(selected||'');
-  return`<option value="">--</option>${Array.from({length:24},(_,hour)=>{
+  return`<option value="">--</option>${ALLOWED_HOURS.map(hour=>{
     const hh=String(hour).padStart(2,'0'),value=`${hh}:00`;
     return`<option value="${value}"${value===current?' selected':''}>${value}</option>`;
   }).join('')}`;

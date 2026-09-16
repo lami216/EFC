@@ -168,14 +168,15 @@ function historicalCourseShape(student,item,specialtyChanged){
 }
 function updateStudentRegistration(student,changes={}){
   if(!student)throw new Error('الطالب غير موجود.');
+  if(changes.reg!==undefined&&Number(changes.reg)!==Number(student.reg))throw new Error('رقم السجل ثابت ولا يمكن تغييره بعد إنشاء ملف الطالب.');
   const requestedSpecialty=String(changes.specialty??student.specialty),item=typeof spec==='function'?spec(requestedSpecialty):null;if(!item)throw new Error('الدورة المحددة غير موجودة.');
   const draft=clone(student),wasMonthly=isDynamicMonthly(student),specialtyChanged=String(item.id)!==String(student.specialty),shape=historicalCourseShape(student,item,specialtyChanged),type=shape.type,monthly=shape.monthly;
   const name=String(changes.name??draft.name??'').trim();if(!name)throw new Error('اسم الطالب مطلوب.');
   const branch=String(changes.branch??draft.branch??'').trim();if(!branch)throw new Error('المركز مطلوب.');
   const start=String(changes.start??draft.start??'').trim();if(!start)throw new Error('تاريخ البداية مطلوب.');
   const fee=Math.max(0,Number(changes.fee??draft.snapshot?.fee??draft.required??0));if(fee<=0)throw new Error('سعر الدورة غير صالح.');
-  const duplicate=students.find(other=>other!==student&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));
-  if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);
+  const scopeChanged=String(branch)!==String(student.branch||'')||String(item.id)!==String(student.specialty||'');
+  if(scopeChanged){const duplicate=students.find(other=>other!==student&&(!student.id||!other?.id||String(other.id)!==String(student.id))&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);}
   draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
   draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:shape.durationValue,durationUnit:shape.durationUnit};
   if(changes.schedule){draft.schedule=clone(changes.schedule);draft.schedule.specialtyId=String(item.id);draft.schedule.specialtyName=String(item.name||'');}
@@ -291,7 +292,7 @@ allocV4=function(student,paymentIndex){
 financialStatus=financialStatusV14;
 monthBadgeV3=function(student,asOf=today(),paidOverride=null){const focus=monthlyFocus(student,asOf,paidOverride);if(!focus)return'';const cls=focus.state==='complete'?'good':focus.state==='overdue'?'bad':focus.state==='upcoming'?'neutral':'warn';return`<span class="badge ${cls}">${B.esc(focus.label)}</span>`;};
 
-const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
+const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyPrepayment:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyDueGraceDays:DUE_GRACE_DAYS});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();

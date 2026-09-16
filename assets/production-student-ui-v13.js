@@ -100,13 +100,29 @@ openPayment=function(id,targetMonth=null){
 function monthStateBadgeV13(month){
   return month.state==='paid'?badge('مدفوع كامل'):month.state==='partial'?badge('دفع جزئي'):month.state==='overdue'?badge('متأخر'):month.state==='due'?badge('مستحق الآن'):badge('لم يحن');
 }
+function monthReceiptSourceV15(student,monthNumber){
+  const number=Number(monthNumber);
+  const contributions=(student.payments||[]).map((payment,index)=>{
+    const allocations=typeof D.paymentAllocations==='function'?D.paymentAllocations(student,index):(Array.isArray(payment?.[10])?payment[10]:[]);
+    const amount=allocations.filter(item=>Number(item?.monthNumber??item?.n)===number).reduce((sum,item)=>sum+Number(item?.amount||0),0);
+    return amount>0?{payment,index,amount,allocations}:null;
+  }).filter(Boolean);
+  const single=contributions.length===1?contributions[0]:null;
+  const sourceMonths=single?[...new Set((single.allocations||[]).map(item=>Number(item?.monthNumber??item?.n)).filter(value=>Number.isInteger(value)&&value>0))]:[];
+  const sourceEquivalent=Boolean(single&&sourceMonths.length===1&&sourceMonths[0]===number&&Math.round(Number(single.amount||0)*100)===Math.round(Number(single.payment?.[1]||0)*100));
+  return{contributions,single,sourceEquivalent};
+}
 function monthReceiptModelV13(student,monthNumber){
-  const month=installmentPlan(student).find(item=>Number(item.number)===Number(monthNumber));
+  const number=Number(monthNumber),month=installmentPlan(student).find(item=>Number(item.number)===number);
   if(!month||Number(month.paid||0)<=0)return null;
-  const related=(student.payments||[]).map((payment,index)=>({payment,index})).filter(({payment})=>Number(payment?.[7]||0)===Number(monthNumber));
-  const latest=related.slice().sort((a,b)=>String(b.payment?.[0]||'').localeCompare(String(a.payment?.[0]||''))||Number(b.payment?.[4]||0)-Number(a.payment?.[4]||0))[0];
-  const methodsUsed=[...new Set(related.map(({payment})=>String(payment?.[2]||'')).filter(Boolean))];
-  return{student:student.name,phone:student.phone||'',branch:branchName(student.branch),specialty:spec(student.specialty)?.name||student.specialty,reg:String(student.reg??'').padStart(4,'0'),date:String(latest?.payment?.[0]||month.dueDate||student.start),receipt:String(latest?.payment?.[8]||`M-${String(student.reg??'').padStart(4,'0')}-${monthNumber}`),amount:Number(month.paid||0),remaining:Number(month.remaining||0),method:methodsUsed.length?methodsUsed.join(' + '):String(latest?.payment?.[2]||'—'),month:`الشهر ${monthNumber}`,desc:`إجمالي مدفوع الشهر ${monthNumber}: ${cash(month.paid)} · المتبقي من الشهر: ${cash(month.remaining)}`};
+  const source=monthReceiptSourceV15(student,number);
+  if(source.sourceEquivalent&&source.single){
+    const model=receiptModelV4(student,source.single.index,false);
+    if(model)return{...model,derivedReceipt:true,sourceEquivalent:true,editableReceipt:true,receiptSource:'payment-clone'};
+  }
+  const latest=source.contributions.slice().sort((a,b)=>String(b.payment?.[0]||'').localeCompare(String(a.payment?.[0]||''))||Number(b.payment?.[4]||0)-Number(a.payment?.[4]||0))[0];
+  const methodsUsed=[...new Set(source.contributions.map(({payment})=>String(payment?.[2]||'')).filter(Boolean))];
+  return{statement:false,registrationReceipt:false,derivedReceipt:true,sourceEquivalent:false,editableReceipt:false,receiptSource:'derived-month',studentId:String(student.id||''),paymentIndex:null,transactionCode:'',student:student.name,phone:student.phone||'',branch:branchName(student.branch),specialty:spec(student.specialty)?.name||student.specialty,reg:String(student.reg??'').padStart(4,'0'),date:String(latest?.payment?.[0]||month.dueDate||student.start),receipt:String(latest?.payment?.[8]||`M-${String(student.reg??'').padStart(4,'0')}-${number}`),amount:Number(month.paid||0),remaining:Number(month.remaining||0),method:methodsUsed.length?methodsUsed.join(' + '):String(latest?.payment?.[2]||'—'),month:`الشهر ${number}`,desc:`إجمالي مدفوع الشهر ${number}: ${cash(month.paid)} · المتبقي من الشهر: ${cash(month.remaining)}`};
 }
 
 openStudent=function(id,mode='finance'){
@@ -182,5 +198,7 @@ const style=document.createElement('style');style.textContent=`
 `;document.head.appendChild(style);
 window.EFC_AUTOCOMPLETE_OFF_V13=autocompleteOff;
 window.EFC_SHOW_RECEIPT_V13=showReceiptConfirmation;
-window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,profileFirstFromStudentSearch:true,legacyRecordsUseRestoredStudentFile:true,reminderPreviewAction:true,reminderPdfAction:true});
+window.EFC_MONTH_RECEIPT_SOURCE_V15=monthReceiptSourceV15;
+window.EFC_MONTH_RECEIPT_MODEL_V15=monthReceiptModelV13;
+window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,monthReceiptSourceAware:true,derivedMonthReceiptGuard:true,sourceEquivalentMonthEditable:true,profileFirstFromStudentSearch:true,legacyRecordsUseRestoredStudentFile:true,reminderPreviewAction:true,reminderPdfAction:true});
 })();

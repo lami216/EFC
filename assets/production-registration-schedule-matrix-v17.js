@@ -62,12 +62,14 @@ function beginRegistrationEdit(model){
   if(!student){alert('تعذر العثور على ملف الطالب المرتبط بهذا الروسي.');return false;}
   const canEditStudents=window.EFC_AUTH_V13?.canEdit?.('students')??true,canEditRegister=window.EFC_AUTH_V13?.canEdit?.('register')??true;
   if(!canEditStudents||!canEditRegister){alert('لا تملك صلاحية تعديل ملف الطالب من صفحة التسجيل.');return false;}
-  const registrationReceipt=Boolean(model?.registrationReceipt),rawIndex=model?.paymentIndex;
+  if(model?.statement||model?.editableReceipt===false){alert('هذا الروسي ناتج أو تجميعي ولا يملك معاملة مالية أصلية مستقلة. عدّل الروسي الأصلي من سجل الدفعات.');return false;}
+  const registrationReceipt=Boolean(model?.registrationReceipt),rawIndex=model?.paymentIndex,transactionCode=String(model?.transactionCode||'').trim();
   let index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);
+  if(transactionCode&&student.payments?.length){const resolved=student.payments.findIndex(payment=>String(payment?.[6]||'')===transactionCode);if(resolved<0){alert('تعذر مطابقة الروسي مع معاملته الأصلية. لم يتم فتح التعديل لحماية سجل الدفع.');return false;}index=resolved;}
   if(registrationReceipt&&!student.payments?.length)index=null;
   if(index!==null&&(!Number.isInteger(index)||index<0||!student.payments?.[index])){alert('تعذر العثور على الدفعة المرتبطة بهذا الروسي.');return false;}
   const returnHash=location.hash||'#students';
-  editSession={studentId,paymentIndex:index,statement:Boolean(model?.statement),registrationReceipt,returnHash,receipt:String(model?.receipt||''),startedAt:Date.now()};
+  editSession={studentId,paymentIndex:index,transactionCode,statement:Boolean(model?.statement),registrationReceipt,returnHash,receipt:String(model?.receipt||''),startedAt:Date.now()};
   document.querySelectorAll('.modal').forEach(modal=>modal.remove());
   document.body.classList.add('efc-registration-editing-v17');
   if(location.hash!=='#register')history.replaceState(null,'','#register');
@@ -114,9 +116,10 @@ function installBlankSelection(select,label,{required=false,preserveValue=false}
   sync();
 }
 
+const ALLOWED_HOURS=[8,10,12,14,16,18,20];
 function hourOptions(selected=''){
   const current=String(selected||'');
-  return`<option value="">--</option>${Array.from({length:24},(_,hour)=>{
+  return`<option value="">--</option>${ALLOWED_HOURS.map(hour=>{
     const hh=String(hour).padStart(2,'0'),value=`${hh}:00`;
     return`<option value="${value}"${value===current?' selected':''}>${value}</option>`;
   }).join('')}`;
@@ -258,7 +261,7 @@ function installEditMode(form,scheduleRoot){
   form.elements.paid.value=payment?String(payment[1]||0):canCreatePayment?'0':String(D.paymentTotal?.(student)||0);form.elements.method.value=payment?String(payment[2]||''):'';
   const targetKey=payment?.[7]?String(payment[7]):'course';form.elements.debtDate.value=String(payment?.[9]||student.debtDueDates?.[targetKey]||'');
   if(fields&&!fields.querySelector('[data-edit-extra-v17]')){
-    fields.insertAdjacentHTML('beforeend',`<div class="registration-edit-meta-v17" data-edit-extra-v17><label>رقم السجل<input class="input" value="${esc(String(student.reg??'').padStart(4,'0'))}" readonly></label><label>تاريخ هذه الدفعة<input class="input" name="paymentDate" type="date" value="${esc(String(payment?.[0]||student.start||''))}" ${editablePayment?'required':'disabled'}></label><label class="registration-edit-description-v17">بيان هذه الدفعة<input class="input" name="paymentDescription" value="${esc(String(payment?.[5]||''))}" ${editablePayment?'':'disabled'} autocomplete="off"></label></div>`);
+    fields.insertAdjacentHTML('beforeend',`<div class="registration-edit-meta-v17" data-edit-extra-v17><label>رقم السجل<span class="registration-reg-fixed-v17" aria-readonly="true">${esc(String(student.reg??'').padStart(4,'0'))}</span></label><label>تاريخ هذه الدفعة<input class="input" name="paymentDate" type="date" value="${esc(String(payment?.[0]||student.start||''))}" ${editablePayment?'required':'disabled'}></label><label class="registration-edit-description-v17">بيان هذه الدفعة<input class="input" name="paymentDescription" value="${esc(String(payment?.[5]||''))}" ${editablePayment?'':'disabled'} autocomplete="off"></label></div>`);
   }
   if(!editablePayment){form.elements.paid.readOnly=true;form.elements.method.disabled=true;const paidLabel=form.elements.paid.closest('label');if(paidLabel)paidLabel.childNodes[0].textContent='إجمالي المدفوع (محسوب)';}
   const submit=form.querySelector('.registration-submit-v13');if(submit){submit.textContent='حفظ التغييرات';submit.classList.add('registration-save-edit-v17');mountEditActions(form,submit);}
@@ -344,6 +347,7 @@ body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#1180
 body.efc-registration-editing-v17 .registration-edit-meta-v17{grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px 12px!important;align-items:end!important;margin-top:1px!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17 label{min-width:0!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17 .input{min-width:0!important}
+body.efc-registration-editing-v17 .registration-reg-fixed-v17{min-width:0;height:39px;display:flex;align-items:center;padding:0 11px;border:1px solid #d5dfdb;border-radius:8px;background:#eef3f1;color:#52665f;font:800 12px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;user-select:text}
 body.efc-registration-editing-v17 .registration-edit-actions-v17{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr)!important;gap:10px!important;margin-top:10px!important;position:relative;z-index:2}
 body.efc-registration-editing-v17 .registration-edit-actions-v17 .button{width:100%!important;min-width:0!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 body.efc-registration-editing-v17 .registration-save-edit-v17{background:linear-gradient(180deg,#08785d,#056149)!important;color:#fff!important}
@@ -380,6 +384,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   selectedCourseOnly:true,
   longCourseNamesWrapInMatrix:true,
   hourOnlyTimes:true,
+  restrictedScheduleHours:true,
   fixedMinuteZero:true,
   legacyNonHourTimesPreservedDuringEdit:true,
   directRegistrationSchedulePreferred:true,
@@ -391,6 +396,9 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   atomicEditMode:true,
   cancelEditDiscardsDraft:true,
   receiptEditReturnsToRegistration:true,
+  sourceReceiptOnlyEdit:true,
+  transactionCodeEditResolution:true,
+  fixedRegistrationNumberDisplay:true,
   closesSourceModalsBeforeEdit:true,
   guardedEditNavigation:true,
   logoutAndCloseGuardAvailable:true,
