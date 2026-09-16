@@ -1,0 +1,70 @@
+name: Patch stop dates and certificate finance v17 final
+
+on:
+  push:
+    branches:
+      - feature/fiscal-year-current-v14
+    paths:
+      - '.github/workflows/patch-stop-cert-finance-v17-run3.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch with patch history
+        uses: actions/checkout@v4
+        with:
+          ref: feature/fiscal-year-current-v14
+          fetch-depth: 4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply integrated patch and synchronize verification
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess, textwrap
+          from pathlib import Path
+          source=subprocess.check_output(['git','show','HEAD^^^:.github/workflows/patch-stop-cert-finance-v17.yml'],text=True)
+          marker="          python - <<'PY'\n"
+          start=source.index(marker)+len(marker)
+          end=source.index("\n          PY",start)
+          code=textwrap.dedent(source[start:end])
+          package_start=code.index("package_path=Path('package.json')")
+          version_start=code.index("old_version='20260916-receipt-source-hours-v16-1'",package_start)
+          code=code[:package_start]+code[version_start:]
+          exec(compile(code,'integrated-stop-cert-finance-patch','exec'),{})
+          verifier=Path('scripts/verify-registration-redesign-v15.mjs')
+          text=verifier.read_text(encoding='utf-8')
+          old='20260916-receipt-source-hours-v16-1'
+          new='20260916-stop-end-cert-finance-v17-1'
+          if text.count(old)<2: raise SystemExit('registration verifier cache tokens were not found')
+          verifier.write_text(text.replace(old,new),encoding='utf-8')
+          PY
+
+      - name: Install verification dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Verify new stop and certificate finance behavior
+        run: node scripts/verify-stop-cert-finance-v17.mjs
+
+      - name: Verify production source
+        run: npm run check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Commit verified integrated changes
+        shell: bash
+        run: |
+          git config user.name "lami216"
+          git config user.email "iiyad21694@gmail.com"
+          git add assets/production-monthly-prepayment-domain-v14.js assets/production-certificates-v13.js scripts/verify-monthly-prepayment-v14.mjs scripts/verify-stop-cert-finance-v17.mjs scripts/verify-registration-redesign-v15.mjs assets/production-license-gate-v8.js index.html
+          git commit -m "feat: record stopped-course endings and refresh certificate finance"
+          git push origin HEAD:feature/fiscal-year-current-v14
