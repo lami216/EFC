@@ -11,6 +11,7 @@ const RUNTIME=[
   './assets/production-domain-v13.js',
   './assets/production-monthly-prepayment-domain-v14.js',
   './assets/production-receipt-sequences-v10.js',
+  './assets/production-student-lifecycle-domain-v20.js',
   './assets/production-student-ui-v13.js',
   './assets/production-registration-schedule-v13.js',
   './assets/production-finance-ui-v13.js',
@@ -29,11 +30,12 @@ const RUNTIME=[
   './assets/production-search-detail-polish-v32.js',
   './assets/production-period-count-and-grid-polish-v33.js',
   './assets/production-search-title-grid-unify-v34.js',
+  './assets/production-student-lifecycle-ui-v20.js',
   './assets/production-fiscal-year-v14.js',
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260916-certificate-edit-sequence-safety-v19-2';
+const RUNTIME_VERSION='20260916-student-lifecycle-v20-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -70,66 +72,72 @@ async function startApplication(){
     await waitUntil(()=>window.EFC_RECEIPT_SEQUENCES_V10,'ترقيم الإيصالات');
 
     await loadScript(RUNTIME[7]);
-    await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready,'واجهة الطلاب');
+    await waitUntil(()=>window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20?.ready&&window.EFC_DOMAIN_V13?.studentLifecycleV20,'سياسة أرقام وحذف الطلاب');
 
     await loadScript(RUNTIME[8]);
-    await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_V13?.ready,'جدول تسجيل الطالب');
+    await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready,'واجهة الطلاب');
 
     await loadScript(RUNTIME[9]);
-    await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready,'المالية');
+    await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_V13?.ready,'جدول تسجيل الطالب');
 
     await loadScript(RUNTIME[10]);
-    await waitUntil(()=>window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready,'واجهة الدفعات الشهرية');
+    await waitUntil(()=>window.EFC_FINANCE_UI_V13?.ready,'المالية');
 
     await loadScript(RUNTIME[11]);
-    await waitUntil(()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready,'التصميم الجديد لتسجيل الطالب');
+    await waitUntil(()=>window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready,'واجهة الدفعات الشهرية');
 
     await loadScript(RUNTIME[12]);
-    await waitUntil(()=>window.EFC_REGISTRATION_RESPONSIVE_V16?.ready,'تحجيم صفحة تسجيل الطالب');
+    await waitUntil(()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready,'التصميم الجديد لتسجيل الطالب');
 
     await loadScript(RUNTIME[13]);
-    await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready,'جدول الدورات في تسجيل الطالب');
+    await waitUntil(()=>window.EFC_REGISTRATION_RESPONSIVE_V16?.ready,'تحجيم صفحة تسجيل الطالب');
 
     await loadScript(RUNTIME[14]);
-    await waitUntil(()=>window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready,'قوائم تسجيل الطالب');
+    await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready,'جدول الدورات في تسجيل الطالب');
 
     await loadScript(RUNTIME[15]);
-    await waitUntil(()=>window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22?.ready,'جدول إيصال التسجيل');
+    await waitUntil(()=>window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready,'قوائم تسجيل الطالب');
 
     await loadScript(RUNTIME[16]);
-    await waitUntil(()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready,'تصميم الدورات والمراكز');
+    await waitUntil(()=>window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22?.ready,'جدول إيصال التسجيل');
 
     await loadScript(RUNTIME[17]);
-    await waitUntil(()=>window.EFC_COURSES_CENTERS_COMPACT_V25?.ready,'تحجيم الدورات والمراكز');
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready,'تصميم الدورات والمراكز');
 
     await loadScript(RUNTIME[18]);
-    await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready,'تفاصيل الدورات والمراكز');
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_COMPACT_V25?.ready,'تحجيم الدورات والمراكز');
 
     await loadScript(RUNTIME[19]);
-    await waitUntil(()=>window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready,'تصميم آلية البحث');
+    await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready,'تفاصيل الدورات والمراكز');
 
     await loadScript(RUNTIME[20]);
-    await waitUntil(()=>window.EFC_SIDEBAR_LOCK_V30?.ready,'توحيد الشريط الجانبي');
+    await waitUntil(()=>window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready,'تصميم آلية البحث');
 
     await loadScript(RUNTIME[21]);
-    await waitUntil(()=>window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready,'تصميم البحث عن طالب');
+    await waitUntil(()=>window.EFC_SIDEBAR_LOCK_V30?.ready,'توحيد الشريط الجانبي');
 
     await loadScript(RUNTIME[22]);
-    await waitUntil(()=>window.EFC_SEARCH_DETAIL_POLISH_V32?.ready,'تفاصيل صفحات البحث');
+    await waitUntil(()=>window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready,'تصميم البحث عن طالب');
 
     await loadScript(RUNTIME[23]);
-    await waitUntil(()=>window.EFC_PERIOD_COUNT_GRID_POLISH_V33?.ready,'عداد ونتائج آلية البحث');
+    await waitUntil(()=>window.EFC_SEARCH_DETAIL_POLISH_V32?.ready,'تفاصيل صفحات البحث');
 
     await loadScript(RUNTIME[24]);
-    await waitUntil(()=>window.EFC_SEARCH_TITLE_GRID_UNIFY_V34?.ready,'توحيد جداول البحث');
+    await waitUntil(()=>window.EFC_PERIOD_COUNT_GRID_POLISH_V33?.ready,'عداد ونتائج آلية البحث');
 
     await loadScript(RUNTIME[25]);
-    await waitUntil(()=>window.EFC_FISCAL_V14?.ready,'السنة المالية');
+    await waitUntil(()=>window.EFC_SEARCH_TITLE_GRID_UNIFY_V34?.ready,'توحيد جداول البحث');
 
     await loadScript(RUNTIME[26]);
-    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+    await waitUntil(()=>window.EFC_STUDENT_LIFECYCLE_UI_V20?.ready,'واجهة دورة حياة الطالب');
 
     await loadScript(RUNTIME[27]);
+    await waitUntil(()=>window.EFC_FISCAL_V14?.ready,'السنة المالية');
+
+    await loadScript(RUNTIME[28]);
+    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');
+
+    await loadScript(RUNTIME[29]);
     await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');
 
     if(!document.querySelector('.shell')&&!document.querySelector('.login-overlay-v13'))throw new Error('لم تجهز واجهة النظام النهائية.');
@@ -158,5 +166,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveV16:true,registrationScheduleMatrixV17:true,loginUiV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveV16:true,registrationScheduleMatrixV17:true,studentLifecycleV20:true,loginUiV13:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,centerOpsV13:true});
 })();
