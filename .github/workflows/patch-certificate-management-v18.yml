@@ -28,6 +28,19 @@ jobs:
       - name: Apply certificate management update
         run: python scripts/patch-certificate-management-v18.py
 
+      - name: Preserve certificate no-router invariant
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path=Path('assets/production-certificates-v13.js')
+          text=path.read_text(encoding='utf-8')
+          hook="window.addEventListener('hashchange',()=>{if(editingReceiptId&&location.hash!=='#certificates')clearCertificateEdit();});\n"
+          if text.count(hook)!=1:
+              raise SystemExit('certificate hashchange cleanup hook not found exactly once')
+          path.write_text(text.replace(hook,'',1),encoding='utf-8')
+          PY
+
       - name: Install verification dependencies
         run: npm install --no-audit --no-fund --package-lock=false
 
