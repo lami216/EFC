@@ -79,8 +79,13 @@
     identityState.generalReceiptNext=number+1;markIdentityChanged();return number;
   }
   function repairGeneralSequence(){
-    const events=generalEvents(),seen=new Set(),needs=[];let max=0,changed=false;
-    events.forEach(event=>{const number=eventNumber(event);if(number&&!seen.has(number)){seen.add(number);max=Math.max(max,number);}else needs.push(event);});
+    const events=generalEvents(),seen=new Set(),needs=[];let max=0,changed=false,duplicates=0;
+    events.forEach(event=>{
+      const number=eventNumber(event);
+      if(number){max=Math.max(max,number);if(seen.has(number))duplicates+=1;else seen.add(number);return;}
+      needs.push(event);
+    });
+    if(duplicates)console.warn(`EFC found ${duplicates} legacy duplicate receipt number(s); historical numbers were preserved and only future numbers are protected.`);
     let next=Math.max(max+1,Number(identityState.generalReceiptNext||1));
     needs.forEach(event=>{while(seen.has(next))next+=1;setEventNumber(event,next);seen.add(next);max=next;next+=1;changed=true;});
     identityState.generalReceiptNext=Math.max(Number(identityState.generalReceiptNext||1),max+1,next);
@@ -138,7 +143,10 @@
     receiptModelV4=function(student,paymentIndex=null,statement=false){const model=baseReceiptModel(student,paymentIndex,statement);if(model)model.receipt=String(modelReceiptNumber(student,paymentIndex,statement));return model;};
     allPayments=function(){const rows=baseAllPayments();rows.forEach(row=>{if(row?.sourceType==='certificate')return;const index=Number(row?.paymentIndex);if(row?.student&&Number.isInteger(index)&&index>=0)row.receipt=String(ensurePaymentNumber(row.student,index));});return rows;};
 
-    window.EFC_REGISTER_STATE_CONTRIBUTOR?.('identity-sequences-v11',snapshot=>Object.assign(snapshot,{identitySequencesV11:clone(identityState)}));
+    window.EFC_REGISTER_STATE_CONTRIBUTOR?.('identity-sequences-v11',snapshot=>{
+      seedIdentityFromCurrent();writeIdentityLocal(false);
+      return Object.assign(snapshot,{identitySequencesV11:clone(identityState)});
+    });
     const baseApply=window.EFC_APPLY_RESTORED_STATE;
     if(typeof baseApply==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
       const incomingIdentity=normalizeIdentity(incoming?.identitySequencesV11);
@@ -160,6 +168,8 @@
       receiptNumbersNeverReused:true,
       registrationNumbersNeverReused:true,
       persistedHighWaterMarks:true,
+      historicalReceiptNumbersPreserved:true,
+      scopeMutationsCapturedOnPersist:true,
       allocateRegistrationNumber,
       noteRegistrationNumber,
       identitySnapshot:()=>clone(identityState)
