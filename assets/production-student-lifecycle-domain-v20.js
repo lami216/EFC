@@ -57,22 +57,22 @@ function activeRegs(branch,specialty,excludeId=''){
 }
 function legacyEntry(branch,specialty){
   const key=scopeKey(branch,specialty),legacy=int(sequenceBase.identitySnapshot?.()?.registrationLastByScope?.[key])||0,regs=activeRegs(branch,specialty),activeMax=regs.length?Math.max(...regs):0,latest=Math.max(legacy,activeMax),seen=latest>0&&regs.includes(latest);
-  return{latestIssued:latest,sealedThrough:Math.max(0,latest-1),releasedLatest:latest>0&&!seen,latestSeenActive:seen,updatedAt:0};
+  return{latestIssued:latest,sealedThrough:seen?Math.max(0,latest-1):latest,releasedLatest:false,latestSeenActive:seen,updatedAt:0};
 }
 function ensureScope(branch,specialty){
   const key=scopeKey(branch,specialty);let entry=state.scopes[key];if(!entry){entry=legacyEntry(branch,specialty);state.scopes[key]=entry;}
   const regs=activeRegs(branch,specialty),activeMax=regs.length?Math.max(...regs):0;
   if(activeMax>entry.latestIssued){entry.sealedThrough=Math.max(entry.sealedThrough,activeMax-1);entry.latestIssued=activeMax;entry.latestSeenActive=true;entry.releasedLatest=false;entry.updatedAt=now();state.updatedAt=entry.updatedAt;writeLocal(false);}
-  else if(activeMax===entry.latestIssued&&activeMax>0&&(!entry.latestSeenActive||entry.releasedLatest)){entry.latestSeenActive=true;entry.releasedLatest=false;entry.updatedAt=now();state.updatedAt=entry.updatedAt;writeLocal(false);}
+  else if(activeMax===entry.latestIssued&&activeMax>0&&(!entry.latestSeenActive||entry.releasedLatest)){entry.sealedThrough=Math.min(entry.sealedThrough,Math.max(0,activeMax-1));entry.latestSeenActive=true;entry.releasedLatest=false;entry.updatedAt=now();state.updatedAt=entry.updatedAt;writeLocal(false);}
   return entry;
 }
 function seedFromLegacyAndStudents(){
   const legacy=sequenceBase.identitySnapshot?.()?.registrationLastByScope||{};
-  Object.entries(legacy).forEach(([key,value])=>{if(state.scopes[key])return;const latest=int(value)||0;state.scopes[key]={latestIssued:latest,sealedThrough:Math.max(0,latest-1),releasedLatest:true,latestSeenActive:false,updatedAt:0};});
+  Object.entries(legacy).forEach(([key,value])=>{if(state.scopes[key])return;const latest=int(value)||0;state.scopes[key]={latestIssued:latest,sealedThrough:latest,releasedLatest:false,latestSeenActive:false,updatedAt:0};});
   (typeof students!=='undefined'?students:[]).forEach(student=>{
     const reg=int(student?.reg);if(!reg)return;const key=scopeKey(student.branch,student.specialty),entry=state.scopes[key]||{latestIssued:0,sealedThrough:0,releasedLatest:false,latestSeenActive:false,updatedAt:0};
     if(reg>entry.latestIssued){entry.sealedThrough=Math.max(entry.sealedThrough,reg-1);entry.latestIssued=reg;entry.latestSeenActive=true;entry.releasedLatest=false;entry.updatedAt=Math.max(entry.updatedAt,Number(student.updatedAt||0));state.scopes[key]=entry;}
-    else if(reg===entry.latestIssued){entry.latestSeenActive=true;entry.releasedLatest=false;state.scopes[key]=entry;}
+    else if(reg===entry.latestIssued){entry.sealedThrough=Math.min(entry.sealedThrough,Math.max(0,reg-1));entry.latestSeenActive=true;entry.releasedLatest=false;state.scopes[key]=entry;}
   });
 }
 function previewRegistrationNumber(branch,specialty){
@@ -151,7 +151,10 @@ async function deleteStudentPermanently(student){
   state=normalizeState({...state,updatedAt:stamp});writeLocal(false);
   const index=students.findIndex(item=>String(item?.id||'')===String(existing.id||''));if(index>=0)students.splice(index,1);
   try{B.saveStudents?.();markChanged();await window.EFC_FORCE_PERSIST?.();}
-  catch(error){if(index>=0)students.splice(index,0,existing);if(scopeBefore)state.scopes[key]=scopeBefore;state.tombstones=state.tombstones.filter(item=>!(item.id===tombstone?.id&&item.recordCode===tombstone?.recordCode&&item.deletedAt===stamp));writeLocal(true);throw error;}
+  catch(error){
+    if(index>=0)students.splice(index,0,existing);if(scopeBefore)state.scopes[key]=scopeBefore;state.tombstones=state.tombstones.filter(item=>!(item.id===tombstone?.id&&item.recordCode===tombstone?.recordCode&&item.deletedAt===stamp));writeLocal(true);
+    try{B.saveStudents?.();await window.EFC_FORCE_PERSIST?.();}catch(rollbackError){console.error('EFC student delete rollback persistence failed.',rollbackError);}throw error;
+  }
   return{deleted:true,reusableRegistration,paymentCount,paidAmount,reg:int(existing.reg)};
 }
 
