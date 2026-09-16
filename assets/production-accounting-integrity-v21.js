@@ -19,6 +19,8 @@ const D=()=>window.EFC_DOMAIN_V13;
 const fiscal=()=>window.EFC_FISCAL_V14;
 const sequence=()=>window.EFC_RECEIPT_SEQUENCES_V10;
 const safeRead=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key)||'null')??fallback;}catch{return fallback;}};
+const pad2=value=>String(value).padStart(2,'0');
+function addIsoDays(value,days=1){const match=/^(\d{4})-(\d{2})-(\d{2})$/.exec(text(value));if(!match)return'';const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]),12,0,0);date.setDate(date.getDate()+Number(days||0));return`${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`;}
 
 function studentTombstone(value){
   if(!value||typeof value!=='object')return null;
@@ -31,7 +33,7 @@ function expenseFingerprint(value){
 }
 function expenseTombstone(value){
   if(!value||typeof value!=='object')return null;
-  const id=text(value.id),fingerprint=text(value.fingerprint||expenseFingerprint(value));if(!id&&!fingerprint)return null;
+  const id=text(value.id),fingerprint=id?'':text(value.fingerprint||expenseFingerprint(value));if(!id&&!fingerprint)return null;
   return{id,fingerprint,deletedAt:Math.max(0,Number(value.deletedAt||0))};
 }
 function certificateTombstone(value){
@@ -77,7 +79,8 @@ function studentIsDead(student,fromState=state){
   const id=text(student?.id),recordCode=text(student?.recordCode);return fromState.studentTombstones.some(item=>(item.id&&item.id===id)||(item.recordCode&&item.recordCode===recordCode));
 }
 function expenseIsDead(row,fromState=state){
-  const id=text(row?.id),fingerprint=expenseFingerprint(row);return fromState.expenseTombstones.some(item=>(item.id&&item.id===id)||(item.fingerprint&&item.fingerprint===fingerprint));
+  const id=text(row?.id);if(id)return fromState.expenseTombstones.some(item=>Boolean(item.id)&&item.id===id);
+  const fingerprint=expenseFingerprint(row);return Boolean(fingerprint)&&fromState.expenseTombstones.some(item=>!item.id&&item.fingerprint&&item.fingerprint===fingerprint);
 }
 function certificateIsDead(row,fromState=state){
   const id=text(row?.id),recordCode=text(row?.recordCode),transactionCode=text(row?.transactionCode);return fromState.certificateTombstones.some(item=>(item.id&&item.id===id)||(item.recordCode&&item.recordCode===recordCode)||(item.transactionCode&&item.transactionCode===transactionCode));
@@ -95,36 +98,49 @@ function dedupeLegacyIncomingPayments(current,incoming){
   });
 }
 function mergeBranches(incoming){
-  const current=Array.isArray(window.branches)?window.branches:[],result=current.map(clone),byId=new Set(result.map(item=>text(item?.id)).filter(Boolean)),byName=new Set(result.map(item=>norm(item?.name)).filter(Boolean));
-  (Array.isArray(incoming)?incoming:[]).forEach(item=>{const id=text(item?.id),name=norm(item?.name);if((id&&byId.has(id))||(name&&byName.has(name)))return;const copy=clone(item);result.push(copy);if(id)byId.add(id);if(name)byName.add(name);});
-  return result;
+  const current=Array.isArray(window.branches)?window.branches:[],result=current.map(clone),byId=new Map(),byName=new Map(),remap=new Map();
+  result.forEach(item=>{const id=text(item?.id),name=norm(item?.name);if(id)byId.set(id,item);if(name&&!byName.has(name))byName.set(name,item);});
+  (Array.isArray(incoming)?incoming:[]).forEach(item=>{
+    const id=text(item?.id),name=norm(item?.name),sameId=id?byId.get(id):null,sameName=name?byName.get(name):null,existing=sameId||sameName;
+    if(existing){if(id&&text(existing.id)&&id!==text(existing.id))remap.set(id,text(existing.id));return;}
+    const copy=clone(item);result.push(copy);if(id)byId.set(id,copy);if(name)byName.set(name,copy);
+  });
+  return{branches:result,remap};
 }
+function remapBranchValue(value,remap){const key=text(value);return key&&remap?.has(key)?remap.get(key):value;}
 function mergeMethodRecords(incoming){
   const current=D()?.getMethodRecords?.()||[],result=current.map(clone),seen=new Set(result.map(item=>norm(item?.name)).filter(Boolean));
   (Array.isArray(incoming)?incoming:[]).forEach(item=>{const key=norm(item?.name);if(!key||seen.has(key))return;result.push(clone(item));seen.add(key);});
   return result;
 }
 function mergeExpenses(incoming,fromState=state){
-  const current=D()?.getExpenses?.()||[],result=current.filter(row=>!expenseIsDead(row,fromState)).map(clone),ids=new Set(result.map(row=>text(row?.id)).filter(Boolean)),fps=new Set(result.map(expenseFingerprint).filter(Boolean));
-  (Array.isArray(incoming)?incoming:[]).forEach(row=>{if(expenseIsDead(row,fromState))return;const id=text(row?.id),fp=expenseFingerprint(row);if((id&&ids.has(id))||(fp&&fps.has(fp)))return;const copy=clone(row);result.push(copy);if(id)ids.add(id);if(fp)fps.add(fp);});
+  const current=D()?.getExpenses?.()||[],result=current.filter(row=>!expenseIsDead(row,fromState)).map(clone),ids=new Set(result.map(row=>text(row?.id)).filter(Boolean)),legacyCounts=new Map();
+  result.forEach(row=>{if(text(row?.id))return;const fp=expenseFingerprint(row);if(fp)legacyCounts.set(fp,(legacyCounts.get(fp)||0)+1);});
+  (Array.isArray(incoming)?incoming:[]).forEach(row=>{
+    if(expenseIsDead(row,fromState))return;
+    const id=text(row?.id),fp=expenseFingerprint(row);
+    if(id){if(ids.has(id))return;const copy=clone(row);result.push(copy);ids.add(id);return;}
+    const left=Number(legacyCounts.get(fp)||0);if(left>0){legacyCounts.set(fp,left-1);return;}
+    result.push(clone(row));
+  });
   return result;
 }
-function prepareStudents(incoming,fromState=state){
+function prepareStudents(incoming,fromState=state,branchRemap=null){
   const current=Array.isArray(window.students)?window.students:[],byId=new Map(current.map(item=>[text(item?.id),item]).filter(([id])=>id)),byCode=new Map(current.map(item=>[text(item?.recordCode),item]).filter(([code])=>code));
   return (Array.isArray(incoming)?incoming:[]).filter(student=>!studentIsDead(student,fromState)).map(raw=>{
-    const item=clone(raw),same=byId.get(text(item.id))||byCode.get(text(item.recordCode));
+    const item=clone(raw);item.branch=remapBranchValue(item.branch,branchRemap);const same=byId.get(text(item.id))||byCode.get(text(item.recordCode));
     if(same&&text(item.id)===text(same.id)&&text(same.recordCode))item.recordCode=text(same.recordCode);
     if(same)item.payments=dedupeLegacyIncomingPayments(same.payments,item.payments);
     return item;
   });
 }
 function prepareIncoming(incoming,fromState=state){
-  const copy=clone(incoming&&typeof incoming==='object'?incoming:{});
-  if(Array.isArray(copy.students))copy.students=prepareStudents(copy.students,fromState);
-  if(Array.isArray(copy.expenses))copy.expenses=mergeExpenses(copy.expenses,fromState);
-  if(Array.isArray(copy.branches))copy.branches=mergeBranches(copy.branches);
+  const copy=clone(incoming&&typeof incoming==='object'?incoming:{}),branchMerge=Array.isArray(copy.branches)?mergeBranches(copy.branches):{branches:null,remap:new Map()};
+  if(Array.isArray(copy.branches))copy.branches=branchMerge.branches;
+  if(Array.isArray(copy.students))copy.students=prepareStudents(copy.students,fromState,branchMerge.remap);
+  if(Array.isArray(copy.expenses)){copy.expenses=copy.expenses.map(row=>({...row,branch:remapBranchValue(row?.branch,branchMerge.remap)}));copy.expenses=mergeExpenses(copy.expenses,fromState);}
   if(Array.isArray(copy.paymentMethodRecords))copy.paymentMethodRecords=mergeMethodRecords(copy.paymentMethodRecords);
-  if(Array.isArray(copy.certificateReceipts))copy.certificateReceipts=copy.certificateReceipts.filter(row=>!certificateIsDead(row,fromState));
+  if(Array.isArray(copy.certificateReceipts))copy.certificateReceipts=copy.certificateReceipts.map(row=>row?.branchType==='internal'?{...row,branchId:remapBranchValue(row.branchId,branchMerge.remap)}:row).filter(row=>!certificateIsDead(row,fromState));
   copy.accountingIntegrityV21=clone(fromState);
   return copy;
 }
@@ -155,8 +171,16 @@ function installAllPaymentsSnapshot(){
   window.__EFC_ACCOUNTING_ALLPAYMENTS_V21__=true;
 }
 
-function rangeTouchesClosed(from,to){const limit=text(fiscal()?.lockedThrough?.());return Boolean(limit&&text(from)&&text(from)<=limit&&(!to||text(to)>=String('0000-00-00')));}
-function archiveNotice(label='هذه الفترة'){return`<div class="card efc-archive-only-v21"><h2>الفترة محفوظة في الأرشيف المالي</h2><p>${label} تقع كليًا أو جزئيًا داخل سنة مالية مقفلة. لمنع عرض أرقام ناقصة بعد تنظيف التفاصيل، لا يعاد حساب هذه الفترة من البيانات الحية.</p><button type="button" class="button efc-open-fiscal-archive-v21">فتح الأرشيف المالي</button></div>`;}
+function rangeState(from,to){
+  const start=text(from),end=text(to||from),limit=text(fiscal()?.lockedThrough?.());
+  if(!start||!end||!limit||start>limit)return{status:'open',from:start,to:end,lockedThrough:limit,openFrom:start};
+  if(end<=limit)return{status:'closed',from:start,to:end,lockedThrough:limit,openFrom:''};
+  return{status:'mixed',from:start,to:end,lockedThrough:limit,openFrom:addIsoDays(limit,1)};
+}
+function archiveNotice(label='هذه الفترة',info=rangeState('','')){
+  if(info.status==='mixed')return`<div class="card efc-archive-only-v21 efc-mixed-period-v21"><h2>الفترة تجمع جزءًا مقفلًا وجزءًا مفتوحًا</h2><p>${label} تبدأ داخل تاريخ مالي مقفل حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough}. لن يعرض النظام مجموعًا ناقصًا أو مختلطًا. راجع الجزء المقفل في الأرشيف، ثم اعرض الجزء المفتوح ابتداءً من ${D()?.showDate?.(info.openFrom)||info.openFrom}.</p><div class="modal-actions"><button type="button" class="button secondary efc-open-fiscal-archive-v21">فتح الأرشيف المالي</button><button type="button" class="button efc-open-live-ledger-v21" data-open-from="${info.openFrom}">ابدأ من أول يوم مفتوح</button></div></div>`;
+  return`<div class="card efc-archive-only-v21"><h2>الفترة محفوظة في الأرشيف المالي</h2><p>${label} تقع بالكامل داخل سنة مالية مقفلة. لمنع عرض أرقام ناقصة بعد تنظيف التفاصيل، لا يعاد حساب هذه الفترة من البيانات الحية.</p><button type="button" class="button efc-open-fiscal-archive-v21">فتح الأرشيف المالي</button></div>`;
+}
 function financeRange(){
   const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));if(!year)return null;
   if(mode==='daily'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}
@@ -169,20 +193,38 @@ function certificateFinanceRange(){
   return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
 }
 function guardBody(body,range){
-  if(!body||!range)return;if(!rangeTouchesClosed(range.from,range.to)){delete body.dataset.efcArchiveOnlyV21;return;}
-  if(body.dataset.efcArchiveOnlyV21==='1')return;body.dataset.efcArchiveOnlyV21='1';body.innerHTML=archiveNotice(range.label);
+  if(!body||!range)return;const info=rangeState(range.from,range.to);if(info.status==='open'){delete body.dataset.efcArchiveOnlyV21;delete body.dataset.efcArchiveStateV21;return;}
+  const key=`${info.status}|${info.from}|${info.to}|${info.lockedThrough}`;if(body.dataset.efcArchiveStateV21===key)return;body.dataset.efcArchiveOnlyV21='1';body.dataset.efcArchiveStateV21=key;body.innerHTML=archiveNotice(range.label,info);
+}
+function periodPaymentRange(){
+  const result=document.getElementById('periodResultV13'),active=document.querySelector('.period-tabs-prod button.active');if(!result||active?.dataset.tab!=='payments')return null;
+  const fromInput=document.getElementById('periodFromV13'),toInput=document.getElementById('periodToV13'),to=text(toInput?.value||D()?.today?.()),from=text(fromInput?.value)||'0001-01-01';if(!to)return null;return{body:result,fromInput,range:{from,to,label:'فترة الدفعات'}};
+}
+function guardPeriodPayments(){
+  const context=periodPaymentRange();if(!context)return;const info=rangeState(context.range.from,context.range.to);if(info.status==='open'){delete context.body.dataset.efcArchiveOnlyV21;delete context.body.dataset.efcArchiveStateV21;return;}
+  if(info.status==='mixed'){
+    const key=`period|${info.status}|${info.from}|${info.to}|${info.lockedThrough}`;if(context.body.dataset.efcArchiveStateV21===key)return;context.body.dataset.efcArchiveOnlyV21='1';context.body.dataset.efcArchiveStateV21=key;context.body.innerHTML=`<div class="card efc-archive-only-v21 efc-mixed-period-v21"><h2>فترة الدفعات تشمل أرشيفًا وبيانات حية</h2><p>الجزء حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough} موجود في الأرشيف المالي. لتجنب قائمة ناقصة، اختر أحد الجزأين بدل دمجهما بصمت.</p><div class="modal-actions"><button type="button" class="button secondary efc-open-fiscal-archive-v21">فتح الأرشيف المالي</button><button type="button" class="button efc-show-open-period-v21" data-open-from="${info.openFrom}">عرض الدفعات المفتوحة من ${D()?.showDate?.(info.openFrom)||info.openFrom}</button></div></div>`;return;
+  }
+  guardBody(context.body,context.range);
 }
 function guardFinanceViews(){
   guardBody(document.getElementById('financeBodyV13'),financeRange());
   guardBody(document.getElementById('certFinanceBodyV13'),certificateFinanceRange());
-  const ledger=document.getElementById('ledgerBodyV13'),date=text(document.getElementById('ledgerDateV13')?.value);if(ledger&&date){if(fiscal()?.isDateClosed?.(date)){if(ledger.dataset.efcArchiveOnlyV21!=='1'){ledger.dataset.efcArchiveOnlyV21='1';ledger.innerHTML=archiveNotice('اليوم المختار');}}else delete ledger.dataset.efcArchiveOnlyV21;}
+  const ledger=document.getElementById('ledgerBodyV13'),date=text(document.getElementById('ledgerDateV13')?.value);if(ledger&&date){if(fiscal()?.isDateClosed?.(date)){const info=rangeState(date,date);if(ledger.dataset.efcArchiveStateV21!==`closed|${date}`){ledger.dataset.efcArchiveOnlyV21='1';ledger.dataset.efcArchiveStateV21=`closed|${date}`;ledger.innerHTML=archiveNotice('اليوم المختار',info);}}else{delete ledger.dataset.efcArchiveOnlyV21;delete ledger.dataset.efcArchiveStateV21;}}
+  guardPeriodPayments();
 }
 function scheduleGuards(){if(guardFrame)return;guardFrame=requestAnimationFrame(()=>{guardFrame=0;guardFinanceViews();tagStudentModal();});}
 function wrapRender(name){const base=window[name];if(typeof base!=='function'||base.__efcAccountingV21)return;const wrapped=function(...args){const result=base.apply(this,args);setTimeout(scheduleGuards,0);return result;};wrapped.__efcAccountingV21=true;window[name]=wrapped;}
-function installRenderGuards(){for(const name of ['renderFinance','renderLedger','renderCurrentV13','EFC_RENDER_CERTIFICATES_V13'])wrapRender(name);}
+function installRenderGuards(){for(const name of ['renderFinance','renderLedger','renderPeriod','renderCurrentV13','EFC_RENDER_CERTIFICATES_V13'])wrapRender(name);}
 function openFiscalArchive(){
   if(location.hash!=='#settings')location.hash='#settings';else window.renderCurrentV13?.();
   setTimeout(()=>{const node=document.querySelector('.fiscal-settings-v14');node?.scrollIntoView?.({block:'start',behavior:'smooth'});node?.querySelector('details')?.setAttribute?.('open','');},120);
+}
+function openLedgerFrom(date){
+  location.hash='#ledger';setTimeout(()=>{const input=document.getElementById('ledgerDateV13');if(input){input.value=text(date)||D()?.today?.()||'';input.dispatchEvent(new Event('change',{bubbles:true}));}},120);
+}
+function showOpenPeriod(date){
+  const input=document.getElementById('periodFromV13');if(!input)return;input.value=text(date);input.dispatchEvent(new Event('change',{bubbles:true}));
 }
 
 function tagStudentModal(){
@@ -243,6 +285,8 @@ function installGlobalCapture(){
   document.addEventListener('click',event=>{
     const target=event.target instanceof Element?event.target:null;if(!target)return;
     if(target.closest('.efc-open-fiscal-archive-v21')){event.preventDefault();event.stopImmediatePropagation();openFiscalArchive();return;}
+    const openLive=target.closest('.efc-open-live-ledger-v21');if(openLive){event.preventDefault();event.stopImmediatePropagation();openLedgerFrom(openLive.dataset.openFrom);return;}
+    const openPeriod=target.closest('.efc-show-open-period-v21');if(openPeriod){event.preventDefault();event.stopImmediatePropagation();showOpenPeriod(openPeriod.dataset.openFrom);return;}
     const studentDelete=target.closest('.student-delete-v20');if(studentDelete){event.preventDefault();event.stopImmediatePropagation();const modal=studentDelete.closest('.modal'),id=text(modal?.dataset.efcStudentIdV21||window.__EFC_LAST_STUDENT_MODAL_ID_V21__),student=(students||[]).find(item=>String(item.id)===id);deleteStudentWithFinance(student,modal).catch(error=>alert(String(error?.message||error)));return;}
     const expenseDelete=target.closest('.delete-expense-v13');if(expenseDelete){event.preventDefault();event.stopImmediatePropagation();const id=text(expenseDelete.dataset.id),row=(D()?.getExpenses?.()||[]).find(item=>String(item.id)===id);deleteExpense(row,expenseDelete).catch(error=>alert(String(error?.message||error)));return;}
     const expenseEdit=target.closest('.edit-expense-history-v13,.edit-expense-v13');if(expenseEdit){const id=text(expenseEdit.dataset.id),row=(D()?.getExpenses?.()||[]).find(item=>String(item.id)===id);if(row&&fiscal()?.isDateClosed?.(row.date)){event.preventDefault();event.stopImmediatePropagation();alert('هذا المصروف داخل سنة مالية مقفلة ولا يمكن تعديله. راجع الأرشيف المالي.');return;}if(id)attachExpenseEditAudit(id);}
@@ -275,10 +319,10 @@ async function install(){
   window.EFC_ACCOUNTING_INTEGRITY_V21=Object.freeze({
     ready:true,version:VERSION,storageKey:STORAGE_KEY,paymentAccountingSnapshotIndex:SNAPSHOT_INDEX,
     manualStudentDeletionRemovesFinance:true,manualStudentDeletionWarnsBeforeRemoval:true,fiscalCleanupKeepsArchiveAsHistoricalSource:true,
-    closedFinanceViewsUseArchiveOnly:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
-    restoreMergesExpenses:true,restoreMergesBranches:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
+    closedFinanceViewsUseArchiveOnly:true,mixedFinanceViewsAreSplitExplicitly:true,periodPaymentArchiveGuard:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
+    restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
     expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,auditTrail:true,
-    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),guardFinanceViews
+    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),guardFinanceViews,rangeState
   });
 }
 function ready(){return Boolean(window.EFC_FISCAL_V14?.ready&&window.EFC_STUDENT_LIFECYCLE_UI_V20?.ready&&window.EFC_CENTER_OPS_V13?.ready&&window.EFC_FINANCE_UI_V13?.ready&&window.EFC_CERTIFICATES_V13?.ready&&window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_DOMAIN_V13?.ready&&window.EFC_RECEIPT_SEQUENCES_V10);}
