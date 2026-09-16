@@ -207,9 +207,14 @@ function guardPeriodPayments(){
   }
   guardBody(context.body,context.range);
 }
+function syncCertificateFinanceSummaryGuard(range){
+  const info=range?rangeState(range.from,range.to):null,periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13'),summaryCards=document.querySelectorAll('.cert-finance-summary-card-v43'),overallCard=summaryCards?.[1],overallTitle=overallCard?.querySelector?.('small'),overallHint=overallCard?.querySelector?.(':scope>span'),limit=text(fiscal()?.lockedThrough?.());
+  if(info&&info.status!=='open'){if(periodValue)periodValue.textContent='—';if(periodRange)periodRange.textContent=info.status==='closed'?'راجع الأرشيف المالي':`حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough} أرشيف · من ${D()?.showDate?.(info.openFrom)||info.openFrom} بيانات مفتوحة`;}
+  if(overallTitle)overallTitle.textContent=limit?'الدخل الحالي':'الدخل العام';if(overallHint)overallHint.textContent=limit?'من البيانات الحية بعد آخر إقفال مالي':'ضمن الفلاتر الحالية';
+}
 function guardFinanceViews(){
   guardBody(document.getElementById('financeBodyV13'),financeRange());
-  guardBody(document.getElementById('certFinanceBodyV13'),certificateFinanceRange());
+  const certRange=certificateFinanceRange();guardBody(document.getElementById('certFinanceBodyV13'),certRange);syncCertificateFinanceSummaryGuard(certRange);
   const ledger=document.getElementById('ledgerBodyV13'),date=text(document.getElementById('ledgerDateV13')?.value);if(ledger&&date){if(fiscal()?.isDateClosed?.(date)){const info=rangeState(date,date);if(ledger.dataset.efcArchiveStateV21!==`closed|${date}`){ledger.dataset.efcArchiveOnlyV21='1';ledger.dataset.efcArchiveStateV21=`closed|${date}`;ledger.innerHTML=archiveNotice('اليوم المختار',info);}}else{delete ledger.dataset.efcArchiveOnlyV21;delete ledger.dataset.efcArchiveStateV21;}}
   guardPeriodPayments();
 }
