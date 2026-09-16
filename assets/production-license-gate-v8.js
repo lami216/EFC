@@ -33,7 +33,7 @@ const RUNTIME=[
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260916-certificate-edit-sequence-safety-v19-1';
+const RUNTIME_VERSION='20260916-certificate-edit-sequence-safety-v19-2';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
