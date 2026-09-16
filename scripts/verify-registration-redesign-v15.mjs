@@ -220,8 +220,10 @@ requireText(index,"invoke('export_backup'",'exit backup uses existing full backu
 requireText(index,'editApi?.active?.()','native close checks for an active unsaved receipt edit');
 requireText(index,'إغلاق البرنامج سيلغي التغييرات الحالية فقط','native close warns before discarding the current draft');
 forbidText(index,'requestLeave()===false','native close must not clear the edit draft before a backup Save As can be cancelled');
-requireText(index,'20260916-cert-management-responsive-v18-1','updated branch cache token');
-requireText(gate,"RUNTIME_VERSION='20260916-cert-management-responsive-v18-1'",'runtime cache token matches index after certificate finance simplification');
+const runtimeVersion=gate.match(/const RUNTIME_VERSION='([^']+)'/)?.[1]||'';
+if(!runtimeVersion)throw new Error('Registration redesign missing: runtime cache token.');
+const indexVersions=[...index.matchAll(/\?v=([^"'&\s]+)/g)].map(match=>match[1]);
+if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))throw new Error('Registration redesign missing: synchronized index/runtime cache token.');
 requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close interception');
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');
@@ -247,4 +249,4 @@ requireText(build,"'assets/production-registration-redesign-v15.js'",'registrati
 
 if(!String(packageJson.scripts?.check||'').includes('verify-registration-redesign-v15.mjs'))throw new Error('package check does not run registration redesign verifier.');
 
-console.log('Registration redesign verified: hour-only timetable values with legacy preservation, atomic student-scoped receipt editing through the registration page, guarded navigation/logout/native-close behavior without premature draft loss, source modal cleanup, normal registration geometry preserved during edit, normal registration restoration after save, zero-payment registration edits, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, and responsive registration UI are present.');
+console.log('Registration redesign verified: hour-only timetable values with legacy preservation, atomic student-scoped receipt editing through the registration page, guarded navigation/logout/native-close behavior without premature draft loss, source modal cleanup, normal registration geometry preserved during edit, normal registration restoration after save, zero-payment registration edits, bottom dark receipt edit action, canonical receipt rendering, quick-course duration, Save As PDF naming, synchronized runtime cache token, and responsive registration UI are present.');
