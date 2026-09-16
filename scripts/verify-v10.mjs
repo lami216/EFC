@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 const sequence=await readFile('assets/production-receipt-sequences-v10.js','utf8');
+const lifecycle=await readFile('assets/production-student-lifecycle-domain-v20.js','utf8');
 const certificates=await readFile('assets/production-certificates-v13.js','utf8');
 const registration=await readFile('assets/production-registration-schedule-v13.js','utf8');
 const certificateState=await readFile('src-tauri/src/certificate_state.rs','utf8');
@@ -10,6 +11,7 @@ const generator=await readFile('tools/license-generator/efc-license-generator.ht
 const generatorRust=await readFile('tools/license-generator/src/main.rs','utf8');
 
 new Function(sequence);
+new Function(lifecycle);
 new Function(certificates);
 new Function(registration);
 
@@ -32,13 +34,21 @@ for(const token of [
   'registrationLastByScope:{}',
   'function allocateRegistrationNumber(branch,specialty)',
   'receiptNumbersNeverReused:true',
-  'registrationNumbersNeverReused:true',
   'persistedHighWaterMarks:true',
   'historicalReceiptNumbersPreserved:true',
   'scopeMutationsCapturedOnPersist:true',
   'seedIdentityFromCurrent();writeIdentityLocal(false);',
   "EFC_REGISTER_STATE_CONTRIBUTOR?.('identity-sequences-v11'"
-])need(sequence,token,`receipt/registration high-water ${token}`);
+])need(sequence,token,`receipt/base sequence ${token}`);
+
+for(const token of [
+  "registrationNumberPolicy:'successor-sealed-latest-reusable'",
+  'registrationNumbersNeverReused:false',
+  'latestRegistrationNumberReusableUntilSuccessor:true',
+  'olderRegistrationNumbersStayReserved:true',
+  'function markRegistrationReleased(branch,specialty,number)',
+  'function sealRegistrationNumber(branch,specialty,number)'
+])need(lifecycle,token,`effective student registration policy ${token}`);
 
 for(const token of [
   'certExternalRegV13',
@@ -58,8 +68,8 @@ for(const token of [
   "state.nextReceiptNo=Math.max(Number(state.nextReceiptNo||1),Number(receipt.receiptNo||0)+1)"
 ])need(certificates,token,`certificate safety ${token}`);
 
-need(registration,'allocateRegistrationNumber?.(branch,item.id)','registration uses persistent scope allocator');
-need(registration,'registrationSequenceHighWaterMark:true','registration high-water marker');
+need(registration,'allocateRegistrationNumber?.(branch,item.id)','registration uses the effective scope allocator');
+need(registration,'registrationSequenceHighWaterMark:true','registration allocator integration marker');
 forbid(registration,'reg=Math.max(0,...related.map(student=>Number(student.reg||0)))+1','registration must not depend solely on currently visible students');
 
 for(const token of [
@@ -74,7 +84,9 @@ if(sequence.includes('MutationObserver')||sequence.includes('window.open=')||seq
 if(certificates.includes('new MutationObserver('))throw new Error('Certificates v13 must not use DOM observers.');
 if(!gate.includes("'./assets/production-certificates-v13.js'"))throw new Error('Certificates v13 are not loaded by the license gate.');
 if(!gate.includes("'./assets/production-receipt-sequences-v10.js'"))throw new Error('Receipt sequencing is not loaded by the license gate.');
+if(!gate.includes("'./assets/production-student-lifecycle-domain-v20.js'"))throw new Error('Student lifecycle numbering policy is not loaded by the license gate.');
 if(gate.indexOf('production-receipt-sequences-v10.js')<gate.indexOf('production-certificates-v13.js'))throw new Error('Receipt sequencing must load after native certificates v13.');
+if(gate.indexOf('production-student-lifecycle-domain-v20.js')<gate.indexOf('production-receipt-sequences-v10.js'))throw new Error('Student lifecycle policy must supersede the base sequence only after it is ready.');
 
 const publicKey='BDDLo6mYqhmQbaUyS_xmMkebb3Nz28ZmWU3bF6alhqeXt7mxLrk_pxDc4vaz9RXV5mICatMtADIQvkF4EdLM8LY';
 for(const [name,source] of [['license.rs',license],['HTML generator template',generator],['legacy generator',generatorRust]]){
@@ -88,4 +100,4 @@ const committedLicenseLedger=license.indexOf('persist_ledger(&ledger)',preparedL
 if(preparedLicense<0||committedLicenseLedger<preparedLicense)throw new Error('A license must be installed before its id is committed as consumed, so a file-install failure remains retryable.');
 if(/R-\$\{|S-\$\{/.test(sequence))throw new Error('Receipt v10 must not generate letter-prefixed receipt numbers.');
 
-console.log('V10 checks passed: numeric receipts, permanent high-water numbering, preserved historical ids, scope-change capture, locked certificate identity editing, backup-safe certificate sequence, native registration, and license key v3.');
+console.log('V10 checks passed: financial receipts keep permanent high-water identities, student registration numbers use successor-sealed latest-number reuse, certificate edit identity stays locked, backups preserve counters, and license key v3 is consistent.');
