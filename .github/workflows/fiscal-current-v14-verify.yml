@@ -1,4 +1,4 @@
-name: Verify fiscal current v14
+name: Verify receipt source edits and schedule hours
 
 on:
   push:
@@ -14,7 +14,7 @@ jobs:
   patch-and-verify:
     runs-on: windows-latest
     steps:
-      - name: Checkout fiscal branch
+      - name: Checkout feature branch
         uses: actions/checkout@v4
         with:
           ref: feature/fiscal-year-current-v14
@@ -33,102 +33,231 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - name: Harden fiscal restore and cleanup identities
+      - name: Apply schedule and receipt-source fixes
         shell: pwsh
         run: |
           @'
           from pathlib import Path
 
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='\n')
+
           def replace_once(path, old, new, label):
-              p=Path(path); text=p.read_text(encoding='utf-8')
-              if new in text: return
-              if old not in text: raise RuntimeError(f'{label}: expected pattern not found in {path}')
-              p.write_text(text.replace(old,new,1),encoding='utf-8',newline='\n')
+              text=read(path)
+              if new in text:
+                  return
+              if old not in text:
+                  raise RuntimeError(f'{label}: expected pattern not found in {path}')
+              write(path,text.replace(old,new,1))
 
-          fiscal='assets/production-fiscal-year-v14.js'
-          replace_once(fiscal,
-            "    studentRecordCodes:Array.isArray(source.studentRecordCodes)?source.studentRecordCodes.map(String).filter(Boolean):[],\n    expenseIds:Array.isArray(source.expenseIds)?source.expenseIds.map(String).filter(Boolean):[],\n    certificateRecordCodes:Array.isArray(source.certificateRecordCodes)?source.certificateRecordCodes.map(String).filter(Boolean):[],",
-            "    studentIds:Array.isArray(source.studentIds)?source.studentIds.map(String).filter(Boolean):[],\n    studentRecordCodes:Array.isArray(source.studentRecordCodes)?source.studentRecordCodes.map(String).filter(Boolean):[],\n    expenseIds:Array.isArray(source.expenseIds)?source.expenseIds.map(String).filter(Boolean):[],\n    certificateIds:Array.isArray(source.certificateIds)?source.certificateIds.map(String).filter(Boolean):[],\n    certificateRecordCodes:Array.isArray(source.certificateRecordCodes)?source.certificateRecordCodes.map(String).filter(Boolean):[],",
-            'normalize cleanup legacy ids')
-          replace_once(fiscal,
-            "  return normalizeCleanup({studentRecordCodes:studentRows.map(student=>String(student.recordCode||student.id)).filter(Boolean),expenseIds:expenses.map(row=>String(row.id)).filter(Boolean),certificateRecordCodes:certificates.map(row=>String(row.recordCode||'')).filter(Boolean),certificateTransactionCodes:certificates.map(row=>String(row.transactionCode||'')).filter(Boolean)});",
-            "  return normalizeCleanup({studentIds:studentRows.map(student=>String(student.id||'')).filter(Boolean),studentRecordCodes:studentRows.map(student=>String(student.recordCode||'')).filter(Boolean),expenseIds:expenses.map(row=>String(row.id)).filter(Boolean),certificateIds:certificates.map(row=>String(row.id||'')).filter(Boolean),certificateRecordCodes:certificates.map(row=>String(row.recordCode||'')).filter(Boolean),certificateTransactionCodes:certificates.map(row=>String(row.transactionCode||'')).filter(Boolean)});",
-            'cleanup plan identities')
-          replace_once(fiscal,
-            "  const studentRecordCodes=new Set(),expenseIds=new Set(),certificateRecordCodes=new Set(),certificateTransactionCodes=new Set();\n  const add=cleanup=>{const value=normalizeCleanup(cleanup);value.studentRecordCodes.forEach(x=>studentRecordCodes.add(x));value.expenseIds.forEach(x=>expenseIds.add(x));value.certificateRecordCodes.forEach(x=>certificateRecordCodes.add(x));value.certificateTransactionCodes.forEach(x=>certificateTransactionCodes.add(x));};\n  fromState.archives.forEach(item=>add(item.cleanup));if(fromState.pendingClose)add(fromState.pendingClose.cleanupPlan);\n  return{studentRecordCodes,expenseIds,certificateRecordCodes,certificateTransactionCodes};",
-            "  const studentIds=new Set(),studentRecordCodes=new Set(),expenseIds=new Set(),certificateIds=new Set(),certificateRecordCodes=new Set(),certificateTransactionCodes=new Set();\n  const add=cleanup=>{const value=normalizeCleanup(cleanup);value.studentIds.forEach(x=>studentIds.add(x));value.studentRecordCodes.forEach(x=>studentRecordCodes.add(x));value.expenseIds.forEach(x=>expenseIds.add(x));value.certificateIds.forEach(x=>certificateIds.add(x));value.certificateRecordCodes.forEach(x=>certificateRecordCodes.add(x));value.certificateTransactionCodes.forEach(x=>certificateTransactionCodes.add(x));};\n  fromState.archives.forEach(item=>add(item.cleanup));if(fromState.pendingClose)add(fromState.pendingClose.cleanupPlan);\n  return{studentIds,studentRecordCodes,expenseIds,certificateIds,certificateRecordCodes,certificateTransactionCodes};",
-            'tombstone identities')
-          replace_once(fiscal,
-            "  const cleanup=normalizeCleanup(pending.cleanupPlan),periodEnd=pending.archive.periodEnd,studentCodes=new Set(cleanup.studentRecordCodes);",
-            "  const cleanup=normalizeCleanup(pending.cleanupPlan),periodEnd=pending.archive.periodEnd,studentIds=new Set(cleanup.studentIds),studentCodes=new Set(cleanup.studentRecordCodes);",
-            'cleanup student ids')
-          replace_once(fiscal,
-            "    const code=String(student.recordCode||student.id||'');if(!studentCodes.has(code))return true;",
-            "    const id=String(student.id||''),code=String(student.recordCode||'');if(!studentIds.has(id)&&!studentCodes.has(code))return true;",
-            'cleanup student identity match')
-          replace_once(fiscal,
-            "  const certResult=await certificateApi()?.purgeReceiptsByCodes?.(cleanup.certificateRecordCodes,cleanup.certificateTransactionCodes),certificatesDeleted=Math.max(0,Number(certResult?.deleted||0));",
-            "  const certResult=await certificateApi()?.purgeReceiptsByIdentity?.({ids:cleanup.certificateIds,recordCodes:cleanup.certificateRecordCodes,transactionCodes:cleanup.certificateTransactionCodes}),certificatesDeleted=Math.max(0,Number(certResult?.deleted||0));",
-            'certificate cleanup identity api')
-          replace_once(fiscal,
-            "  const current=normalizeState(currentRaw),incoming=normalizeState(incomingRaw);if(!incoming.config)return current;if(!current.config)return incoming;if(incoming.config.anchorDate!==current.config.anchorDate)return current;",
-            "  const current=normalizeState(currentRaw),incoming=normalizeState(incomingRaw);if(!incoming.config)return current;if(!current.config)return incoming;if(incoming.config.anchorDate!==current.config.anchorDate)throw new Error('النسخة الاحتياطية تستخدم بداية سنة مالية مختلفة عن النظام الحالي. لا يمكن دمج أرشيفين ماليين بحدود مختلفة.');",
-            'reject fiscal anchor mismatch')
-          replace_once(fiscal,
-            "  if(Array.isArray(source.students))source.students=source.students.filter(student=>!dead.studentRecordCodes.has(String(student?.recordCode||student?.id||'')));",
-            "  if(Array.isArray(source.students))source.students=source.students.filter(student=>!dead.studentIds.has(String(student?.id||''))&&!dead.studentRecordCodes.has(String(student?.recordCode||'')));",
-            'filter restored student legacy id')
-          replace_once(fiscal,
-            "  if(Array.isArray(source.certificateReceipts))source.certificateReceipts=source.certificateReceipts.filter(row=>!dead.certificateRecordCodes.has(String(row?.recordCode||''))&&!dead.certificateTransactionCodes.has(String(row?.transactionCode||'')));",
-            "  if(Array.isArray(source.certificateReceipts))source.certificateReceipts=source.certificateReceipts.filter(row=>!dead.certificateIds.has(String(row?.id||''))&&!dead.certificateRecordCodes.has(String(row?.recordCode||''))&&!dead.certificateTransactionCodes.has(String(row?.transactionCode||'')));",
-            'filter restored certificate legacy id')
-          replace_once(fiscal,
-            "  const keptStudents=students.filter(student=>!dead.studentRecordCodes.has(String(student?.recordCode||student?.id||'')));if(keptStudents.length!==students.length){students.splice(0,students.length,...keptStudents);D.saveStudents();changed=true;}",
-            "  const keptStudents=students.filter(student=>!dead.studentIds.has(String(student?.id||''))&&!dead.studentRecordCodes.has(String(student?.recordCode||'')));if(keptStudents.length!==students.length){students.splice(0,students.length,...keptStudents);D.saveStudents();changed=true;}",
-            'sanitize students by stable and legacy id')
-          replace_once(fiscal,
-            "  const certResult=await certificateApi()?.purgeReceiptsByCodes?.([...dead.certificateRecordCodes],[...dead.certificateTransactionCodes]);if(Number(certResult?.deleted||0)>0)changed=true;",
-            "  const certResult=await certificateApi()?.purgeReceiptsByIdentity?.({ids:[...dead.certificateIds],recordCodes:[...dead.certificateRecordCodes],transactionCodes:[...dead.certificateTransactionCodes]});if(Number(certResult?.deleted||0)>0)changed=true;",
-            'sanitize certificates by identities')
+          def replace_function(path, start_marker, end_marker, new_text, label):
+              text=read(path)
+              if new_text.strip() in text:
+                  return
+              start=text.find(start_marker)
+              if start<0:
+                  raise RuntimeError(f'{label}: start marker not found in {path}')
+              end=text.find(end_marker,start)
+              if end<0:
+                  raise RuntimeError(f'{label}: end marker not found in {path}')
+              write(path,text[:start]+new_text.rstrip()+text[end:])
 
-          cert='assets/production-certificates-v13.js'
-          replace_once(cert,
-            "window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByCodes:async(recordCodes=[],transactionCodes=[])=>{const records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});",
-            "window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set((ids||[]).map(String)),records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!idSet.has(String(item.id||''))&&!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});",
-            'certificate identity purge api')
+          # Only operational timetable hours are offered for new/edited schedules.
+          for path in ['assets/production-registration-schedule-v13.js','assets/production-registration-schedule-matrix-v17.js']:
+              text=read(path)
+              if 'const ALLOWED_HOURS=[8,10,12,14,16,18,20];' not in text:
+                  marker="const hourOptions=(selected='')=>{" if path.endswith('v13.js') else "function hourOptions(selected=''){"
+                  if marker not in text:
+                      raise RuntimeError(f'hour options marker not found in {path}')
+                  text=text.replace(marker,"const ALLOWED_HOURS=[8,10,12,14,16,18,20];\n"+marker,1)
+              if 'Array.from({length:24},(_,hour)=>{' in text:
+                  text=text.replace('Array.from({length:24},(_,hour)=>{','ALLOWED_HOURS.map(hour=>{',1)
+              write(path,text)
 
-          verify='scripts/verify-fiscal-current-v14.mjs'
-          replace_once(verify,
-            "context.window.EFC_CERTIFICATE_STATE_V14={snapshot:()=>structuredClone(certificateState),purgeReceiptsByCodes:async(recordCodes=[],transactionCodes=[])=>{const records=new Set(recordCodes.map(String)),transactions=new Set(transactionCodes.map(String)),before=certificateState.certificateReceipts.length;certificateState={...certificateState,certificateReceipts:certificateState.certificateReceipts.filter(row=>!records.has(String(row.recordCode||''))&&!transactions.has(String(row.transactionCode||'')))};return{deleted:before-certificateState.certificateReceipts.length};}};",
-            "context.window.EFC_CERTIFICATE_STATE_V14={snapshot:()=>structuredClone(certificateState),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set(ids.map(String)),records=new Set(recordCodes.map(String)),transactions=new Set(transactionCodes.map(String)),before=certificateState.certificateReceipts.length;certificateState={...certificateState,certificateReceipts:certificateState.certificateReceipts.filter(row=>!idSet.has(String(row.id||''))&&!records.has(String(row.recordCode||''))&&!transactions.has(String(row.transactionCode||'')))};return{deleted:before-certificateState.certificateReceipts.length};}};",
-            'verifier certificate identity api')
-          replace_once(verify,
-            "assert.equal(first.cleanup.studentRecordCodes.includes('reg-ended'),true);\nassert.equal(first.cleanup.expenseIds.includes('e-old'),true);\nassert.equal(first.cleanup.certificateRecordCodes.includes('cr-old'),true);",
-            "assert.equal(first.cleanup.studentIds.includes('ended-settled'),true);\nassert.equal(first.cleanup.studentRecordCodes.includes('reg-ended'),true);\nassert.equal(first.cleanup.expenseIds.includes('e-old'),true);\nassert.equal(first.cleanup.certificateIds.includes('cert-old'),true);\nassert.equal(first.cleanup.certificateRecordCodes.includes('cr-old'),true);",
-            'verifier tombstone identities')
-          replace_once(verify,
-            "const imported={students:[{id:'old',recordCode:'reg-ended',payments:[]}],expenses:[{id:'e-old',amount:100}],certificateReceipts:[{recordCode:'cr-old',transactionCode:'ctx-old'}],specialties:[],paymentMethods:[],fiscalState:F.getState()};",
-            "const imported={students:[{id:'ended-settled',payments:[]}],expenses:[{id:'e-old',amount:100}],certificateReceipts:[{id:'cert-old'}],specialties:[],paymentMethods:[],fiscalState:F.getState()};",
-            'verifier legacy restore identities')
-          replace_once(verify,
-            "assert.equal(appliedIncoming.certificateReceipts.length,0,'closed certificate tombstone must filter restored backup');\n\nsaved=F.getState();",
-            "assert.equal(appliedIncoming.certificateReceipts.length,0,'closed certificate tombstone must filter restored backup');\nconst mismatch=structuredClone(F.getState());mismatch.config.anchorDate='2025-10-01';mismatch.config.firstEndDate='2026-09-30';\nawait assert.rejects(context.window.EFC_APPLY_RESTORED_STATE({students:[],specialties:[],paymentMethods:[],fiscalState:mismatch}),/بداية سنة مالية مختلفة/,'different fiscal anchors must never be silently merged');\n\nsaved=F.getState();",
-            'verifier anchor mismatch rejection')
+          # Registration number is immutable. Historical duplicates must not block unrelated edits;
+          # collision validation runs only when moving a record to another center/course scope.
+          domain='assets/production-monthly-prepayment-domain-v14.js'
+          replace_once(
+              domain,
+              "function updateStudentRegistration(student,changes={}){\n  if(!student)throw new Error('الطالب غير موجود.');\n  const requestedSpecialty=String(changes.specialty??student.specialty),item=typeof spec==='function'?spec(requestedSpecialty):null;if(!item)throw new Error('الدورة المحددة غير موجودة.');",
+              "function updateStudentRegistration(student,changes={}){\n  if(!student)throw new Error('الطالب غير موجود.');\n  if(changes.reg!==undefined&&Number(changes.reg)!==Number(student.reg))throw new Error('رقم السجل ثابت ولا يمكن تغييره بعد إنشاء ملف الطالب.');\n  const requestedSpecialty=String(changes.specialty??student.specialty),item=typeof spec==='function'?spec(requestedSpecialty):null;if(!item)throw new Error('الدورة المحددة غير موجودة.');",
+              'immutable registration number'
+          )
+          replace_once(
+              domain,
+              "  const duplicate=students.find(other=>other!==student&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));\n  if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);",
+              "  const scopeChanged=String(branch)!==String(student.branch||'')||String(item.id)!==String(student.specialty||'');\n  if(scopeChanged){const duplicate=students.find(other=>other!==student&&(!student.id||!other?.id||String(other.id)!==String(student.id))&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);}",
+              'scope-aware registration collision guard'
+          )
+          replace_once(
+              domain,
+              'registrationNumberCollisionGuard:true,zeroPaymentRegistrationCanCreateTransaction:true',
+              'registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true',
+              'registration edit contract markers'
+          )
 
-          prod='scripts/verify-production-v13.mjs'
-          p=Path(prod); text=p.read_text(encoding='utf-8')
-          text=text.replace("'window.EFC_CERTIFICATE_STATE_V14','certificateManagementTitleBelowHeader:true'","'window.EFC_CERTIFICATE_STATE_V14','purgeReceiptsByIdentity','certificateManagementTitleBelowHeader:true'")
-          p.write_text(text,encoding='utf-8',newline='\n')
+          # Receipt viewer: only a real source transaction (or an exact clone of one) may be edited.
+          receipts='assets/production-receipts-v13.js'
+          replace_once(
+              receipts,
+              'function documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,\'\\\\u003c\');const editDisabled=model?.studentId?\'\':\' disabled\';',
+              'function receiptEditable(model){return Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false;}\nfunction documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,\'\\\\u003c\');const editDisabled=receiptEditable(model)?\'\':\' disabled\';',
+              'receipt edit eligibility'
+          )
+          replace_once(
+              receipts,
+              'return{statement:Boolean(statement),registrationReceipt:!statement&&normalizedIndex===0,studentId:String(student.id||\'\'),paymentIndex:statement?null:normalizedIndex,',
+              'return{statement:Boolean(statement),registrationReceipt:!statement&&normalizedIndex===0,editableReceipt:!statement,receiptSource:statement?\'statement\':\'payment\',studentId:String(student.id||\'\'),paymentIndex:statement?null:normalizedIndex,',
+              'source receipt metadata'
+          )
+          replace_once(
+              receipts,
+              'window.EFC_EDIT_RECEIPT=model=>{\n  if(!model?.studentId)return false;',
+              'window.EFC_EDIT_RECEIPT=model=>{\n  if(!receiptEditable(model))return false;',
+              'receipt edit guard'
+          )
+          replace_once(
+              receipts,
+              'receiptEditRoutesToRegistration:true,receiptModelCarriesSourceIdentity:true,protectedReceiptIdentifiers:true,',
+              'receiptEditRoutesToRegistration:true,receiptModelCarriesSourceIdentity:true,sourceReceiptEditing:true,derivedReceiptEditingGuard:true,aggregateReceiptNotEditable:true,protectedReceiptIdentifiers:true,',
+              'receipt source contract markers'
+          )
 
-          new_cache='20260916-fiscal-year-current-v14-2'
+          # A month receipt is editable only when it is an exact one-to-one clone of one source payment.
+          # Split prepayments and multi-payment month totals remain derived, read-only receipts.
+          student_ui='assets/production-student-ui-v13.js'
+          new_month='''function monthReceiptSourceV15(student,monthNumber){
+            const number=Number(monthNumber);
+            const contributions=(student.payments||[]).map((payment,index)=>{
+              const allocations=typeof D.paymentAllocations==='function'?D.paymentAllocations(student,index):(Array.isArray(payment?.[10])?payment[10]:[]);
+              const amount=allocations.filter(item=>Number(item?.monthNumber??item?.n)===number).reduce((sum,item)=>sum+Number(item?.amount||0),0);
+              return amount>0?{payment,index,amount,allocations}:null;
+            }).filter(Boolean);
+            const single=contributions.length===1?contributions[0]:null;
+            const sourceMonths=single?[...new Set((single.allocations||[]).map(item=>Number(item?.monthNumber??item?.n)).filter(value=>Number.isInteger(value)&&value>0))]:[];
+            const sourceEquivalent=Boolean(single&&sourceMonths.length===1&&sourceMonths[0]===number&&Math.round(Number(single.amount||0)*100)===Math.round(Number(single.payment?.[1]||0)*100));
+            return{contributions,single,sourceEquivalent};
+          }
+          function monthReceiptModelV13(student,monthNumber){
+            const number=Number(monthNumber),month=installmentPlan(student).find(item=>Number(item.number)===number);
+            if(!month||Number(month.paid||0)<=0)return null;
+            const source=monthReceiptSourceV15(student,number);
+            if(source.sourceEquivalent&&source.single){
+              const model=receiptModelV4(student,source.single.index,false);
+              if(model)return{...model,derivedReceipt:true,sourceEquivalent:true,editableReceipt:true,receiptSource:'payment-clone'};
+            }
+            const latest=source.contributions.slice().sort((a,b)=>String(b.payment?.[0]||'').localeCompare(String(a.payment?.[0]||''))||Number(b.payment?.[4]||0)-Number(a.payment?.[4]||0))[0];
+            const methodsUsed=[...new Set(source.contributions.map(({payment})=>String(payment?.[2]||'')).filter(Boolean))];
+            return{statement:false,registrationReceipt:false,derivedReceipt:true,sourceEquivalent:false,editableReceipt:false,receiptSource:'derived-month',studentId:String(student.id||''),paymentIndex:null,transactionCode:'',student:student.name,phone:student.phone||'',branch:branchName(student.branch),specialty:spec(student.specialty)?.name||student.specialty,reg:String(student.reg??'').padStart(4,'0'),date:String(latest?.payment?.[0]||month.dueDate||student.start),receipt:String(latest?.payment?.[8]||`M-${String(student.reg??'').padStart(4,'0')}-${number}`),amount:Number(month.paid||0),remaining:Number(month.remaining||0),method:methodsUsed.length?methodsUsed.join(' + '):String(latest?.payment?.[2]||'—'),month:`الشهر ${number}`,desc:`إجمالي مدفوع الشهر ${number}: ${cash(month.paid)} · المتبقي من الشهر: ${cash(month.remaining)}`};
+          }'''
+          replace_function(student_ui,'function monthReceiptModelV13(student,monthNumber){','\n\nopenStudent=function',new_month,'month receipt source model')
+          replace_once(
+              student_ui,
+              'window.EFC_AUTOCOMPLETE_OFF_V13=autocompleteOff;\nwindow.EFC_SHOW_RECEIPT_V13=showReceiptConfirmation;',
+              'window.EFC_AUTOCOMPLETE_OFF_V13=autocompleteOff;\nwindow.EFC_SHOW_RECEIPT_V13=showReceiptConfirmation;\nwindow.EFC_MONTH_RECEIPT_SOURCE_V15=monthReceiptSourceV15;\nwindow.EFC_MONTH_RECEIPT_MODEL_V15=monthReceiptModelV13;',
+              'month receipt test hooks'
+          )
+          replace_once(
+              student_ui,
+              'monthlyReceiptActionsRestored:true,profileFirstFromStudentSearch:true,',
+              'monthlyReceiptActionsRestored:true,monthReceiptSourceAware:true,derivedMonthReceiptGuard:true,sourceEquivalentMonthEditable:true,profileFirstFromStudentSearch:true,',
+              'month receipt contract markers'
+          )
+
+          # Receipt edit entry resolves the immutable transaction code first, so array reordering cannot edit the wrong payment.
+          matrix='assets/production-registration-schedule-matrix-v17.js'
+          replace_once(
+              matrix,
+              "  const registrationReceipt=Boolean(model?.registrationReceipt),rawIndex=model?.paymentIndex;\n  let index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);\n  if(registrationReceipt&&!student.payments?.length)index=null;\n  if(index!==null&&(!Number.isInteger(index)||index<0||!student.payments?.[index])){alert('تعذر العثور على الدفعة المرتبطة بهذا الروسي.');return false;}",
+              "  if(model?.statement||model?.editableReceipt===false){alert('هذا الروسي ناتج أو تجميعي ولا يملك معاملة مالية أصلية مستقلة. عدّل الروسي الأصلي من سجل الدفعات.');return false;}\n  const registrationReceipt=Boolean(model?.registrationReceipt),rawIndex=model?.paymentIndex,transactionCode=String(model?.transactionCode||'').trim();\n  let index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);\n  if(transactionCode&&student.payments?.length){const resolved=student.payments.findIndex(payment=>String(payment?.[6]||'')===transactionCode);if(resolved<0){alert('تعذر مطابقة الروسي مع معاملته الأصلية. لم يتم فتح التعديل لحماية سجل الدفع.');return false;}index=resolved;}\n  if(registrationReceipt&&!student.payments?.length)index=null;\n  if(index!==null&&(!Number.isInteger(index)||index<0||!student.payments?.[index])){alert('تعذر العثور على الدفعة المرتبطة بهذا الروسي.');return false;}",
+              'source receipt transaction resolution'
+          )
+          replace_once(
+              matrix,
+              "  editSession={studentId,paymentIndex:index,statement:Boolean(model?.statement),registrationReceipt,returnHash,receipt:String(model?.receipt||''),startedAt:Date.now()};",
+              "  editSession={studentId,paymentIndex:index,transactionCode,statement:Boolean(model?.statement),registrationReceipt,returnHash,receipt:String(model?.receipt||''),startedAt:Date.now()};",
+              'edit session transaction identity'
+          )
+          replace_once(
+              matrix,
+              '<label>رقم السجل<input class="input" value="${esc(String(student.reg??\'\').padStart(4,\'0\'))}" readonly></label>',
+              '<label>رقم السجل<span class="registration-reg-fixed-v17" aria-readonly="true">${esc(String(student.reg??\'\').padStart(4,\'0\'))}</span></label>',
+              'registration number fixed display'
+          )
+          replace_once(
+              matrix,
+              'body.efc-registration-editing-v17 .registration-edit-meta-v17 .input{min-width:0!important}',
+              'body.efc-registration-editing-v17 .registration-edit-meta-v17 .input{min-width:0!important}\nbody.efc-registration-editing-v17 .registration-reg-fixed-v17{min-width:0;height:39px;display:flex;align-items:center;padding:0 11px;border:1px solid #d5dfdb;border-radius:8px;background:#eef3f1;color:#52665f;font:800 12px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;user-select:text}',
+              'fixed registration number style'
+          )
+          replace_once(
+              matrix,
+              'hourOnlyTimes:true,\n  fixedMinuteZero:true,',
+              'hourOnlyTimes:true,\n  restrictedScheduleHours:true,\n  fixedMinuteZero:true,',
+              'restricted schedule hours marker'
+          )
+          replace_once(
+              matrix,
+              'receiptEditReturnsToRegistration:true,\n  closesSourceModalsBeforeEdit:true,',
+              'receiptEditReturnsToRegistration:true,\n  sourceReceiptOnlyEdit:true,\n  transactionCodeEditResolution:true,\n  fixedRegistrationNumberDisplay:true,\n  closesSourceModalsBeforeEdit:true,',
+              'receipt edit safety markers'
+          )
+
+          # Add a targeted regression verifier to the standard check chain.
+          package=Path('package.json')
+          package_text=package.read_text(encoding='utf-8')
+          old='node scripts/verify-fiscal-current-v14.mjs && node scripts/verify-license-generator-html.mjs'
+          new='node scripts/verify-fiscal-current-v14.mjs && node scripts/verify-receipt-source-edit-v16.mjs && node scripts/verify-license-generator-html.mjs'
+          if new not in package_text:
+              if old not in package_text: raise RuntimeError('package verifier insertion point not found')
+              package.write_text(package_text.replace(old,new,1),encoding='utf-8',newline='\n')
+
+          verifier=r'''import {readFileSync} from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          import vm from 'node:vm';
+
+          const read=path=>readFileSync(path,'utf8');
+          const files={base:'assets/production-registration-schedule-v13.js',matrix:'assets/production-registration-schedule-matrix-v17.js',receipts:'assets/production-receipts-v13.js',students:'assets/production-student-ui-v13.js',domain:'assets/production-monthly-prepayment-domain-v14.js'};
+          for(const path of Object.values(files))execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+          const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,read(path)]));
+          const need=(text,token,label=token)=>{if(!text.includes(token))throw new Error(`Receipt/source verifier missing: ${label}`);};
+          const forbid=(text,token,label=token)=>{if(text.includes(token))throw new Error(`Receipt/source verifier regression: ${label}`);};
+
+          for(const text of [source.base,source.matrix]){need(text,'const ALLOWED_HOURS=[8,10,12,14,16,18,20];','restricted timetable hour list');forbid(text,'Array.from({length:24},(_,hour)=>{','24-hour timetable list');}
+          for(const token of ['registrationNumberImmutable:true','registrationCollisionOnlyOnScopeChange:true',"changes.reg!==undefined",'const scopeChanged='])need(source.domain,token,`registration guard ${token}`);
+          for(const token of ['function receiptEditable(model)','model?.editableReceipt!==false','editableReceipt:!statement',"receiptSource:statement?'statement':'payment'",'aggregateReceiptNotEditable:true'])need(source.receipts,token,`receipt edit rule ${token}`);
+          for(const token of ['function monthReceiptSourceV15','D.paymentAllocations','contributions.length===1','sourceEquivalent:true','editableReceipt:false',"receiptSource:'derived-month'",'EFC_MONTH_RECEIPT_MODEL_V15'])need(source.students,token,`month receipt source rule ${token}`);
+          for(const token of ["model?.statement||model?.editableReceipt===false",'findIndex(payment=>String(payment?.[6]||\'\')===transactionCode)','transactionCodeEditResolution:true','fixedRegistrationNumberDisplay:true'])need(source.matrix,token,`edit entry safety ${token}`);
+          forbid(source.matrix,'رقم السجل<input','registration number must not be an editable-looking input');
+
+          // Execute the student receipt source classifier against representative payment shapes.
+          const document={createElement:()=>({textContent:'',style:{}}),head:{appendChild(){}},querySelectorAll:()=>[],getElementById:()=>null};
+          const makeDomain=()=>({ready:true,OFFICIAL_NAME:'EFC',esc:String,today:()=> '2026-09-16',nowTime:()=> '10:00',cash:value=>String(value),showDate:String,courseTypeOf:()=> 'normal',isDynamicMonthly:()=>true,isNewModel:()=>true,isInactive:()=>false,paymentTotal:s=>(s.payments||[]).reduce((a,p)=>a+Number(p?.[1]||0),0),requiredAmount:()=>1200,remainingAmount:()=>0,reconcileStudent:s=>s,installmentPlan:s=>s.plan||[],targetRemaining:()=>0,appendPayment(){},stopStudent(){},notificationsForStudent:()=>[],paymentAllocations:(student,index)=>student.allocations?.[index]||[]});
+          const context={console,window:{EFC_DOMAIN_V13:makeDomain()},document,students:[],specialties:[],methods:[],openPayment(){},renderSpecialties(){},renderRegister(){},renderStudents(){},renderPeriod(){},badge:v=>String(v),table:()=>'',branchName:id=>id,spec:()=>({name:'دورة'}),courseStatus:()=>'',financialStatus:()=>'',daysBetween:()=>0,unitLabel:v=>v,opts:()=>'',pageTitle:()=>'',receiptModelV4:(student,index)=>({studentId:student.id,paymentIndex:index,transactionCode:String(student.payments[index]?.[6]||''),editableReceipt:true,receiptSource:'payment',student:student.name,amount:Number(student.payments[index]?.[1]||0)}),receiptWindowV4(){},convertDigitsInNodeV3(){},history:{},location:{},setTimeout,clearTimeout};
+          context.window.window=context.window;Object.assign(context.window,{EFC_AUTH_V13:{canEdit:()=>true,canView:()=>true}});Object.assign(context,context.window);vm.createContext(context);vm.runInContext(source.students,context,{filename:files.students});
+          const mk=()=>({id:'s1',name:'طالب',branch:'main',specialty:'sp',reg:1,start:'2026-09-01',payments:[],allocations:{},plan:[]});
+          let s=mk();s.payments=[[ '2026-09-01',600,'نقداً','10:00',1,'','tx-1',1,10 ]];s.allocations[0]=[{monthNumber:1,amount:600}];s.plan=[{number:1,dueDate:'2026-09-01',paid:600,remaining:0}];let model=context.window.EFC_MONTH_RECEIPT_MODEL_V15(s,1);if(!model?.editableReceipt||!model?.sourceEquivalent||model.paymentIndex!==0||model.transactionCode!=='tx-1')throw new Error('One-payment one-month receipt must edit its source transaction.');
+          s=mk();s.payments=[[ '2026-09-01',1200,'نقداً','10:00',1,'','tx-2',1,11 ]];s.allocations[0]=[{monthNumber:1,amount:600},{monthNumber:2,amount:600}];s.plan=[{number:1,dueDate:'2026-09-01',paid:600,remaining:0},{number:2,dueDate:'2026-10-01',paid:600,remaining:0}];model=context.window.EFC_MONTH_RECEIPT_MODEL_V15(s,1);if(model?.editableReceipt||model?.sourceEquivalent||model?.paymentIndex!==null)throw new Error('Split prepayment child receipt must stay read-only.');
+          s=mk();s.payments=[[ '2026-09-01',300,'نقداً','10:00',1,'','tx-a',1,12 ],[ '2026-09-02',300,'Bankily','10:00',2,'','tx-b',1,13 ]];s.allocations[0]=[{monthNumber:1,amount:300}];s.allocations[1]=[{monthNumber:1,amount:300}];s.plan=[{number:1,dueDate:'2026-09-01',paid:600,remaining:0}];model=context.window.EFC_MONTH_RECEIPT_MODEL_V15(s,1);if(model?.editableReceipt||model?.paymentIndex!==null)throw new Error('Aggregate month receipt from multiple source payments must stay read-only.');
+
+          console.log('Receipt/source edit v16 verified: restricted hours, immutable registration number, transaction-code source resolution, exact-clone month editing, and derived receipt protection.');
+          '''
+          Path('scripts/verify-receipt-source-edit-v16.mjs').write_text(verifier,encoding='utf-8',newline='\n')
+
+          # One cache version across the runtime and token-sensitive verifiers.
+          old_cache='20260916-fiscal-year-current-v14-2'
+          new_cache='20260916-receipt-source-hours-v16-1'
           for path in [Path('index.html'),Path('assets/production-license-gate-v8.js'),*Path('scripts').glob('*.mjs')]:
               text=path.read_text(encoding='utf-8')
-              text=text.replace('20260915-receipt-edit-hour-duration-6',new_cache).replace('20260916-fiscal-year-current-v14-1',new_cache)
-              path.write_text(text,encoding='utf-8',newline='\n')
+              if old_cache in text:
+                  path.write_text(text.replace(old_cache,new_cache),encoding='utf-8',newline='\n')
 
-          print('Fiscal restore identities, anchor compatibility, and cache verification hardened.')
-          '@ | Set-Content -Path "$env:RUNNER_TEMP\harden-fiscal-v14.py" -Encoding utf8
-          python "$env:RUNNER_TEMP\harden-fiscal-v14.py"
+          print('Schedule hours, registration identity, and receipt-source editing fixes applied.')
+          '@ | Set-Content -Path "$env:RUNNER_TEMP\patch-receipt-source-v16.py" -Encoding utf8
+          python "$env:RUNNER_TEMP\patch-receipt-source-v16.py"
 
       - name: Install desktop build tools
         run: npm install --no-audit --no-fund --package-lock=false
@@ -151,7 +280,9 @@ jobs:
       - name: Verify legacy activation generator compatibility output
         shell: pwsh
         run: |
-          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) { throw "Legacy generator compatibility binary was not produced." }
+          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) {
+            throw "Legacy generator compatibility binary was not produced."
+          }
 
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
@@ -159,20 +290,29 @@ jobs:
       - name: Smoke-test release startup
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "src-tauri/target/release/*.exe" | Where-Object { $_.Name -notlike "*-setup.exe" } | Sort-Object Length -Descending | Select-Object -First 1
+          $exe = Get-ChildItem "src-tauri/target/release/*.exe" |
+            Where-Object { $_.Name -notlike "*-setup.exe" } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
           if (-not $exe) { throw "Release executable was not found." }
           $process = Start-Process -FilePath $exe.FullName -PassThru
           Start-Sleep -Seconds 8
           $process.Refresh()
-          if ($process.HasExited) { throw "Centre EFC exited during startup smoke test with code $($process.ExitCode)." }
+          if ($process.HasExited) {
+            throw "Centre EFC exited during startup smoke test with code $($process.ExitCode)."
+          }
           Stop-Process -Id $process.Id -Force
+          Write-Host "Centre EFC stayed alive during the startup smoke test."
 
-      - name: Commit verified hardening
+      - name: Commit verified fixes
         shell: pwsh
         run: |
           git config user.name "lami216"
           git config user.email "iiyad21694@gmail.com"
-          git add assets/production-fiscal-year-v14.js assets/production-certificates-v13.js scripts index.html assets/production-license-gate-v8.js
-          if (git diff --cached --quiet) { throw "No fiscal hardening changes were produced." }
-          git commit -m "fix: harden fiscal close and restore boundaries"
+          git add index.html package.json assets scripts
+          if (git diff --cached --quiet) {
+            Write-Host "No runtime changes to commit."
+            exit 0
+          }
+          git commit -m "fix: restrict schedule hours and source receipt edits"
           git push origin HEAD:feature/fiscal-year-current-v14
