@@ -182,10 +182,10 @@ function archiveNotice(label='هذه الفترة',info=rangeState('','')){
   return`<div class="card efc-archive-only-v21"><h2>الفترة محفوظة في الأرشيف المالي</h2><p>${label} تقع بالكامل داخل سنة مالية مقفلة. لمنع عرض أرقام ناقصة بعد تنظيف التفاصيل، لا يعاد حساب هذه الفترة من البيانات الحية.</p><button type="button" class="button efc-open-fiscal-archive-v21">فتح الأرشيف المالي</button></div>`;
 }
 function financeRange(){
-  const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));if(!year)return null;
-  if(mode==='daily'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}
-  if(mode==='monthly')return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
-  const current=Math.max(2025,Number(D()?.today?.().slice(0,4)||new Date().getFullYear())),start=current-2025+1<=10?2025:current-9;return{from:`${start}-01-01`,to:`${current}-12-31`,label:'الفترة السنوية'};
+  const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),day=text(document.getElementById('dayV13')?.value),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));
+  if(mode==='daily'&&day)return{from:day,to:day,label:'اليوم المختار'};if(!year)return null;
+  if(mode==='monthly'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}
+  return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
 }
 function certificateFinanceRange(){
   const mode=text(document.querySelector('#certFinanceModeV13 [data-mode].active')?.dataset.mode||'daily'),year=Number(document.getElementById('certFinanceYearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('certFinanceMonthV13')?.value||1))),day=text(document.getElementById('certFinanceDayV13')?.value);if(mode==='daily'&&day)return{from:day,to:day,label:'اليوم المختار'};if(!year)return null;
@@ -208,9 +208,8 @@ function guardPeriodPayments(){
   guardBody(context.body,context.range);
 }
 function syncCertificateFinanceSummaryGuard(range){
-  const info=range?rangeState(range.from,range.to):null,periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13'),summaryCards=document.querySelectorAll('.cert-finance-summary-card-v43'),overallCard=summaryCards?.[1],overallTitle=overallCard?.querySelector?.('small'),overallHint=overallCard?.querySelector?.(':scope>span'),limit=text(fiscal()?.lockedThrough?.());
+  const info=range?rangeState(range.from,range.to):null,periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13');
   if(info&&info.status!=='open'){if(periodValue)periodValue.textContent='—';if(periodRange)periodRange.textContent=info.status==='closed'?'راجع الأرشيف المالي':`حتى ${D()?.showDate?.(info.lockedThrough)||info.lockedThrough} أرشيف · من ${D()?.showDate?.(info.openFrom)||info.openFrom} بيانات مفتوحة`;}
-  if(overallTitle)overallTitle.textContent=limit?'الدخل الحالي':'الدخل العام';if(overallHint)overallHint.textContent=limit?'من البيانات الحية بعد آخر إقفال مالي':'ضمن الفلاتر الحالية';
 }
 function guardFinanceViews(){
   guardBody(document.getElementById('financeBodyV13'),financeRange());

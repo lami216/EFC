@@ -18,6 +18,7 @@ for(const [token,label] of [
   ['الفترة تجمع جزءًا مقفلًا وجزءًا مفتوحًا','mixed periods are not presented as fully archived'],
   ['فترة الدفعات تشمل أرشيفًا وبيانات حية','period payment search guards mixed fiscal ranges'],
   ['syncCertificateFinanceSummaryGuard','certificate finance summary is neutralized for archived/mixed ranges'],
+  ["document.getElementById('dayV13')",'main finance guard follows the selected daily date'],
   ['هذه الدفعة أصلها داخل سنة مالية مقفلة','original closed payment cannot be moved into an open year'],
   ['expenseIdentityFirstRestore:true','expense restore uses identity-first matching'],
   ['branchIdentityRemapOnRestore:true','branch restore remaps imported references'],
@@ -89,7 +90,7 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(three.expenses.length===3,'legacy expense dedupe must preserve multiplicity instead of collapsing identical real rows');
 }
 
-requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260916-accounting-integrity-v21-2','index loads accounting integrity with synchronized cache version');
+requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260916-finance-period-v22-1','index loads accounting integrity with synchronized cache version');
 requireText(build,"'assets/production-accounting-integrity-v21.js'",'production build copies accounting integrity runtime');
 requireText(pkg,'node scripts/verify-accounting-integrity-v21.mjs','npm check runs accounting integrity verification');
 

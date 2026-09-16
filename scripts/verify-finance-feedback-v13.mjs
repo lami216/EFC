@@ -38,6 +38,19 @@ for(const [token,label] of [
   ['dailySeparateNameAndStatement:true','daily column marker']
 ])requireFinance(token,label);
 
+
+for(const [token,label] of [
+  ['chartsRemovedFromFinance:true','finance dashboards no longer render graphs'],
+  ['dailyDateFilter:true','daily finance uses one full date'],
+  ['monthlySelectedMonth:true','monthly finance uses the selected month'],
+  ['yearlySelectedYear:true','yearly finance uses the selected year'],
+  ['id=\"dayV13\" type=\"date\"','daily finance date picker'],
+  ["dayWrap.hidden=mode!=='daily';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=mode==='daily'",'period-specific finance controls']
+])requireFinance(token,label);
+forbidFinance('<div class=\"card chart-card\">${chart(series(income','income chart must stay removed');
+forbidFinance('<div class=\"card chart-card\">${chart(series(costs','expense chart must stay removed');
+forbidFinance('صافي الربح التراكمي','profit chart must stay removed');
+
 const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
 const actionPos=finance.indexOf('financePrimaryActionV13');
