@@ -1,0 +1,211 @@
+name: Verify fiscal current v14
+
+on:
+  push:
+    branches:
+      - feature/fiscal-year-current-v14
+    paths:
+      - '.github/workflows/fiscal-current-v14-verify.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout fiscal branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/fiscal-year-current-v14
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Integrate fiscal v14 into current runtime
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+
+          def read(path):
+              return Path(path).read_text(encoding='utf-8')
+
+          def write(path, text):
+              Path(path).write_text(text, encoding='utf-8', newline='\n')
+
+          def replace_once(path, old, new, label):
+              text = read(path)
+              if new in text:
+                  return
+              if old not in text:
+                  raise RuntimeError(f'{label}: expected source pattern not found in {path}')
+              write(path, text.replace(old, new, 1))
+
+          # Package the fiscal module and run its behavioral verifier.
+          replace_once(
+              'package.json',
+              'node scripts/verify-registration-redesign-v15.mjs && node scripts/verify-license-generator-html.mjs',
+              'node scripts/verify-registration-redesign-v15.mjs && node scripts/verify-fiscal-current-v14.mjs && node scripts/verify-license-generator-html.mjs',
+              'package fiscal verifier'
+          )
+          replace_once(
+              'scripts/build-production.mjs',
+              "  'assets/production-search-title-grid-unify-v34.js',\n  'assets/production-security-ui-v13.js',",
+              "  'assets/production-search-title-grid-unify-v34.js',\n  'assets/production-fiscal-year-v14.js',\n  'assets/production-security-ui-v13.js',",
+              'build fiscal runtime'
+          )
+
+          # Load fiscal after the current UI layers and before security/router finalization.
+          replace_once(
+              'assets/production-license-gate-v8.js',
+              "  './assets/production-search-title-grid-unify-v34.js',\n  './assets/production-security-ui-v13.js',",
+              "  './assets/production-search-title-grid-unify-v34.js',\n  './assets/production-fiscal-year-v14.js',\n  './assets/production-security-ui-v13.js',",
+              'gate fiscal runtime'
+          )
+          replace_once(
+              'assets/production-license-gate-v8.js',
+              "    await loadScript(RUNTIME[25]);\n    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');\n\n    await loadScript(RUNTIME[26]);\n    await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');",
+              "    await loadScript(RUNTIME[25]);\n    await waitUntil(()=>window.EFC_FISCAL_V14?.ready,'السنة المالية');\n\n    await loadScript(RUNTIME[26]);\n    await waitUntil(()=>window.EFC_CENTER_OPS_V13?.ready,'النظام النهائي');\n\n    await loadScript(RUNTIME[27]);\n    await waitUntil(()=>window.EFC_LOGIN_UI_V13?.ready,'واجهة تسجيل الدخول');",
+              'gate fiscal wait'
+          )
+
+          # Give fiscal cleanup a supported API into the certificate state owner instead of mutating its storage behind it.
+          replace_once(
+              'assets/production-certificates-v13.js',
+              "  window.EFC_CERTIFICATE_PAYMENTS_V13=()=>state.certificateReceipts.map(certificatePayment);\n  window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;",
+              "  window.EFC_CERTIFICATE_PAYMENTS_V13=()=>state.certificateReceipts.map(certificatePayment);\n  window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByCodes:async(recordCodes=[],transactionCodes=[])=>{const records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});\n  window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;",
+              'certificate fiscal state API'
+          )
+
+          # Reuse the existing final render lifecycle; fiscal must not own another router/hash listener.
+          replace_once(
+              'assets/production-security-ui-v13.js',
+              'window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();enhanceSecuritySettings();',
+              'window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();enhanceSecuritySettings();',
+              'security fiscal render hook'
+          )
+
+          # Closed fiscal periods are immutable for student payments and receipt edits.
+          replace_once(
+              'assets/production-monthly-prepayment-domain-v14.js',
+              "function appendPayment(student,{amount,method,date=today(),time=nowTime(),description='',targetMonth=null,debtDueDate=null,persist=true}={}){\n  if(!student)throw new Error('الطالب غير موجود.');\n  if(!isDynamicMonthly(student)){",
+              "function appendPayment(student,{amount,method,date=today(),time=nowTime(),description='',targetMonth=null,debtDueDate=null,persist=true}={}){\n  if(!student)throw new Error('الطالب غير موجود.');\n  window.EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة');\n  if(!isDynamicMonthly(student)){",
+              'payment fiscal date lock'
+          )
+          replace_once(
+              'assets/production-monthly-prepayment-domain-v14.js',
+              "  const editStamp=Date.now();\n  if(effectiveIndex!==null){\n    const payment=draft.payments[effectiveIndex],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));",
+              "  const editStamp=Date.now();\n  if(effectiveIndex!==null){\n    const existingPayment=draft.payments[effectiveIndex],candidatePaymentDate=String(changes.paymentDate??existingPayment?.[0]??start);window.EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة');\n    const payment=draft.payments[effectiveIndex],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));",
+              'receipt edit fiscal date lock'
+          )
+
+          # Expenses cannot be inserted or moved into an already closed fiscal period.
+          replace_once(
+              'assets/production-finance-ui-v13.js',
+              "if(!record.name||!record.amount||!record.method||!record.branch||!record.specialty)return alert('أكمل بيانات المصروف.');expenses=existing?expenses.map(value=>value.id===existing.id?record:value):[...expenses,record];D.saveExpenses(expenses);close();onSave?.();",
+              "if(!record.name||!record.amount||!record.method||!record.branch||!record.specialty)return alert('أكمل بيانات المصروف.');try{window.EFC_FISCAL_V14?.assertDateOpen?.(record.date,'تاريخ المصروف');}catch(error){return alert(String(error?.message||error));}expenses=existing?expenses.map(value=>value.id===existing.id?record:value):[...expenses,record];D.saveExpenses(expenses);close();onSave?.();",
+              'expense fiscal date lock'
+          )
+
+          # Production verifier: fiscal is a first-class runtime module, not a late patch/router.
+          replace_once('scripts/verify-production-v13.mjs', "const domain=read('assets/production-domain-v13.js');\nconst studentUi=read('assets/production-student-ui-v13.js');", "const domain=read('assets/production-domain-v13.js');\nconst monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');\nconst studentUi=read('assets/production-student-ui-v13.js');", 'verifier monthly domain read')
+          replace_once('scripts/verify-production-v13.mjs', "const financeUi=read('assets/production-finance-ui-v13.js');\nconst securityUi=read('assets/production-security-ui-v13.js');", "const financeUi=read('assets/production-finance-ui-v13.js');\nconst fiscal=read('assets/production-fiscal-year-v14.js');\nconst securityUi=read('assets/production-security-ui-v13.js');", 'verifier fiscal read')
+          replace_once('scripts/verify-production-v13.mjs', "  'assets/production-domain-v13.js',\n  'assets/production-receipt-sequences-v10.js',", "  'assets/production-domain-v13.js',\n  'assets/production-monthly-prepayment-domain-v14.js',\n  'assets/production-receipt-sequences-v10.js',", 'verifier active monthly runtime')
+          replace_once('scripts/verify-production-v13.mjs', "  'assets/production-finance-ui-v13.js',\n  'assets/production-security-ui-v13.js'", "  'assets/production-finance-ui-v13.js',\n  'assets/production-fiscal-year-v14.js',\n  'assets/production-security-ui-v13.js'", 'verifier active fiscal runtime')
+          replace_once('scripts/verify-production-v13.mjs', "'production-finance-ui-v13.js','production-security-ui-v13.js'", "'production-finance-ui-v13.js','production-fiscal-year-v14.js','production-security-ui-v13.js'", 'verifier gate order')
+          replace_once('scripts/verify-production-v13.mjs', "'window.EFC_CERTIFICATE_PAYMENTS_V13','certificateManagementTitleBelowHeader:true'", "'window.EFC_CERTIFICATE_PAYMENTS_V13','window.EFC_CERTIFICATE_STATE_V14','certificateManagementTitleBelowHeader:true'", 'verifier certificate fiscal API')
+          replace_once('scripts/verify-production-v13.mjs', "for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);", "for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);\nfor(const token of [\"EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة'\",\"EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة'\",'historicalCourseSnapshotPreservedOnEdit:true'])requireText(monthlyDomain,token,`monthly domain fiscal integration ${token}`);\nfor(const token of ['currentLevelImplementation:true','ownerChoosesStartDate:true','automaticEndDate:true','annualSameAnchor:true','continuingStudentsRetained:true','debtorsRetained:true','separateCourseAndCertificateIncome:true','tombstoneRestoreProtection:true','pendingCloseJournal:true','closedPeriodsImmutable:true','noRouterHook:true'])requireText(fiscal,token,`fiscal ${token}`);", 'verifier fiscal contracts')
+          replace_once('scripts/verify-production-v13.mjs', "'window.EFC_OPEN_EXPENSE_RECEIPT_V13','window.EFC_FINANCE_PRESENTATION_V13','سند مصروف'", "'window.EFC_OPEN_EXPENSE_RECEIPT_V13','window.EFC_FINANCE_PRESENTATION_V13','سند مصروف',\"EFC_FISCAL_V14?.assertDateOpen?.(record.date,'تاريخ المصروف'\"", 'verifier expense fiscal guard')
+          replace_once('scripts/verify-production-v13.mjs', "'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','loginAttemptThrottle:true'", "'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','EFC_ENHANCE_FISCAL_SETTINGS_V14','loginAttemptThrottle:true'", 'verifier fiscal settings hook')
+          replace_once('scripts/verify-production-v13.mjs', "const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,studentUi,financeUi,securityUi].join('\\n');", "const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].join('\\n');", 'verifier fiscal combined runtime')
+          replace_once('scripts/verify-production-v13.mjs', "const hashOwners=[foundation,receipts,certificate,sequence,domain,studentUi,financeUi,securityUi].filter", "const hashOwners=[foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].filter", 'verifier fiscal hash ownership')
+          replace_once('scripts/verify-production-v13.mjs', "'assets/production-receipts-v13.js','assets/production-security-ui-v13.js'", "'assets/production-receipts-v13.js','assets/production-fiscal-year-v14.js','assets/production-security-ui-v13.js'", 'verifier packaged fiscal runtime')
+          replace_once('scripts/verify-production-v13.mjs', "if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');", "if(!String(packageJson.scripts?.check||'').includes('verify-production-v13.mjs'))throw new Error('package check does not run production v13 verifier.');\nif(!String(packageJson.scripts?.check||'').includes('verify-fiscal-current-v14.mjs'))throw new Error('package check does not run fiscal v14 verifier.');", 'verifier package fiscal check')
+
+          # Fiscal verifier also checks the integration points, not only the standalone engine.
+          replace_once(
+              'scripts/verify-fiscal-current-v14.mjs',
+              "const source=readFileSync('assets/production-fiscal-year-v14.js','utf8');",
+              "const source=readFileSync('assets/production-fiscal-year-v14.js','utf8');\nconst monthlySource=readFileSync('assets/production-monthly-prepayment-domain-v14.js','utf8');\nconst financeSource=readFileSync('assets/production-finance-ui-v13.js','utf8');\nconst securitySource=readFileSync('assets/production-security-ui-v13.js','utf8');\nconst certificateSource=readFileSync('assets/production-certificates-v13.js','utf8');\nfor(const [text,token] of [[monthlySource,\"EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة'\"],[monthlySource,\"EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة'\"],[financeSource,\"EFC_FISCAL_V14?.assertDateOpen?.(record.date,'تاريخ المصروف'\"],[securitySource,'EFC_ENHANCE_FISCAL_SETTINGS_V14'],[certificateSource,'EFC_CERTIFICATE_STATE_V14']])assert.equal(text.includes(token),true,`missing fiscal integration: ${token}`);",
+              'fiscal integration verifier'
+          )
+
+          # One cache token across gate/index/verifiers so Windows never keeps the pre-fiscal runtime.
+          old_cache='20260915-receipt-edit-hour-duration-6'
+          new_cache='20260916-fiscal-year-current-v14-1'
+          cache_paths=[Path('index.html'),Path('assets/production-license-gate-v8.js'),*Path('scripts').glob('*.mjs')]
+          for path in cache_paths:
+              text=path.read_text(encoding='utf-8')
+              if old_cache in text:
+                  path.write_text(text.replace(old_cache,new_cache),encoding='utf-8',newline='\n')
+
+          print('Fiscal current v14 integrated into the current runtime.')
+          '@ | Set-Content -Path "$env:RUNNER_TEMP\patch-fiscal-v14.py" -Encoding utf8
+          python "$env:RUNNER_TEMP\patch-fiscal-v14.py"
+
+      - name: Install desktop build tools
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Generate EFC app icons
+        run: npm run icons
+
+      - name: Verify production source
+        run: npm run check
+
+      - name: Verify HTML activation generator
+        run: node scripts/verify-license-generator-html.mjs
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build legacy activation generator compatibility check
+        run: cargo build --manifest-path tools/license-generator/Cargo.toml --release
+
+      - name: Verify legacy activation generator compatibility output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) {
+            throw "Legacy generator compatibility binary was not produced."
+          }
+
+      - name: Build Windows installer
+        run: npm run tauri build -- --bundles nsis
+
+      - name: Smoke-test release startup
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "src-tauri/target/release/*.exe" |
+            Where-Object { $_.Name -notlike "*-setup.exe" } |
+            Sort-Object Length -Descending |
+            Select-Object -First 1
+          if (-not $exe) { throw "Release executable was not found." }
+          $process = Start-Process -FilePath $exe.FullName -PassThru
+          Start-Sleep -Seconds 8
+          $process.Refresh()
+          if ($process.HasExited) {
+            throw "Centre EFC exited during startup smoke test with code $($process.ExitCode)."
+          }
+          Stop-Process -Id $process.Id -Force
+          Write-Host "Centre EFC stayed alive during the startup smoke test."
+
+      - name: Commit verified fiscal integration
+        shell: pwsh
+        run: |
+          git config user.name "lami216"
+          git config user.email "iiyad21694@gmail.com"
+          git add package.json index.html scripts/build-production.mjs scripts/verify-production-v13.mjs scripts/verify-fiscal-current-v14.mjs assets/production-license-gate-v8.js assets/production-certificates-v13.js assets/production-security-ui-v13.js assets/production-monthly-prepayment-domain-v14.js assets/production-finance-ui-v13.js
+          if (git diff --cached --quiet) { throw "No fiscal integration changes were produced." }
+          git commit -m "feat: integrate current fiscal year archive"
+          git push origin HEAD:feature/fiscal-year-current-v14
