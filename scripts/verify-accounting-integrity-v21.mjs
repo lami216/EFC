@@ -17,6 +17,7 @@ for(const [token,label] of [
   ['الفترة محفوظة في الأرشيف المالي','closed periods are archive-only in live finance views'],
   ['الفترة تجمع جزءًا مقفلًا وجزءًا مفتوحًا','mixed periods are not presented as fully archived'],
   ['فترة الدفعات تشمل أرشيفًا وبيانات حية','period payment search guards mixed fiscal ranges'],
+  ['syncCertificateFinanceSummaryGuard','certificate finance summary is neutralized for archived/mixed ranges'],
   ['هذه الدفعة أصلها داخل سنة مالية مقفلة','original closed payment cannot be moved into an open year'],
   ['expenseIdentityFirstRestore:true','expense restore uses identity-first matching'],
   ['branchIdentityRemapOnRestore:true','branch restore remaps imported references'],
