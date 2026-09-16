@@ -22,7 +22,7 @@ const BACK_ICON=icon('<path d="m15 6-6 6 6 6"/>');
 const X_ICON=icon('<path d="M6 6l12 12M18 6 6 18"/>');
 const MONTH_NAMES=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-let state={certificateBranches:[],certificateReceipts:[]};
+let state={certificateBranches:[],certificateReceipts:[],nextReceiptNo:1};
 let mode='internal';
 let selectedStudentId=null;
 let historyOpen=false;
@@ -69,10 +69,13 @@ function normalizeState(raw){
   const branches=(Array.isArray(raw?.certificateBranches)?raw.certificateBranches:[]).map(normalizeBranch).filter(Boolean);
   const receipts=(Array.isArray(raw?.certificateReceipts)?raw.certificateReceipts:[]).map(normalizeReceipt).filter(Boolean);
   const branchKeys=new Set(),receiptKeys=new Set();
-  return{
-    certificateBranches:branches.filter(item=>{const key=item.recordCode||item.name.toLowerCase();if(branchKeys.has(key))return false;branchKeys.add(key);return true;}),
-    certificateReceipts:receipts.filter(item=>{const key=item.recordCode||item.transactionCode;if(receiptKeys.has(key))return false;receiptKeys.add(key);return true;})
-  };
+  const uniqueBranches=branches.filter(item=>{const key=item.recordCode||item.name.toLowerCase();if(branchKeys.has(key))return false;branchKeys.add(key);return true;});
+  const uniqueReceipts=receipts.filter(item=>{const key=item.recordCode||item.transactionCode;if(receiptKeys.has(key))return false;receiptKeys.add(key);return true;});
+  let maxReceipt=0;uniqueReceipts.forEach(item=>{maxReceipt=Math.max(maxReceipt,Number(item.receiptNo||0));});
+  const used=new Set(),duplicates=[];uniqueReceipts.forEach(item=>{const number=Number(item.receiptNo||0);if(Number.isInteger(number)&&number>0&&!used.has(number)){used.add(number);return;}duplicates.push(item);});
+  let repair=Math.max(1,maxReceipt+1);duplicates.forEach(item=>{while(used.has(repair))repair+=1;item.receiptNo=repair;used.add(repair);maxReceipt=Math.max(maxReceipt,repair);repair+=1;});
+  const configured=Math.max(1,Number(raw?.nextReceiptNo||raw?.certificateNextReceiptNo||1));
+  return{certificateBranches:uniqueBranches,certificateReceipts:uniqueReceipts,nextReceiptNo:Math.max(configured,maxReceipt+1)};
 }
 function mergeState(current,incoming){
   const a=normalizeState(current),b=normalizeState(incoming),branches=[...a.certificateBranches],receipts=[...a.certificateReceipts];
@@ -80,7 +83,8 @@ function mergeState(current,incoming){
   const receiptCodes=new Set(receipts.flatMap(item=>[item.recordCode,item.transactionCode]));
   b.certificateBranches.forEach(item=>{const name=item.name.trim().toLowerCase();if(branchCodes.has(item.recordCode)||branchCodes.has(name))return;branches.push(item);branchCodes.add(item.recordCode);branchCodes.add(name);});
   b.certificateReceipts.forEach(item=>{if(receiptCodes.has(item.recordCode)||receiptCodes.has(item.transactionCode))return;receipts.push(item);receiptCodes.add(item.recordCode);receiptCodes.add(item.transactionCode);});
-  return{certificateBranches:branches,certificateReceipts:receipts};
+  const maxReceipt=Math.max(0,...receipts.map(item=>Number(item.receiptNo||0)));
+  return{certificateBranches:branches,certificateReceipts:receipts,nextReceiptNo:Math.max(a.nextReceiptNo,b.nextReceiptNo,maxReceipt+1)};
 }
 function readLocal(){try{return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'));}catch{return normalizeState({});}}
 function writeLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
@@ -101,7 +105,10 @@ async function loadState(){
     await persist();
   }catch(error){console.error('EFC certificate state load failed; local state kept.',error);state=local;}
 }
-function nextReceiptNo(){return Math.max(0,...state.certificateReceipts.map(item=>Number(item.receiptNo||0)))+1;}
+function nextReceiptNo(){
+  const floor=Math.max(1,...state.certificateReceipts.map(item=>Number(item.receiptNo||0)+1)),number=Math.max(floor,Number(state.nextReceiptNo||1));
+  state.nextReceiptNo=number+1;writeLocal();return number;
+}
 function nowTime(){const date=new Date();return`${pad2(date.getHours())}:${pad2(date.getMinutes())}`;}
 function certificatePayment(receipt){
   const specialtyValue=spec(receipt.specialtyId)?receipt.specialtyId:(receipt.specialtyName||receipt.specialtyId);
@@ -202,10 +209,12 @@ async function deleteCertificateReceipt(reference){
   if(receiptDeleteInFlight)return false;
   const receipt=resolveCertificateReceipt(reference);if(!receipt)return alert('تعذر العثور على روسي الشهادة الأصلي.'),false;
   if(!assertCertificateReceiptMutable(receipt))return false;
-  const message=`هل تريد حذف روسي الشهادة رقم ${padReceipt(receipt.receiptNo)} للطالب ${receipt.studentName}؟\nسيُحذف المبلغ من مالية الشهادات.`;
+  const message=`هل تريد حذف روسي الشهادة رقم ${padReceipt(receipt.receiptNo)} للطالب ${receipt.studentName}؟\
+سيُحذف المبلغ من مالية الشهادات، ولن يُعاد استخدام رقم الروسي المحذوف.`;
   if(!window.confirm(message))return false;
   const reopenFinance=historyOpen,index=state.certificateReceipts.indexOf(receipt);if(index<0)return false;
-  receiptDeleteInFlight=true;state.certificateReceipts.splice(index,1);
+  state.nextReceiptNo=Math.max(Number(state.nextReceiptNo||1),Number(receipt.receiptNo||0)+1);
+  receiptDeleteInFlight=true;state.certificateReceipts.splice(index,1);writeLocal();
   try{await persist();}
   catch(error){state.certificateReceipts.splice(index,0,receipt);writeLocal();console.error('EFC certificate receipt delete failed.',error);alert('تعذر حذف روسي الشهادة. لم يتم تغيير البيانات.');receiptDeleteInFlight=false;return false;}
   receiptDeleteInFlight=false;if(String(editingReceiptId||'')===String(receipt.id))clearCertificateEdit();closeCertificateReceiptViewers();
@@ -275,6 +284,7 @@ function selectStudent(id){const student=students.find(item=>String(item.id)===S
 function clearStudentSelection(){selectedStudentId=null;renderStudentPicker();}
 function resetTransientIssueState(){selectedStudentId=null;historyOpen=false;}
 function renderStudentPicker(){
+  if(editingReceipt())return;
   const root=document.getElementById('certStudentResultsV13'),host=document.querySelector('.efc-cert-selected-host-v40'),filters=document.querySelector('.efc-cert-student-filters-v38');
   if(!root||!host||!filters)return;
   const branch=document.getElementById('certInternalBranchV13')?.value||'',specialty=document.getElementById('certInternalSpecV13')?.value||'',query=String(document.getElementById('certStudentSearchV13')?.value||'').trim().toLowerCase();
@@ -341,13 +351,13 @@ html body.efc-certificate-finance-open-v43 .cert-finance-topbar-v43{width:100%!i
 html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43{display:flex!important;justify-content:flex-start!important;direction:rtl!important;gap:7px!important;width:max-content!important;margin:0!important;padding:0!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43 button{height:36px!important;min-width:112px!important;padding:0 18px!important;border:1px solid #08634f!important;border-radius:9px!important;background:linear-gradient(180deg,#0b775f,#08634f)!important;color:#fff!important;font-family:inherit!important;font-size:12px!important;font-weight:760!important;box-shadow:0 7px 16px rgba(8,99,79,.15)!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-back-v43{height:36px!important;padding:0 14px!important;border-radius:9px!important;box-shadow:0 6px 14px rgba(8,99,79,.07)!important;display:inline-flex!important;align-items:center!important;gap:7px!important}.cert-finance-back-v43 svg{width:16px;height:16px}
-html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:7px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:154px 134px 86px 74px 110px minmax(130px,1fr) 112px!important;box-sizing:border-box!important}
+html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:100%!important;max-width:100%!important;min-width:0!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:7px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:132px 126px 84px 70px 106px minmax(126px,1fr) 108px!important;box-sizing:border-box!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 label{margin:0!important;gap:5px!important;min-width:0!important;color:#294d43!important;font-size:9px!important;font-weight:760!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 label[hidden]{display:none!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select{width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;border:1px solid #cfddd8!important;border-radius:8px!important;background:#fff!important;color:#162721!important;font-family:inherit!important;font-size:11.5px!important;padding:7px 8px!important;box-shadow:none!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input:focus,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select:focus{border-color:#1b8c70!important;box-shadow:0 0 0 3px rgba(27,140,112,.09)!important;outline:none!important}
-html body.efc-certificate-finance-open-v43 #certFinanceModeV13{height:38px!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4px!important;padding:4px!important;margin:0!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important;box-shadow:inset 0 1px 0 #ffffffb8!important}
-html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button{height:28px!important;min-width:0!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:10.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13{height:34px!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:3px!important;padding:3px!important;margin:0!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important;box-shadow:inset 0 1px 0 #ffffffb8!important;align-self:end!important}
+html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button{height:26px!important;min-width:0!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:9.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important;padding:0 7px!important}
 html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="daily"]{background:linear-gradient(180deg,#f6fbff,#eef8fb)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="monthly"]{background:linear-gradient(180deg,#f1fbf7,#e7f6ef)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="yearly"]{background:linear-gradient(180deg,#fffaf0,#fbf3e5)!important}
 html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button.active{background:linear-gradient(180deg,#0b7b62,#08624f)!important;border-color:#08624f!important;color:#fff!important;box-shadow:0 5px 12px rgba(8,98,79,.16)!important}
 html body.efc-certificate-finance-open-v43 .cert-finance-summary-v44{grid-column:1/-1!important;justify-self:start!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;width:min(430px,100%)!important;min-width:0!important;margin-top:2px!important;direction:rtl!important}
@@ -476,8 +486,8 @@ document.addEventListener('click',event=>{
 
 async function boot(){
   await loadState();ensureSidebar();
-  window.EFC_REGISTER_STATE_CONTRIBUTOR?.('certificates',snapshot=>Object.assign(snapshot,{certificateBranches:state.certificateBranches,certificateReceipts:state.certificateReceipts}));
-  const baseApply=window.EFC_APPLY_RESTORED_STATE;if(typeof baseApply==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{const result=await baseApply(incoming);if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[]});await persist();}return result;};
+  window.EFC_REGISTER_STATE_CONTRIBUTOR?.('certificates',snapshot=>Object.assign(snapshot,{certificateBranches:state.certificateBranches,certificateReceipts:state.certificateReceipts,certificateNextReceiptNo:state.nextReceiptNo}));
+  const baseApply=window.EFC_APPLY_RESTORED_STATE;if(typeof baseApply==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{const result=await baseApply(incoming);if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)||incoming?.certificateNextReceiptNo){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[],certificateNextReceiptNo:incoming.certificateNextReceiptNo});await persist();}return result;};
 
   window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;
   window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;
@@ -488,7 +498,7 @@ async function boot(){
   window.EFC_CERTIFICATE_PAYMENTS_V13=()=>state.certificateReceipts.map(certificatePayment);
   window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set((ids||[]).map(String)),records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!idSet.has(String(item.id||''))&&!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});
   window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;
-  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodAndLifetimeTotals:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryInControls:true,certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateReceiptEditDelete:true,certificateReceiptAmountMethodOnlyEdit:true,certificateReceiptFiscalLockAware:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
+  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodAndLifetimeTotals:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryInControls:true,certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateReceiptEditDelete:true,certificateReceiptAmountMethodOnlyEdit:true,certificateReceiptFiscalLockAware:true,certificateReceiptNumbersNeverReused:true,certificateReceiptHighWaterPersisted:true,certificateEditStudentSelectionLocked:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }
 
 boot().catch(error=>{console.error('EFC certificates v13 failed to initialize.',error);throw error;});
