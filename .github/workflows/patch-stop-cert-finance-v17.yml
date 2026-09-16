@@ -1,0 +1,183 @@
+name: Patch stop dates and certificate finance v17
+
+on:
+  push:
+    branches:
+      - feature/fiscal-year-current-v14
+    paths:
+      - '.github/workflows/patch-stop-cert-finance-v17.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/fiscal-year-current-v14
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Apply integrated fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'missing patch target: {label}')
+              return text.replace(old, new, 1)
+
+          domain_path=Path('assets/production-monthly-prepayment-domain-v14.js')
+          domain=domain_path.read_text(encoding='utf-8')
+          old_stop="""function stopStudent(student,reason=''){
+            if(!student)return;
+            if(isDynamicMonthly(student)){const plan=installmentPlan(student,today());student.frozenMonths=plan.filter(month=>month.dueDate<=today()||month.paid>0).length;}
+            student.active=false;student.status='inactive';student.stoppedAt=today();student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student);saveStudentsClean();
+          }"""
+          new_stop="""function stoppedStudentEndDate(student,stopDate=today()){
+            const stopped=String(stopDate||today()),previous=String(student?.end||'').trim();
+            if(!isDynamicMonthly(student))return previous&&previous<stopped?previous:stopped;
+            const paidPlan=installmentPlan(student,stopped),lastFullyPaid=[...paidPlan].reverse().find(month=>Number(month?.fee||0)>0&&Number(month?.paid||0)>=Number(month?.fee||0));
+            if(!lastFullyPaid)return stopped;
+            const paidThrough=addDays(addDuration(student.start,Number(lastFullyPaid.number||1),'month'),-1);
+            return paidThrough>stopped?paidThrough:stopped;
+          }
+          function stopStudent(student,reason=''){
+            if(!student)return;
+            const stopped=today(),previousEnd=String(student.end||'').trim();
+            if(previousEnd&&!student.scheduledEndBeforeStop)student.scheduledEndBeforeStop=previousEnd;
+            if(isDynamicMonthly(student)){const plan=installmentPlan(student,stopped);student.frozenMonths=plan.filter(month=>month.dueDate<=stopped||month.paid>0).length;}
+            student.end=stoppedStudentEndDate(student,stopped);student.stopEndBasis=student.end>stopped?'paid-through':'stopped-at';
+            student.active=false;student.status='inactive';student.stoppedAt=stopped;student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student,stopped);saveStudentsClean();
+          }"""
+          domain=replace_once(domain,old_stop,new_stop,'stopStudent')
+          domain=replace_once(domain,'revisionStampedPayments:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS','revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS','stop markers')
+          domain_path.write_text(domain,encoding='utf-8')
+
+          cert_path=Path('assets/production-certificates-v13.js')
+          cert=cert_path.read_text(encoding='utf-8')
+          style_start=cert.index('function ensureCertificateFinanceStyles(){')
+          style_end=cert.index('function bindCertificateFinanceRows()',style_start)
+          new_style=r'''function ensureCertificateFinanceStyles(){
+            if(document.getElementById('efc-certificate-finance-style-v43'))return;
+            const style=document.createElement('style');style.id='efc-certificate-finance-style-v43';style.textContent=`
+          html body.efc-certificate-finance-open-v43 .content:has(.cert-form-v13[data-efc-history-open-v36="1"]){width:900px!important;max-width:900px!important;min-width:900px!important;margin:0 0 0 auto!important;margin-right:22px!important;padding:12px 0 20px!important;box-sizing:border-box!important;overflow:visible!important}
+          html body.efc-certificate-finance-open-v43 .content:has(.cert-form-v13[data-efc-history-open-v36="1"])>.page-title{display:none!important}
+          html body.efc-certificate-finance-open-v43 .cert-form-v13[data-efc-history-open-v36="1"]{width:900px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+          html body.efc-certificate-finance-open-v43 .cert-form-v13[data-efc-history-open-v36="1"]>.efc-cert-workspace-toolbar-v36{display:none!important}
+          html body.efc-certificate-finance-open-v43 .cert-form-v13>.cert-finance-v13{width:900px!important;min-width:900px!important;max-width:900px!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-v13 .finance-hero-v13{width:470px!important;height:76px!important;margin:0 auto 12px!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-topbar-v43{width:900px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin:0 0 7px!important;direction:rtl!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43{display:flex!important;justify-content:flex-start!important;direction:rtl!important;gap:7px!important;width:max-content!important;margin:0!important;padding:0!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-switch-v43 button{height:36px!important;min-width:112px!important;padding:0 18px!important;border:1px solid #08634f!important;border-radius:9px!important;background:linear-gradient(180deg,#0b775f,#08634f)!important;color:#fff!important;font-family:inherit!important;font-size:12px!important;font-weight:760!important;box-shadow:0 7px 16px rgba(8,99,79,.15)!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-back-v43{height:36px!important;padding:0 14px!important;border-radius:9px!important;box-shadow:0 6px 14px rgba(8,99,79,.07)!important;display:inline-flex!important;align-items:center!important;gap:7px!important}.cert-finance-back-v43 svg{width:16px;height:16px}
+          html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13{width:900px!important;max-width:900px!important;min-width:900px!important;margin:0 0 8px!important;padding:8px 12px 10px!important;gap:8px!important;align-items:end!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.98),rgba(252,255,254,.99))!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important;display:grid!important;grid-template-columns:218px repeat(4,minmax(0,1fr))!important;box-sizing:border-box!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 label{margin:0!important;gap:5px!important;min-width:0!important;color:#294d43!important;font-size:9px!important;font-weight:760!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select{width:100%!important;min-width:0!important;height:38px!important;min-height:38px!important;border:1px solid #cfddd8!important;border-radius:8px!important;background:#fff!important;color:#162721!important;font-family:inherit!important;font-size:11.5px!important;padding:7px 10px!important;box-shadow:none!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 input:focus,html body.efc-certificate-finance-open-v43 .cert-finance-controls-v13 select:focus{border-color:#1b8c70!important;box-shadow:0 0 0 3px rgba(27,140,112,.09)!important;outline:none!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceModeV13{height:38px!important;display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:4px!important;padding:4px!important;margin:0!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important;box-shadow:inset 0 1px 0 #ffffffb8!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button{height:28px!important;min-width:0!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:10.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="daily"]{background:linear-gradient(180deg,#f6fbff,#eef8fb)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="monthly"]{background:linear-gradient(180deg,#f1fbf7,#e7f6ef)!important}html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button[data-mode="yearly"]{background:linear-gradient(180deg,#fffaf0,#fbf3e5)!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceModeV13 button.active{background:linear-gradient(180deg,#0b7b62,#08624f)!important;border-color:#08624f!important;color:#fff!important;box-shadow:0 5px 12px rgba(8,98,79,.16)!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-secondary-row-v43{grid-column:1/-1!important;display:flex!important;align-items:end!important;justify-content:space-between!important;gap:12px!important;padding-top:2px!important;direction:rtl!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-method-v43{width:218px!important;flex:0 0 218px!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-summary-v43{margin-inline-start:auto!important;display:grid!important;grid-template-columns:repeat(2,minmax(190px,1fr))!important;gap:8px!important;width:430px!important;direction:rtl!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43{min-height:54px!important;padding:7px 11px!important;border:1px solid #d8e5e0!important;border-radius:11px!important;background:#fff!important;box-shadow:0 6px 15px rgba(22,75,61,.035)!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:2px!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43:first-child{background:linear-gradient(135deg,#f1fbf7,#e9f8f1)!important;border-color:#cbe9dc!important}html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43:last-child{background:linear-gradient(135deg,#eef7ff,#e8f3fb)!important;border-color:#cfdfec!important}
+          html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43 .finance-kpi-line-v13{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important}.cert-finance-summary-card-v43 small{font-size:10px!important;color:#2f4c43!important;font-weight:800!important}.cert-finance-summary-card-v43 b{font-size:15px!important;line-height:1.1!important;color:#111d19!important;white-space:nowrap!important}.cert-finance-summary-card-v43>span{font-size:8.5px!important;color:#657a73!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.chart-card{width:900px!important;margin:0 0 8px!important;padding:5px 10px 3px!important;border:1px solid #d8e5e0!important;border-radius:13px!important;background:#fff!important;box-shadow:0 8px 20px rgba(22,75,61,.035)!important}.cert-finance-v13 .finance-chart-wrap-v13{width:100%!important;overflow:hidden!important}.cert-finance-v13 .finance-chart-wrap-v13 svg{display:block!important;width:100%!important;height:auto!important;max-height:205px!important}.cert-finance-v13 .finance-gridline-v13{stroke:#dbe6e2!important}.cert-finance-v13 .finance-line-v13{stroke:#08745b!important;stroke-width:3!important}.cert-finance-v13 .finance-dot-v13{stroke:#08745b!important;fill:#fff!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:0 0 8px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns>.card{min-height:96px!important;margin:0!important;padding:9px 13px!important;border-radius:12px!important;box-shadow:0 7px 18px rgba(22,75,61,.035)!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(1){background:linear-gradient(135deg,#eef9fb,#e8f5f2)!important;border:1px solid #b9ddd5!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(2){background:linear-gradient(135deg,#fff9ed,#fff3df)!important;border:1px solid #ecdcb7!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(3){background:linear-gradient(135deg,#eef5ff,#e8f1fb)!important;border:1px solid #cadced!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns h3{margin:0 0 8px!important;font-size:11.5px!important;color:#173d34!important}.cert-finance-v13 .break-row{grid-template-columns:minmax(0,1fr) auto!important;gap:3px 9px!important;margin:0 0 6px!important;font-size:9.5px!important}.cert-finance-v13 .break-row>div{grid-column:1/-1!important;height:4px!important;border-radius:99px!important;background:#dfe8e4!important;overflow:hidden!important}.cert-finance-v13 .break-row>div>i{height:100%!important;border-radius:99px!important;background:#159577!important}
+          html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap{max-height:min(430px,calc(100dvh - 310px))!important;overflow:auto!important;border:1.2px solid #aaccc1!important;border-radius:10px!important;background:#fff!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;font-size:10px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap td{height:35px!important;padding:6px 9px!important;font-size:10px!important}
+          @media(max-width:1180px){html body.efc-certificate-finance-open-v43 .cert-finance-summary-v43{width:390px!important;grid-template-columns:repeat(2,minmax(170px,1fr))!important}}
+          `;
+            document.head.appendChild(style);
+          }
+          '''
+          cert=cert[:style_start]+new_style+cert[style_end:]
+
+          draw_start=cert.index('function drawCertificateFinance(){')
+          draw_end=cert.index('function setHistoryMode(show){',draw_start)
+          new_draw=r'''function drawCertificateFinance(){
+            const root=document.getElementById('certFinanceBodyV13');if(!root)return;
+            const activeMode=document.querySelector('#certFinanceModeV13 [data-mode].active'),modeValue=String(activeMode?.dataset.mode||'daily'),day=document.getElementById('certFinanceDayV13')?.value||today(),year=document.getElementById('certFinanceYearV13')?.value||today().slice(0,4),month=document.getElementById('certFinanceMonthV13')?.value||today().slice(5,7),branch=document.getElementById('certFinanceBranchV13')?.value||'',specialty=document.getElementById('certFinanceSpecialtyV13')?.value||'',method=document.getElementById('certFinanceMethodV13')?.value||'',range=certificateFinanceRange(modeValue,year,month,day);
+            const dayWrap=document.getElementById('certFinanceDayWrapV13'),monthWrap=document.getElementById('certFinanceMonthWrapV13'),yearWrap=document.getElementById('certFinanceYearWrapV13');if(dayWrap)dayWrap.hidden=modeValue!=='daily';if(monthWrap)monthWrap.hidden=modeValue!=='monthly';if(yearWrap)yearWrap.hidden=modeValue==='daily';
+            const matchesFilters=receipt=>(!branch||certificateBranchKey(receipt)===branch)&&(!specialty||certificateSpecialtyKey(receipt)===specialty)&&(!method||String(receipt.method||'')===method),allRows=[...state.certificateReceipts].filter(matchesFilters),rows=allRows.filter(receipt=>receipt.date>=range.from&&receipt.date<=range.to).sort((a,b)=>b.date.localeCompare(a.date)||String(b.time||'').localeCompare(String(a.time||''))||Number(b.timestamp||0)-Number(a.timestamp||0));
+            const periodTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0),overallTotal=allRows.reduce((sum,row)=>sum+Number(row.amount||0),0),periodTitle=modeValue==='daily'?'دخل اليوم':modeValue==='monthly'?'دخل الشهر':'دخل السنة',presentation=window.EFC_FINANCE_PRESENTATION_V13,financeSeries=certificateFinanceSeries(rows,modeValue,year,month,day),chartHtml=presentation?.chart?presentation.chart(financeSeries,'income'):'<div class="empty small">لا توجد بيانات للرسم.</div>',breakdownHtml=(keyFn)=>presentation?.breakdown&&presentation?.groupRows?presentation.breakdown(presentation.groupRows(rows,keyFn),periodTotal):certificateFinanceBreakdown(rows,keyFn,periodTotal);
+            const titleEl=document.getElementById('certFinancePeriodTitleV13'),periodValue=document.getElementById('certFinancePeriodTotalV13'),periodRange=document.getElementById('certFinancePeriodRangeV13'),overallValue=document.getElementById('certFinanceOverallTotalV13');if(titleEl)titleEl.textContent=periodTitle;if(periodValue)periodValue.textContent=cash(periodTotal);if(periodRange)periodRange.textContent=range.label;if(overallValue)overallValue.textContent=cash(overallTotal);
+            const tableRows=rows.map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${esc(receipt.branchName||'—')}</td><td>${esc(receipt.specialtyName||'—')}</td><td>${esc(receipt.method||'—')}</td><td>${showDate(receipt.date)}</td><td><b>${cash(receipt.amount)}</b></td></tr>`).join('');
+            root.innerHTML=`<div class="card chart-card">${chartHtml}</div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdownHtml(row=>row.branchName||'—')}</div><div class="card"><h3>حسب الشهادة / الدورة</h3>${breakdownHtml(row=>row.specialtyName||'—')}</div><div class="card"><h3>حسب وسيلة الدفع</h3>${breakdownHtml(row=>row.method||'—')}</div></div>${table(['رقم الروسي','الطالب','الفرع','الدورة','الوسيلة','التاريخ','المبلغ'],tableRows)}`;
+            presentation?.bindChartTooltips?.(root);bindCertificateFinanceRows();
+          }
+          '''
+          cert=cert[:draw_start]+new_draw+cert[draw_end:]
+
+          finance_start=cert.index('  const finance=`<div class="cert-history-v13 cert-finance-v13" hidden>')
+          finance_end=cert.index('\n  shell(`',finance_start)
+          new_finance=r'''  const finance=`<div class="cert-history-v13 cert-finance-v13" hidden><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>مالية الشهادات</h1></section><div class="cert-finance-topbar-v43"><div class="cert-finance-switch-v43"><button class="active" type="button">دخل الشهادات</button></div><button class="button secondary cert-finance-back-v43" id="certFinanceBackV13" type="button">${BACK_ICON}<span>العودة للإصدار</span></button></div><div class="card finance-controls cert-finance-controls-v13"><div class="segmented" id="certFinanceModeV13"><button class="active" type="button" data-mode="daily">يومي</button><button type="button" data-mode="monthly">شهري</button><button type="button" data-mode="yearly">سنوي</button></div><label id="certFinanceDayWrapV13">اليوم<input class="input" id="certFinanceDayV13" type="date" value="${date}"></label><label id="certFinanceMonthWrapV13" hidden>الشهر<select id="certFinanceMonthV13">${MONTH_NAMES.map((name,index)=>`<option value="${index+1}" ${index+1===currentMonth?'selected':''}>${name}</option>`).join('')}</select></label><label id="certFinanceYearWrapV13" hidden>السنة<select id="certFinanceYearV13">${financeYears.map(year=>`<option value="${year}" ${year===currentYear?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="certFinanceBranchV13"><option value="">كل الفروع</option>${financeBranches.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label>الشهادة / الدورة<select id="certFinanceSpecialtyV13"><option value="">كل الشهادات</option>${financeSpecialties.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><div class="cert-finance-secondary-row-v43"><label class="cert-finance-method-v43">وسيلة الدفع<select id="certFinanceMethodV13"><option value="">كل وسائل الدفع</option>${financeMethods.map(value=>`<option>${esc(value)}</option>`).join('')}</select></label><div class="cert-finance-summary-v43"><div class="cert-finance-summary-card-v43"><div class="finance-kpi-line-v13"><small id="certFinancePeriodTitleV13">دخل اليوم</small><b id="certFinancePeriodTotalV13">${cash(0)}</b></div><span id="certFinancePeriodRangeV13">${showDate(date)}</span></div><div class="cert-finance-summary-card-v43"><div class="finance-kpi-line-v13"><small>الدخل العام</small><b id="certFinanceOverallTotalV13">${cash(0)}</b></div><span>ضمن الفلاتر الحالية</span></div></div></div></div><div id="certFinanceBodyV13"></div></div>`;'''
+          cert=cert[:finance_start]+new_finance+cert[finance_end:]
+
+          cert=replace_once(cert,"historyOpen=Boolean(show);const form=document.querySelector('.cert-form-v13'),finance=document.querySelector('.cert-finance-v13'),toggle=document.querySelector('.efc-cert-history-toggle-v36');","historyOpen=Boolean(show);document.body.classList.toggle('efc-certificate-finance-open-v43',historyOpen);const form=document.querySelector('.cert-form-v13'),finance=document.querySelector('.cert-finance-v13'),toggle=document.querySelector('.efc-cert-history-toggle-v36');",'finance body mode class')
+          cert=replace_once(cert,"  document.querySelector('.efc-cert-history-toggle-v36').addEventListener('click',()=>setHistoryMode(!historyOpen));","  document.querySelector('.efc-cert-history-toggle-v36').addEventListener('click',()=>setHistoryMode(!historyOpen));\n  document.getElementById('certFinanceBackV13')?.addEventListener('click',()=>setHistoryMode(false));",'finance back binding')
+          cert=replace_once(cert,'certificateFinanceMatchesGeneralLayout:true,certificateFinanceUsesGeneralChart:true','certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryInControls:true,certificateFinanceTopbarAligned:true,certificateFinanceUsesGeneralChart:true','finance visual markers')
+          cert_path.write_text(cert,encoding='utf-8')
+
+          verify_path=Path('scripts/verify-monthly-prepayment-v14.mjs')
+          verify=verify_path.read_text(encoding='utf-8')
+          verify=replace_once(verify,"['revisionStampedPayments:true','payment revision stamping'],","['revisionStampedPayments:true','payment revision stamping'],['stoppedStudentHasEndDate:true','stopped student end-date marker'],['stoppedMonthlyPaidThroughProtected:true','paid-through stop protection marker'],",'monthly stop static markers')
+          stop_tests="""
+          // Stopping a student records a stable end date. Monthly students keep fully-paid entitlement, while partial/unpaid time does not extend the end.
+          context.DEMO_TODAY='2026-09-16';
+          const stoppedPaid=makeStudent('stopped-paid','normal',600);stoppedPaid.reg=30;students.push(stoppedPaid);D.appendPayment(stoppedPaid,{amount:1200,method:'نقداً',date:'2026-09-09',targetMonth:1,persist:false});D.stopStudent(stoppedPaid,'توقف');
+          if(stoppedPaid.active!==false||stoppedPaid.status!=='inactive'||stoppedPaid.stoppedAt!=='2026-09-16')throw new Error('Stopped monthly student status was not persisted.');
+          if(stoppedPaid.end!=='2026-11-08'||stoppedPaid.stopEndBasis!=='paid-through')throw new Error(`Stopped prepaid monthly student must end after the last fully paid month, got ${stoppedPaid.end}.`);
+          const stoppedPartial=makeStudent('stopped-partial','normal',600);stoppedPartial.reg=31;students.push(stoppedPartial);D.appendPayment(stoppedPartial,{amount:300,method:'Bankily',date:'2026-09-09',targetMonth:1,persist:false});D.stopStudent(stoppedPartial,'توقف');
+          if(stoppedPartial.end!=='2026-09-16'||stoppedPartial.stopEndBasis!=='stopped-at')throw new Error('Partial monthly payment must not extend a stopped student beyond the stop date.');
+          const stoppedQuick=makeStudent('stopped-quick','quick',1000);stoppedQuick.reg=32;students.push(stoppedQuick);D.stopStudent(stoppedQuick,'توقف');
+          if(stoppedQuick.end!=='2026-09-16'||stoppedQuick.scheduledEndBeforeStop!=='2026-10-09')throw new Error('Quick-course stop must record the actual stop date while preserving the previous planned end.');
+          context.DEMO_TODAY='2026-09-09';
+
+          """
+          verify=replace_once(verify,'// Quick course fee/payment editing must remain isolated and reject contradictory totals atomically.',stop_tests+'// Quick course fee/payment editing must remain isolated and reject contradictory totals atomically.','stop behavior tests')
+          verify_path.write_text(verify,encoding='utf-8')
+
+          static_verify=Path('scripts/verify-stop-cert-finance-v17.mjs')
+          static_verify.write_text("""import {readFileSync} from 'node:fs';\nimport {execFileSync} from 'node:child_process';\nconst cert=readFileSync('assets/production-certificates-v13.js','utf8');\nconst domain=readFileSync('assets/production-monthly-prepayment-domain-v14.js','utf8');\nexecFileSync(process.execPath,['--check','assets/production-certificates-v13.js'],{stdio:'inherit'});\nexecFileSync(process.execPath,['--check','assets/production-monthly-prepayment-domain-v14.js'],{stdio:'inherit'});\nconst need=(text,token,label)=>{if(!text.includes(token))throw new Error(`Missing ${label}: ${token}`);};\nfor(const [token,label] of [['stoppedStudentHasEndDate:true','stop end marker'],['stoppedMonthlyPaidThroughProtected:true','paid-through marker'],['function stoppedStudentEndDate','stop end calculator'],[\"student.end=stoppedStudentEndDate(student,stopped)\",'stored stopped end']])need(domain,token,label);\nfor(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','current finance visual marker'],['certificateFinanceSummaryInControls:true','summary-in-controls marker'],['certificateFinanceTopbarAligned:true','aligned topbar marker'],['cert-finance-summary-v43','summary strip'],['certFinanceBackV13','finance back action'],['cert-finance-secondary-row-v43','method/summary row']])need(cert,token,label);\nif(cert.includes('#certFinanceBodyV13>.kpis'))throw new Error('Old certificate KPI block styling is still present.');\nconsole.log('Stopped-student end dates and current certificate-finance layout verified.');\n""",encoding='utf-8')
+
+          package_path=Path('package.json')
+          package=package_path.read_text(encoding='utf-8')
+          package=replace_once(package,'node scripts/verify-fiscal-current-v14.mjs && node scripts/verify-license-generator-html.mjs','node scripts/verify-fiscal-current-v14.mjs && node scripts/verify-stop-cert-finance-v17.mjs && node scripts/verify-license-generator-html.mjs','package check chain')
+          package_path.write_text(package,encoding='utf-8')
+
+          old_version='20260916-receipt-source-hours-v16-1'
+          new_version='20260916-stop-end-cert-finance-v17-1'
+          for name in ['assets/production-license-gate-v8.js','index.html']:
+              path=Path(name);text=path.read_text(encoding='utf-8')
+              if old_version not in text: raise SystemExit(f'missing cache version in {name}')
+              path.write_text(text.replace(old_version,new_version),encoding='utf-8')
+          PY
+
+      - name: Install verification dependencies
+        run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Verify production source
+        run: npm run check
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Commit verified fixes
+        shell: bash
+        run: |
+          git config user.name "lami216"
+          git config user.email "iiyad21694@gmail.com"
+          git add assets/production-monthly-prepayment-domain-v14.js assets/production-certificates-v13.js scripts/verify-monthly-prepayment-v14.mjs scripts/verify-stop-cert-finance-v17.mjs package.json assets/production-license-gate-v8.js index.html
+          git commit -m "feat: record stopped-course endings and refresh certificate finance"
+          git push origin HEAD:feature/fiscal-year-current-v14
