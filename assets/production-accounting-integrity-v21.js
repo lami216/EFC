@@ -178,6 +178,8 @@ function guardFinanceViews(){
   const ledger=document.getElementById('ledgerBodyV13'),date=text(document.getElementById('ledgerDateV13')?.value);if(ledger&&date){if(fiscal()?.isDateClosed?.(date)){if(ledger.dataset.efcArchiveOnlyV21!=='1'){ledger.dataset.efcArchiveOnlyV21='1';ledger.innerHTML=archiveNotice('اليوم المختار');}}else delete ledger.dataset.efcArchiveOnlyV21;}
 }
 function scheduleGuards(){if(guardFrame)return;guardFrame=requestAnimationFrame(()=>{guardFrame=0;guardFinanceViews();tagStudentModal();});}
+function wrapRender(name){const base=window[name];if(typeof base!=='function'||base.__efcAccountingV21)return;const wrapped=function(...args){const result=base.apply(this,args);setTimeout(scheduleGuards,0);return result;};wrapped.__efcAccountingV21=true;window[name]=wrapped;}
+function installRenderGuards(){for(const name of ['renderFinance','renderLedger','renderCurrentV13','EFC_RENDER_CERTIFICATES_V13'])wrapRender(name);}
 function openFiscalArchive(){
   if(location.hash!=='#settings')location.hash='#settings';else window.renderCurrentV13?.();
   setTimeout(()=>{const node=document.querySelector('.fiscal-settings-v14');node?.scrollIntoView?.({block:'start',behavior:'smooth'});node?.querySelector('details')?.setAttribute?.('open','');},120);
@@ -269,8 +271,7 @@ function installRestoreGuard(){
 function installStateContributor(){window.EFC_REGISTER_STATE_CONTRIBUTOR?.('accounting-integrity-v21',snapshot=>Object.assign(snapshot,{accountingIntegrityV21:clone(state)}));}
 
 async function install(){
-  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installClosedPaymentGuard();installGlobalCapture();await sanitizeLiveState();
-  const observer=new MutationObserver(scheduleGuards);observer.observe(document.body,{childList:true,subtree:true});scheduleGuards();
+  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installClosedPaymentGuard();installGlobalCapture();installRenderGuards();await sanitizeLiveState();scheduleGuards();
   window.EFC_ACCOUNTING_INTEGRITY_V21=Object.freeze({
     ready:true,version:VERSION,storageKey:STORAGE_KEY,paymentAccountingSnapshotIndex:SNAPSHOT_INDEX,
     manualStudentDeletionRemovesFinance:true,manualStudentDeletionWarnsBeforeRemoval:true,fiscalCleanupKeepsArchiveAsHistoricalSource:true,
