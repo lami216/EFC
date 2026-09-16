@@ -1,5 +1,5 @@
 use rusqlite::{params, Connection, OptionalExtension};
-use serde_json::Value;
+use serde_json::{json, Number, Value};
 use std::{fs, path::PathBuf};
 use tauri::Manager;
 
@@ -31,6 +31,27 @@ fn open_db(app: &tauri::AppHandle) -> Result<Connection, String> {
     Ok(conn)
 }
 
+fn certificate_next_receipt_no(value: &Value) -> u64 {
+    let object = value.as_object();
+    let configured = object
+        .and_then(|item| item.get("nextReceiptNo"))
+        .and_then(Value::as_u64)
+        .filter(|number| *number > 0)
+        .unwrap_or(1);
+    let max_existing = object
+        .and_then(|item| item.get("certificateReceipts"))
+        .and_then(Value::as_array)
+        .map(|receipts| {
+            receipts
+                .iter()
+                .filter_map(|receipt| receipt.get("receiptNo").and_then(Value::as_u64))
+                .max()
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+    configured.max(max_existing.saturating_add(1)).max(1)
+}
+
 pub fn validate_certificate_state(raw: &str) -> Result<(), String> {
     let value: Value = serde_json::from_str(raw)
         .map_err(|_| "بيانات الشهادات ليست JSON صالحًا.".to_string())?;
@@ -40,6 +61,11 @@ pub fn validate_certificate_state(raw: &str) -> Result<(), String> {
     for key in ["certificateBranches", "certificateReceipts"] {
         if !object.get(key).is_some_and(Value::is_array) {
             return Err(format!("بيانات الشهادات ناقصة أو غير صالحة: {key}"));
+        }
+    }
+    if let Some(next) = object.get("nextReceiptNo") {
+        if !next.as_u64().is_some_and(|number| number > 0) {
+            return Err("بيانات الشهادات تحتوي عداد روسيات غير صالح.".to_string());
         }
     }
     Ok(())
@@ -80,9 +106,10 @@ pub fn merge_into_main_state(app: &tauri::AppHandle, main_raw: &str) -> Result<S
 
     let cert = load_raw(app)?
         .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-        .unwrap_or_else(|| serde_json::json!({
+        .unwrap_or_else(|| json!({
             "certificateBranches": [],
-            "certificateReceipts": []
+            "certificateReceipts": [],
+            "nextReceiptNo": 1
         }));
 
     let cert_object = cert.as_object();
@@ -99,6 +126,10 @@ pub fn merge_into_main_state(app: &tauri::AppHandle, main_raw: &str) -> Result<S
             .and_then(|item| item.get("certificateReceipts"))
             .cloned()
             .unwrap_or_else(|| Value::Array(vec![])),
+    );
+    object.insert(
+        "certificateNextReceiptNo".to_string(),
+        Value::Number(Number::from(certificate_next_receipt_no(&cert))),
     );
 
     serde_json::to_string(&main).map_err(|e| format!("تعذر تجهيز نسخة البيانات: {e}"))
