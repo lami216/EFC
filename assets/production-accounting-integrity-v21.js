@@ -115,7 +115,7 @@ function mergeMethodRecords(incoming){
 }
 function mergeExpenses(incoming,fromState=state){
   const current=D()?.getExpenses?.()||[],result=current.filter(row=>!expenseIsDead(row,fromState)).map(clone),ids=new Set(result.map(row=>text(row?.id)).filter(Boolean)),legacyCounts=new Map();
-  result.forEach(row=>{if(text(row?.id))return;const fp=expenseFingerprint(row);if(fp)legacyCounts.set(fp,(legacyCounts.get(fp)||0)+1);});
+  result.forEach(row=>{const fp=expenseFingerprint(row);if(fp)legacyCounts.set(fp,(legacyCounts.get(fp)||0)+1);});
   (Array.isArray(incoming)?incoming:[]).forEach(row=>{
     if(expenseIsDead(row,fromState))return;
     const id=text(row?.id),fp=expenseFingerprint(row);
