@@ -80,6 +80,15 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(prepared.certificateReceipts[0].branchId==='A','internal certificate branch reference must remap to canonical id');
 }
 
+{
+  const same={name:'Legacy rent',amount:700,method:'cash',branch:'A',specialty:'S',date:'2026-09-16',time:'11:00'};
+  const {window}=await makeContext({expenses:[{id:'e1',...same},{id:'e2',...same}],branches:[{id:'A',name:'Nouadhibou'}]});
+  const one=window.EFC_ACCOUNTING_INTEGRITY_V21.prepareIncoming({expenses:[{...same}]});
+  assert(one.expenses.length===2,'one legacy no-id expense must dedupe against one existing identical occurrence');
+  const three=window.EFC_ACCOUNTING_INTEGRITY_V21.prepareIncoming({expenses:[{...same},{...same},{...same}]});
+  assert(three.expenses.length===3,'legacy expense dedupe must preserve multiplicity instead of collapsing identical real rows');
+}
+
 requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260916-accounting-integrity-v21-2','index loads accounting integrity with synchronized cache version');
 requireText(build,"'assets/production-accounting-integrity-v21.js'",'production build copies accounting integrity runtime');
 requireText(pkg,'node scripts/verify-accounting-integrity-v21.mjs','npm check runs accounting integrity verification');
