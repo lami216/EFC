@@ -118,15 +118,15 @@ jobs:
           prod='scripts/verify-production-v13.mjs'
           p=Path(prod); text=p.read_text(encoding='utf-8')
           text=text.replace("'window.EFC_CERTIFICATE_STATE_V14','certificateManagementTitleBelowHeader:true'","'window.EFC_CERTIFICATE_STATE_V14','purgeReceiptsByIdentity','certificateManagementTitleBelowHeader:true'")
-          text=text.replace("'tombstoneRestoreProtection:true','pendingCloseJournal:true'","'tombstoneRestoreProtection:true','pendingCloseJournal:true'")
           p.write_text(text,encoding='utf-8',newline='\n')
 
+          new_cache='20260916-fiscal-year-current-v14-2'
           for path in [Path('index.html'),Path('assets/production-license-gate-v8.js'),*Path('scripts').glob('*.mjs')]:
               text=path.read_text(encoding='utf-8')
-              if '20260916-fiscal-year-current-v14-1' in text:
-                  path.write_text(text.replace('20260916-fiscal-year-current-v14-1','20260916-fiscal-year-current-v14-2'),encoding='utf-8',newline='\n')
+              text=text.replace('20260915-receipt-edit-hour-duration-6',new_cache).replace('20260916-fiscal-year-current-v14-1',new_cache)
+              path.write_text(text,encoding='utf-8',newline='\n')
 
-          print('Fiscal restore identities and anchor compatibility hardened.')
+          print('Fiscal restore identities, anchor compatibility, and cache verification hardened.')
           '@ | Set-Content -Path "$env:RUNNER_TEMP\harden-fiscal-v14.py" -Encoding utf8
           python "$env:RUNNER_TEMP\harden-fiscal-v14.py"
 
@@ -151,9 +151,7 @@ jobs:
       - name: Verify legacy activation generator compatibility output
         shell: pwsh
         run: |
-          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) {
-            throw "Legacy generator compatibility binary was not produced."
-          }
+          if (!(Test-Path "tools/license-generator/target/release/efc-license-generator.exe")) { throw "Legacy generator compatibility binary was not produced." }
 
       - name: Build Windows installer
         run: npm run tauri build -- --bundles nsis
@@ -161,10 +159,7 @@ jobs:
       - name: Smoke-test release startup
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "src-tauri/target/release/*.exe" |
-            Where-Object { $_.Name -notlike "*-setup.exe" } |
-            Sort-Object Length -Descending |
-            Select-Object -First 1
+          $exe = Get-ChildItem "src-tauri/target/release/*.exe" | Where-Object { $_.Name -notlike "*-setup.exe" } | Sort-Object Length -Descending | Select-Object -First 1
           if (-not $exe) { throw "Release executable was not found." }
           $process = Start-Process -FilePath $exe.FullName -PassThru
           Start-Sleep -Seconds 8
@@ -177,7 +172,7 @@ jobs:
         run: |
           git config user.name "lami216"
           git config user.email "iiyad21694@gmail.com"
-          git add assets/production-fiscal-year-v14.js assets/production-certificates-v13.js scripts/verify-fiscal-current-v14.mjs scripts/verify-production-v13.mjs index.html assets/production-license-gate-v8.js
+          git add assets/production-fiscal-year-v14.js assets/production-certificates-v13.js scripts index.html assets/production-license-gate-v8.js
           if (git diff --cached --quiet) { throw "No fiscal hardening changes were produced." }
           git commit -m "fix: harden fiscal close and restore boundaries"
           git push origin HEAD:feature/fiscal-year-current-v14
