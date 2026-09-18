@@ -35,7 +35,16 @@ for(const [token,label] of [
   ['دفع جزئي من الدورة','course partial statement'],
   ['دفع كامل للدورة','course full statement'],
   ['<th>الاسم</th><th>البيان</th>','separate name and statement columns'],
-  ['dailySeparateNameAndStatement:true','daily column marker']
+  ['dailySeparateNameAndStatement:true','daily column marker'],
+  ['periodScopedRegistrationCount:true','registration count follows selected period'],
+  ['periodScopedExpenseCount:true','expense count follows selected period'],
+  ['financePeriodContextHints:true','finance KPI period descriptions'],
+  ['financeAverageKpisRemoved:true','average payment/expense KPIs removed'],
+  ['expenseHistoryActionRed:true','expense history action is visually destructive'],
+  ['function studentRegistrationDate(student)','registration date resolver'],
+  ['registered=students.filter','period registration filter'],
+  ['finance-kpis-three-v23','three-card income and expense KPI layout'],
+  ['finance-expense-history-action-v23','red expense-history action']
 ])requireFinance(token,label);
 
 
@@ -50,6 +59,8 @@ for(const [token,label] of [
 forbidFinance('<div class=\"card chart-card\">${chart(series(income','income chart must stay removed');
 forbidFinance('<div class=\"card chart-card\">${chart(series(costs','expense chart must stay removed');
 forbidFinance('صافي الربح التراكمي','profit chart must stay removed');
+forbidFinance('<small>متوسط الدفعة</small>','average payment KPI must stay removed');
+forbidFinance('<small>متوسط المصروف</small>','average expense KPI must stay removed');
 
 const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
