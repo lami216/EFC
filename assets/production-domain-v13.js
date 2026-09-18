@@ -194,7 +194,7 @@ monthlyFocusV3=function(student,asOf=today(),paidOverride=null){
   const plan=installmentPlan(student,asOf,paidOverride),first=plan.find(month=>month.remaining>0);
   if(!plan.length)return null;
   if(!first){const last=plan.at(-1);return{state:'complete',number:last.number,label:`الشهر ${last.number} مدفوع كامل`,dueAmount:0,dueDate:last.dueDate,plan};}
-  const labels={partial:'دفع جزئي',overdue:'متأخر',due:'مستحق الآن',upcoming:'لم يحن'};
+  const labels={partial:'دفع جزئي',overdue:'دين',due:'مستحق',upcoming:'لم يحن'};
   return{state:first.state,number:first.number,label:`الشهر ${first.number} ${labels[first.state]||'مستحق'}`,dueAmount:['partial','overdue','due'].includes(first.state)?first.remaining:0,dueDate:first.dueDate,plan};
 };
 financialStatus=function(student){
@@ -204,14 +204,14 @@ financialStatus=function(student){
     if(!focus)return remainingAmount(student)>0?'لم يدفع':'مدفوع كامل';
     if(focus.state==='complete')return'مدفوع كامل';
     if(focus.state==='partial')return'دفع جزئي';
-    if(focus.state==='overdue')return'متأخر';
-    if(focus.state==='due')return'مستحق الآن';
+    if(focus.state==='overdue')return'دين';
+    if(focus.state==='due')return'مستحق';
     return paymentTotal(student)>0?'مدفوع كامل':'لم يدفع';
   }
   const remaining=remainingAmount(student);
   if(remaining===0)return'مدفوع كامل';
+  if(student.end&&student.end<today())return'دين';
   if(paymentTotal(student)===0)return'لم يدفع';
-  if(student.end&&student.end<today())return'متأخر';
   return'دفع جزئي';
 };
 courseStatus=function(student){if(isInactive(student))return'موقوف';if(isDynamicMonthly(student))return'نشطة';return legacyCourseStatus(student);};
@@ -273,7 +273,7 @@ function reminderNote(student,{kind,title,message,amount=0,dueDate='',monthNumbe
   return{
     studentId:String(student.id),studentName:String(student.name||''),phone:String(student.phone||''),reg:String(student.reg??''),
     branchName:String(typeof branchName==='function'?branchName(student.branch):student.branch||''),specialtyName,
-    kind:String(kind||'reminder'),title:String(title||'تذكير مستحقات'),message:String(message||''),
+    kind:String(kind||'reminder'),title:String(title||'تذكير بالدين'),message:String(message||''),
     amount:Math.max(0,Number(amount||0)),fee:Math.max(0,Number(fee||0)),dueDate:String(dueDate||''),
     monthNumber:monthNumber===null||monthNumber===undefined?null:Number(monthNumber),state:String(state||''),date:today(),
     contextType:resolvedContextType,contextLabel:resolvedContextLabel,contextValue:String(resolvedContextValue||'')
@@ -295,27 +295,27 @@ function notificationsForStudent(student){
       const custom=student.debtDueDates?.[String(month.number)],course=spec(student.specialty)?.name||'الدورة';
       if(custom&&asOf>=addDays(custom,-1)){
         const overdue=asOf>custom,message=debtMessage(student,month.remaining,custom,overdue,{monthNumber:month.number,fee:month.fee});
-        out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?`متبقي متأخر — الشهر ${month.number}`:`موعد سداد المتبقي — الشهر ${month.number}`,message,amount:month.remaining,dueDate:custom,monthNumber:month.number,fee:month.fee,state:overdue?'overdue':'due',contextType:'month'}));
+        out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?`دين قائم — الشهر ${month.number}`:`موعد سداد المتبقي — الشهر ${month.number}`,message,amount:month.remaining,dueDate:custom,monthNumber:month.number,fee:month.fee,state:overdue?'overdue':'due',contextType:'month'}));
         return;
       }
       const opens=addDays(month.dueDate,-3);
       if(month.number>1&&asOf>=opens&&asOf<month.dueDate){
-        const message=`عزيزي الطالب ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون مستحقات متأخرة. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع إدارة المركز لتحديث الحالة.`;
+        const message=`عزيزي الطالب ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون ديون قائمة. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع إدارة المركز لتحديث الحالة.`;
         out.push(reminderNote(student,{kind:'monthly-upcoming',title:`تذكير بتجديد الشهر ${month.number}`,message,amount:month.fee,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:'upcoming',contextType:'month'}));
       }else if(asOf>=month.dueDate){
         const partial=month.remaining<month.fee,overdue=asOf>month.dueDate;
         let message='';
         if(partial)message=`عزيزي الطالب ${student.name}، تم تسجيل دفعة جزئية للشهر ${month.number} من دورة ${course}، وما زال المبلغ المطلوب ${cash(month.remaining)} من أصل ${cash(month.fee)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو استكمال المتبقي في أقرب وقت حتى يصبح الشهر مسددًا بالكامل. إذا سبق لكم استكمال السداد، يرجى التواصل مع إدارة المركز لتحديث الملف.`;
-        else if(overdue)message=`عزيزي الطالب ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم المستحقات والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى تجاهل هذا التذكير أو تأكيد العملية مع الإدارة.`;
+        else if(overdue)message=`عزيزي الطالب ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم الديون والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى تجاهل هذا التذكير أو تأكيد العملية مع الإدارة.`;
         else message=`عزيزي الطالب ${student.name}، أصبحت رسوم الشهر ${month.number} من دورة ${course} مستحقة اليوم بقيمة ${cash(month.remaining)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو إتمام السداد في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع الإدارة لتأكيد العملية.`;
-        out.push(reminderNote(student,{kind:partial?'monthly-partial':overdue?'monthly-overdue':'monthly-due',title:partial?`متبقي الشهر ${month.number}`:overdue?`استحقاق متأخر — الشهر ${month.number}`:`استحقاق الشهر ${month.number}`,message,amount:month.remaining,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:partial?'partial':overdue?'overdue':'due',contextType:'month'}));
+        out.push(reminderNote(student,{kind:partial?'monthly-partial':overdue?'monthly-overdue':'monthly-due',title:partial?`متبقي الشهر ${month.number}`:overdue?`دين قائم — الشهر ${month.number}`:`استحقاق الشهر ${month.number}`,message,amount:month.remaining,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:partial?'partial':overdue?'overdue':'due',contextType:'month'}));
       }
     });
   }else if(isNewModel(student)&&remainingAmount(student)>0){
     const due=student.debtDueDates?.course;
     if(due&&asOf>=addDays(due,-1)){
       const amount=remainingAmount(student),overdue=asOf>due,message=debtMessage(student,amount,due,overdue);
-      out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?'تذكير بمبلغ متبقٍ متأخر':'تذكير بموعد سداد المتبقي',message,amount,dueDate:due,state:overdue?'overdue':'due',contextType:'course',contextLabel:'الدورة',contextValue:spec(student.specialty)?.name||student.specialty||'الدورة'}));
+      out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?'تذكير بدين قائم':'تذكير بموعد سداد المتبقي',message,amount,dueDate:due,state:overdue?'overdue':'due',contextType:'course',contextLabel:'الدورة',contextValue:spec(student.specialty)?.name||student.specialty||'الدورة'}));
     }
   }
   return out;

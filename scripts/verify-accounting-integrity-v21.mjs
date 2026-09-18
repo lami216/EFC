@@ -90,7 +90,7 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(three.expenses.length===3,'legacy expense dedupe must preserve multiplicity instead of collapsing identical real rows');
 }
 
-requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260918-finance-kpis-v23-1','index loads accounting integrity with synchronized cache version');
+requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260918-debt-renewal-v24-1','index loads accounting integrity with synchronized cache version');
 requireText(build,"'assets/production-accounting-integrity-v21.js'",'production build copies accounting integrity runtime');
 requireText(pkg,'node scripts/verify-accounting-integrity-v21.mjs','npm check runs accounting integrity verification');
 
