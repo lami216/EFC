@@ -67,4 +67,4 @@ for(const [token,label] of [
   ['compactLogin:true','compact login marker']
 ])requireSecurity(token,label);
 
-console.log('User feedback v13 verified: current-only finance charts, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
+console.log('User feedback v13 verified: finance dashboards without graphs, selected daily/monthly/yearly periods, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
