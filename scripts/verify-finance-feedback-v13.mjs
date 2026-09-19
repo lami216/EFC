@@ -35,8 +35,36 @@ for(const [token,label] of [
   ['دفع جزئي من الدورة','course partial statement'],
   ['دفع كامل للدورة','course full statement'],
   ['<th>الاسم</th><th>البيان</th>','separate name and statement columns'],
-  ['dailySeparateNameAndStatement:true','daily column marker']
+  ['dailySeparateNameAndStatement:true','daily column marker'],
+  ['periodScopedRegistrationCount:true','registration count follows selected period'],
+  ['periodScopedExpenseCount:true','expense count follows selected period'],
+  ['financePeriodContextHints:true','finance KPI period descriptions'],
+  ['financeAverageKpisRemoved:true','average payment/expense KPIs removed'],
+  ['expenseHistoryActionRed:true','expense history action is visually destructive'],
+  ['financeDebtKpiActual:true','finance debt KPI counts actual debt only'],
+  ['profitPeriodContextHints:true','profit cards describe the selected period'],
+  ['<small>الدين</small>','finance debt KPI label'],
+  ['remainingAmount,installmentPlan,expenseSpecialtyName','finance imports installmentPlan used by debt KPI'],
+  ['function studentRegistrationDate(student)','registration date resolver'],
+  ['registered=students.filter','period registration filter'],
+  ['finance-kpis-three-v23','three-card income and expense KPI layout'],
+  ['finance-expense-history-action-v23','red expense-history action']
 ])requireFinance(token,label);
+
+
+for(const [token,label] of [
+  ['chartsRemovedFromFinance:true','finance dashboards no longer render graphs'],
+  ['dailyDateFilter:true','daily finance uses one full date'],
+  ['monthlySelectedMonth:true','monthly finance uses the selected month'],
+  ['yearlySelectedYear:true','yearly finance uses the selected year'],
+  ['id=\"dayV13\" type=\"date\"','daily finance date picker'],
+  ["dayWrap.hidden=mode!=='daily';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=mode==='daily'",'period-specific finance controls']
+])requireFinance(token,label);
+forbidFinance('<div class=\"card chart-card\">${chart(series(income','income chart must stay removed');
+forbidFinance('<div class=\"card chart-card\">${chart(series(costs','expense chart must stay removed');
+forbidFinance('صافي الربح التراكمي','profit chart must stay removed');
+forbidFinance('<small>متوسط الدفعة</small>','average payment KPI must stay removed');
+forbidFinance('<small>متوسط المصروف</small>','average expense KPI must stay removed');
 
 const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
@@ -54,4 +82,4 @@ for(const [token,label] of [
   ['compactLogin:true','compact login marker']
 ])requireSecurity(token,label);
 
-console.log('User feedback v13 verified: current-only finance charts, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
+console.log('User feedback v13 verified: finance dashboards without graphs, selected daily/monthly/yearly periods, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');

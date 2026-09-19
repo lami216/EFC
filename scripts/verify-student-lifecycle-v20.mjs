@@ -93,6 +93,8 @@ const monthly={id:'month',recordCode:'month',branch:'B',specialty:'FR',reg:5,sta
 if(D.monthlyCoverageEnd(monthly)!=='2026-10-15')throw new Error(`Month 1 end must be 2026-10-15, got ${D.monthlyCoverageEnd(monthly)}.`);
 monthly.payments.push(["2026-10-16",1000,'cash','08:00',2,'','tx2',2,null,null,[{monthNumber:2,amount:1000}]]);
 if(D.monthlyCoverageEnd(monthly)!=='2026-11-15')throw new Error(`Latest paid month end must advance to 2026-11-15, got ${D.monthlyCoverageEnd(monthly)}.`);
+const monthlyPartial={id:'month-partial',recordCode:'month-partial',branch:'B',specialty:'FR',reg:6,start:'2026-09-16',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[["2026-09-16",1000,'cash','08:00',1,'','txp1',1,null,null,[{monthNumber:1,amount:1000}]],["2026-10-14",250,'cash','08:00',2,'','txp2',2,null,null,[{monthNumber:2,amount:250}]]]};
+if(D.monthlyCoverageEnd(monthlyPartial)!=='2026-11-15')throw new Error(`A partial payment that starts month 2 must still show that month end, got ${D.monthlyCoverageEnd(monthlyPartial)}.`);
 
 window.EFC_FISCAL_V14={isDateClosed:date=>String(date)<='2025-12-31'};
 const closed={id:'closed',recordCode:'closed',branch:'D',specialty:'AR',reg:1,start:'2025-12-01',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[["2025-12-01",1000,'cash']]};students.push(closed);seq.noteRegistrationNumber('D','AR',1);let blocked=false;
