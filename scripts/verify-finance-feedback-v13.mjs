@@ -48,7 +48,10 @@ for(const [token,label] of [
   ['function studentRegistrationDate(student)','registration date resolver'],
   ['registered=students.filter','period registration filter'],
   ['finance-kpis-three-v23','three-card income and expense KPI layout'],
-  ['finance-expense-history-action-v23','red expense-history action']
+  ['finance-expense-history-action-v23','red expense-history action'],
+  ['expenseReceiptMatchesStudentHeader:true','expense receipt uses the same receipt header language'],
+  ['expenseReceiptPdfWaitsForLogo:true','expense PDF waits for the center logo'],
+  ['expenseWaitImages(paper)','expense PDF image readiness']
 ])requireFinance(token,label);
 
 

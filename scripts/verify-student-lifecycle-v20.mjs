@@ -31,7 +31,7 @@ for(const [token,label] of [
   ['student-edit-info-v20','student edit action'],
   ['student-delete-v20','student delete action'],
   ['previewRegistrationNumber?.(branch,specialty)','automatic register preview on course/branch change'],
-  ['رقم السجل يتحدد تلقائيًا حسب المركز والدورة عند الحفظ','automatic numbering explanation'],
+  ['registrationNumberHintRemoved:true','redundant register-number hint removed from edit form'],
   ['تغيير المركز أو الدورة هنا يُعامل كتصحيح لنفس ملف الطالب','scope-change correction warning']
 ])need(ui,token,label);
 need(gate,"'./assets/production-student-lifecycle-domain-v20.js'",'domain runtime in gate');

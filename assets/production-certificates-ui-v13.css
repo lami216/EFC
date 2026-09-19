@@ -201,14 +201,18 @@ html body.efc-certificates-workspace-v36 .efc-cert-history-date-v36>input{
   box-shadow:none!important;color:#173d33!important;font-size:11px!important;font-weight:750!important;cursor:pointer!important;outline:none!important;
 }
 html body.efc-certificates-workspace-v36 .efc-cert-history-date-v36>input::-webkit-calendar-picker-indicator{cursor:pointer!important;opacity:.75!important}
-html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36{
+html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36,
+html body.efc-certificates-workspace-v36 .efc-cert-records-toggle-v47{
   height:40px!important;min-width:142px!important;padding:0 14px!important;border:1px solid #78a99b!important;border-radius:8px!important;
   background:#fff!important;color:#0c604d!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;
   font-family:inherit!important;font-size:12px!important;font-weight:850!important;cursor:pointer!important;box-shadow:none!important;
 }
 html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36:hover,
-html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36.active{background:#e4f5ef!important;border-color:#28856d!important;color:#084a3d!important}
-html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36 svg{width:20px!important;height:20px!important;flex:0 0 20px!important}
+html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36.active,
+html body.efc-certificates-workspace-v36 .efc-cert-records-toggle-v47:hover{background:#e4f5ef!important;border-color:#28856d!important;color:#084a3d!important;transform:translateY(-1px)!important;box-shadow:0 6px 14px rgba(12,96,77,.09)!important}
+html body.efc-certificates-workspace-v36 .efc-cert-records-toggle-v47{background:#f7fbff!important;border-color:#b9cddd!important;color:#315c73!important}
+html body.efc-certificates-workspace-v36 .efc-cert-history-toggle-v36 svg,
+html body.efc-certificates-workspace-v36 .efc-cert-records-toggle-v47 svg{width:20px!important;height:20px!important;flex:0 0 20px!important}
 
 /* In history mode only the toolbar + history remain; payment fields and issue button are forcibly hidden. */
 html body.efc-certificates-workspace-v36 .cert-form-v13[data-efc-history-open-v36="1"]>#certInternalPaneV13,

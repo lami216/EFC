@@ -53,6 +53,11 @@ requireMatch(index,/<script src="\.\/assets\/production-license-gate-v8\.js(?:\?
 requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-ui-v13\.css(?:\?[^"']*)?"\s*\/>/,'production stylesheet');
 requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-certificates-ui-v13\.css(?:\?[^"']*)?"\s*\/>/,'consolidated certificate stylesheet');
 requireText(index,'html.efc-booting #app{visibility:hidden}','silent boot guard');
+requireText(receipts,'pdfWaitsForHeaderLogo:true','student receipt PDF waits for header logo');
+requireText(certificate,'certificatePdfLogoCaptureFixed:true','certificate PDF logo capture marker');
+requireText(certificate,'certificateHistorySeparatePage:true','separate certificate history page marker');
+requireText(financeUi,'expenseReceiptMatchesStudentHeader:true','expense receipt natural header parity');
+requireText(financeUi,'expenseReceiptPdfWaitsForLogo:true','expense receipt PDF waits for logo');
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'demo.css','demo stylesheet reference');
 forbidText(index,'./demo-app.js','demo runtime documentation');
