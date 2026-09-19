@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_FINANCE_UI_V13?.ready)return;
 const D=window.EFC_DOMAIN_V13;if(!D?.ready)throw new Error('Finance UI v13 loaded before domain v13.');
-const {GENERAL_EXPENSE,esc,today,cash,showDate,normalize,uid,isInactive,isDynamicMonthly,remainingAmount,expenseSpecialtyName,expenseMatches}=D;
+const {GENERAL_EXPENSE,esc,today,cash,showDate,normalize,uid,isInactive,isDynamicMonthly,remainingAmount,installmentPlan,expenseSpecialtyName,expenseMatches}=D;
 let expenses=D.getExpenses(),methodRecords=D.getMethodRecords();
 const monthNames=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const pad2=value=>String(value).padStart(2,'0');

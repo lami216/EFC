@@ -8,6 +8,7 @@ const assert=(condition,message)=>{if(!condition)throw new Error(`Accounting int
 const runtime=read('assets/production-accounting-integrity-v21.js');
 const index=read('index.html');
 const build=read('scripts/build-production.mjs');
+const gate=read('assets/production-license-gate-v8.js');
 const pkg=read('package.json');
 
 for(const [token,label] of [
@@ -90,7 +91,10 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(three.expenses.length===3,'legacy expense dedupe must preserve multiplicity instead of collapsing identical real rows');
 }
 
-requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260918-debt-renewal-v24-1','index loads accounting integrity with synchronized cache version');
+requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260919-finance-render-fix-v24-2','index loads accounting integrity with synchronized cache version');
+const gateScript=index.indexOf('./assets/production-license-gate-v8.js?v=20260919-finance-render-fix-v24-2'),integrityScript=index.indexOf('./assets/production-accounting-integrity-v21.js?v=20260919-finance-render-fix-v24-2');
+assert(gateScript>=0&&integrityScript>gateScript,'accounting integrity must load after the runtime gate script');
+assert(!gate.includes("'./assets/production-accounting-integrity-v21.js'"),'accounting integrity must not be duplicated inside the dynamically loaded RUNTIME list');
 requireText(build,"'assets/production-accounting-integrity-v21.js'",'production build copies accounting integrity runtime');
 requireText(pkg,'node scripts/verify-accounting-integrity-v21.mjs','npm check runs accounting integrity verification');
 

@@ -44,6 +44,7 @@ for(const [token,label] of [
   ['financeDebtKpiActual:true','finance debt KPI counts actual debt only'],
   ['profitPeriodContextHints:true','profit cards describe the selected period'],
   ['<small>الدين</small>','finance debt KPI label'],
+  ['remainingAmount,installmentPlan,expenseSpecialtyName','finance imports installmentPlan used by debt KPI'],
   ['function studentRegistrationDate(student)','registration date resolver'],
   ['registered=students.filter','period registration filter'],
   ['finance-kpis-three-v23','three-card income and expense KPI layout'],
