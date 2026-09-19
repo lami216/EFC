@@ -54,10 +54,16 @@ requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-ui-v13\.
 requireMatch(index,/<link rel="stylesheet" href="\.\/assets\/production-certificates-ui-v13\.css(?:\?[^"']*)?"\s*\/>/,'consolidated certificate stylesheet');
 requireText(index,'html.efc-booting #app{visibility:hidden}','silent boot guard');
 requireText(receipts,'pdfWaitsForHeaderLogo:true','student receipt PDF waits for header logo');
+requireText(receipts,'sharedReceiptLogoDataUri:true','receipt service owns one embedded logo source');
+requireText(receipts,"data:image/jpeg;base64,",'receipt logo is an embedded JPEG data URI');
 requireText(certificate,'certificatePdfLogoCaptureFixed:true','certificate PDF logo capture marker');
+requireText(certificate,'certificateUsesSharedEmbeddedLogo:true','certificate uses shared embedded receipt logo');
+requireText(certificate,'certificateHistorySpreadsheetTable:true','certificate history spreadsheet grid');
 requireText(certificate,'certificateHistorySeparatePage:true','separate certificate history page marker');
 requireText(financeUi,'expenseReceiptMatchesStudentHeader:true','expense receipt natural header parity');
 requireText(financeUi,'expenseReceiptPdfWaitsForLogo:true','expense receipt PDF waits for logo');
+requireText(financeUi,'expenseReceiptUsesSharedEmbeddedLogo:true','expense receipt uses shared embedded receipt logo');
+requireText(financeUi,'profitabilitySpreadsheetTable:true','profitability details spreadsheet grid');
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'demo.css','demo stylesheet reference');
 forbidText(index,'./demo-app.js','demo runtime documentation');

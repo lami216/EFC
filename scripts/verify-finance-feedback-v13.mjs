@@ -51,7 +51,11 @@ for(const [token,label] of [
   ['finance-expense-history-action-v23','red expense-history action'],
   ['expenseReceiptMatchesStudentHeader:true','expense receipt uses the same receipt header language'],
   ['expenseReceiptPdfWaitsForLogo:true','expense PDF waits for the center logo'],
-  ['expenseWaitImages(paper)','expense PDF image readiness']
+  ['expenseReceiptUsesSharedEmbeddedLogo:true','expense receipt uses the shared embedded logo'],
+  ['expenseWaitImages(paper)','expense PDF image readiness'],
+  ['profitDetailsActionEmphasized:true','profit details action is visually emphasized'],
+  ['profitabilitySpreadsheetTable:true','profit details use spreadsheet table styling'],
+  ['finance-profit-details-action-v27','profit details button class']
 ])requireFinance(token,label);
 
 
