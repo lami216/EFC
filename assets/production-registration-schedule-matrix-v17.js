@@ -343,12 +343,16 @@ body.efc-registration-redesign-v15 .schedule-table-v13 tbody th span,
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{color:#111!important;opacity:1!important;font-weight:800!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:112px!important;min-width:112px!important}
 
-body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 10px 28px rgba(7,88,68,.10)!important}
+body.efc-registration-editing-v17{overflow-y:auto!important}
+body.efc-registration-editing-v17 .shell.shell-v13,
+body.efc-registration-editing-v17 .shell.shell-v13 main,
+body.efc-registration-editing-v17 .content{overflow-y:visible!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 10px 28px rgba(7,88,68,.10)!important;max-height:calc(100dvh - 118px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;scrollbar-width:thin!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17{grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px 12px!important;align-items:end!important;margin-top:1px!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17 label{min-width:0!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17 .input{min-width:0!important}
 body.efc-registration-editing-v17 .registration-reg-fixed-v17{min-width:0;height:39px;display:flex;align-items:center;padding:0 11px;border:1px solid #d5dfdb;border-radius:8px;background:#eef3f1;color:#52665f;font:800 12px "Segoe UI Variable","Segoe UI",Tahoma,sans-serif;user-select:text}
-body.efc-registration-editing-v17 .registration-edit-actions-v17{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr)!important;gap:10px!important;margin-top:10px!important;position:relative;z-index:2}
+body.efc-registration-editing-v17 .registration-edit-actions-v17{display:grid!important;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr)!important;gap:10px!important;margin-top:10px!important;position:sticky!important;bottom:0!important;z-index:4!important;padding-top:8px!important;padding-bottom:2px!important;background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,.96) 24%,#fff 100%)!important}
 body.efc-registration-editing-v17 .registration-edit-actions-v17 .button{width:100%!important;min-width:0!important;margin:0!important;display:flex!important;align-items:center!important;justify-content:center!important}
 body.efc-registration-editing-v17 .registration-save-edit-v17{background:linear-gradient(180deg,#08785d,#056149)!important;color:#fff!important}
 body.efc-registration-editing-v17 .registration-cancel-edit-v17{background:#eef3f1!important;color:#17352d!important;border:1px solid #c9d8d2!important}
@@ -407,6 +411,8 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   editRequiresStudentAndRegistrationPermission:true,
   normalRegistrationRestoredAfterSave:true,
   responsiveEditWorkspace:true,
+  editVerticalScroll:true,
+  editActionsAlwaysReachable:true,
   editKeepsRegistrationGeometry:true,
   mainUntouched:true
 });
