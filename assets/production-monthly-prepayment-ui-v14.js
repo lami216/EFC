@@ -84,7 +84,7 @@ window.openStudent=function(id,mode='finance'){
   rows.forEach((row,index)=>{const month=plan[index];if(!month)return;const status=row.children?.[5];if(status&&month.prepaid)status.innerHTML=month.remaining>0?'<span class="badge warn">دفع جزئي مقدمًا</span>':'<span class="badge good">مدفوع مقدمًا</span>';});
   modal.querySelectorAll('.payment-receipt-v13').forEach(button=>{const index=Number(button.dataset.index),row=button.closest('tr'),statement=row?.children?.[3];if(statement)statement.textContent=allocationSummary(student,index);});
   modal.querySelectorAll('.month-receipt-v13').forEach(button=>{const clone=button.cloneNode(true);button.replaceWith(clone);clone.onclick=()=>{const model=monthReceiptModel(student,Number(clone.dataset.month));if(model)receiptWindowV4(model);};});
-  const actions=modal.querySelector('.student-actions-v13');if(actions&&!isInactive(student)&&canEditStudents()&&!actions.querySelector('.prepay-next-v14')){const button=document.createElement('button');button.className='button prepay-next-v14';button.type='button';button.textContent='تسجيل دفعة شهرية';button.onclick=()=>{modal.remove();window.openPayment(id);};actions.appendChild(button);}
+  const actions=modal.querySelector('.student-actions-v13');if(actions&&!isInactive(student)&&canEditStudents()&&!actions.querySelector('.prepay-next-v14')){const button=document.createElement('button');button.className='button prepay-next-v14';button.type='button';button.textContent='تسجيل دفعة جديدة';button.onclick=()=>{modal.remove();window.openPayment(id);};actions.appendChild(button);}
 };
 
 function enhanceLedger(){
@@ -96,5 +96,5 @@ function enhanceLedger(){
 window.renderLedger=function(){baseRenderLedger();enhanceLedger();['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(enhanceLedger,0)));};
 
 const style=document.createElement('style');style.textContent=`.prepay-note-v14{margin:-4px 0 12px;padding:9px 11px;border:1px solid #cfe0d9;border-radius:9px;background:#f4faf7;color:var(--muted);font-size:9px;line-height:1.7}.prepay-preview-v14{min-height:38px;padding:9px 11px;border:1px dashed var(--border);border-radius:8px;background:var(--surface2);font-size:9px;line-height:1.7;color:var(--primary);font-weight:700}`;document.head.appendChild(style);
-window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,scheduleDirectFromMatrix:true});
+window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,newPaymentButtonLabel:true,scheduleDirectFromMatrix:true});
 })();

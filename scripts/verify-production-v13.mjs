@@ -59,11 +59,15 @@ requireText(receipts,"data:image/jpeg;base64,",'receipt logo is an embedded JPEG
 requireText(certificate,'certificatePdfLogoCaptureFixed:true','certificate PDF logo capture marker');
 requireText(certificate,'certificateUsesSharedEmbeddedLogo:true','certificate uses shared embedded receipt logo');
 requireText(certificate,'certificateHistorySpreadsheetTable:true','certificate history spreadsheet grid');
+requireText(certificate,'certificateHistoryStandardGreenHeader:true','certificate history standard green table header');
 requireText(certificate,'certificateHistorySeparatePage:true','separate certificate history page marker');
 requireText(financeUi,'expenseReceiptMatchesStudentHeader:true','expense receipt natural header parity');
 requireText(financeUi,'expenseReceiptPdfWaitsForLogo:true','expense receipt PDF waits for logo');
 requireText(financeUi,'expenseReceiptUsesSharedEmbeddedLogo:true','expense receipt uses shared embedded receipt logo');
 requireText(financeUi,'profitabilitySpreadsheetTable:true','profitability details spreadsheet grid');
+requireText(financeUi,'expenseReceiptsNumericSequence:true','expense receipts numeric sequence UI');
+requireText(financeUi,'ledgerResponsiveLikeFinance:true','ledger responsive layout marker');
+forbidText(financeUi,'return`EXP-','opaque expense receipt code');
 forbidText(index,'جاري تشغيل مركز EFC','visible startup splash');
 forbidText(index,'demo.css','demo stylesheet reference');
 forbidText(index,'./demo-app.js','demo runtime documentation');
@@ -103,7 +107,7 @@ forbidText(certificate,"addEventListener('hashchange'",'certificate router hook'
 forbidText(certificate,'window.open=','certificate window.open override');
 forbidText(certificate,'new MutationObserver(','certificate observer');
 
-for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY'])requireText(domain,token,`domain ${token}`);
+for(const token of ['EFC_RECEIPTS_V13?.ready','function appendPayment(student','student.paid=paymentTotal(student)','function remainingAmount(student','hydrateExtrasFromDesktop','window.EFC_DOMAIN_V13_READY','expenseReceiptsNumericOnly:true','expenseReceiptsStartAtOne:true','expenseReceiptNumbersNeverReused:true','expenseReceiptSequencePersisted:true','expenseReceiptSequenceV28'])requireText(domain,token,`domain ${token}`);
 for(const token of ["EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة'","EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة'",'historicalCourseSnapshotPreservedOnEdit:true','renewalWarningBeforeMonth:true','debtStartsWithUnpaidRenewal:true','monthlyRenewalWarningDays:RENEWAL_WARNING_DAYS'])requireText(monthlyDomain,token,`monthly domain integration ${token}`);
 for(const token of ['currentLevelImplementation:true','ownerChoosesStartDate:true','automaticEndDate:true','annualSameAnchor:true','continuingStudentsRetained:true','debtorsRetained:true','separateCourseAndCertificateIncome:true','tombstoneRestoreProtection:true','pendingCloseJournal:true','closedPeriodsImmutable:true','noRouterHook:true'])requireText(fiscal,token,`fiscal ${token}`);
 for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','studentEndForSearch','data-tab="debts"','نهاية الدورة / الشهر','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','legacyRecordsUseRestoredStudentFile:true','snapshot.billing===\'monthly\'','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);

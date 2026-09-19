@@ -55,7 +55,12 @@ for(const [token,label] of [
   ['expenseWaitImages(paper)','expense PDF image readiness'],
   ['profitDetailsActionEmphasized:true','profit details action is visually emphasized'],
   ['profitabilitySpreadsheetTable:true','profit details use spreadsheet table styling'],
-  ['finance-profit-details-action-v27','profit details button class']
+  ['finance-profit-details-action-v27','profit details button class'],
+  ['expenseReceiptsNumericSequence:true','expense receipts use numeric sequence'],
+  ['function expenseReceiptCode(row){const number=expenseReceiptNumberOf','expense receipt header is numeric'],
+  ['ledgerResponsiveLikeFinance:true','ledger adapts on narrower screens'],
+  ['@media(max-width:1180px)','ledger responsive breakpoint'],
+  ['min-width:760px!important','ledger table scrolls instead of clipping']
 ])requireFinance(token,label);
 
 
@@ -80,6 +85,7 @@ const controlsPos=finance.indexOf('card finance-controls finance-controls-v13');
 if(!(topbarPos>=0&&switchPos>topbarPos&&actionPos>switchPos&&controlsPos>actionPos))throw new Error('Finance view action must share the tab row above the controls card.');
 forbidFinance("pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.','<div id=\"financePrimaryActionV13\"></div>')",'expense action returned to page header');
 forbidFinance('profitability-tables-v13','old three profitability cards returned');
+forbidFinance('return`EXP-','opaque expense receipt codes must not return');
 
 for(const [token,label] of [
   ['name="pin" type="password"','masked login PIN input'],

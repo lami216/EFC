@@ -10,7 +10,8 @@ const STORAGE={
   methods:'efc-payment-method-records-v11',
   security:'efc-security-v11',
   recovery:'efc-admin-recovery-pending-v11',
-  meta:'efc-center-ops-meta-v13'
+  meta:'efc-center-ops-meta-v13',
+  expenseSequence:'efc-expense-receipt-sequence-v28'
 };
 const invoke=window.__TAURI__?.core?.invoke;
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -30,6 +31,7 @@ function isInactive(student){return student?.active===false||student?.status==='
 function paymentTotal(student){return (student?.payments||[]).reduce((sum,payment)=>sum+Math.max(0,Number(payment?.[1]||0)),0);}
 
 let expenses=Array.isArray(readJson(STORAGE.expenses,[]))?readJson(STORAGE.expenses,[]):[];
+let expenseReceiptNext=Math.max(1,Number(readJson(STORAGE.expenseSequence,{next:1})?.next||1));
 let methodRecords=Array.isArray(readJson(STORAGE.methods,[]))?readJson(STORAGE.methods,[]):[];
 let securityState=readJson(STORAGE.security,{users:[]});
 if(!securityState||typeof securityState!=='object')securityState={users:[]};
@@ -46,9 +48,18 @@ function normalizeExpenses(){
     specialty:String(item.specialty),
     date:String(item.date||today()),
     time:String(item.time||'00:00'),
-    createdAt:Number(item.createdAt||Date.now())
+    createdAt:Number(item.createdAt||Date.now()),
+    receiptNo:Number.isInteger(Number(item.receiptNo))&&Number(item.receiptNo)>0?Number(item.receiptNo):null
   })).filter(item=>{if(seen.has(item.id))return false;seen.add(item.id);return true;});
   writeJson(STORAGE.expenses,expenses);
+}
+function repairExpenseReceiptSequence(){
+  const ordered=[...expenses].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.time||'').localeCompare(String(b.time||''))||Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id||'').localeCompare(String(b.id||''))),used=new Set(),missing=[];let max=0;
+  ordered.forEach(item=>{const number=Number(item.receiptNo);if(Number.isInteger(number)&&number>0){used.add(number);max=Math.max(max,number);}else missing.push(item);});
+  let next=Math.max(1,Number(expenseReceiptNext||1),max+1);
+  missing.forEach(item=>{while(used.has(next))next+=1;item.receiptNo=next;used.add(next);max=Math.max(max,next);next+=1;});
+  expenseReceiptNext=Math.max(Number(expenseReceiptNext||1),max+1,next);
+  writeJson(STORAGE.expenses,expenses);writeJson(STORAGE.expenseSequence,{version:28,next:expenseReceiptNext});
 }
 function normalizeMethodRecords(){
   const activeNames=[...(Array.isArray(methods)?methods:[])].map(String).map(v=>v.trim()).filter(Boolean),seen=new Set();
@@ -65,6 +76,7 @@ function syncActiveMethods(){
   writeJson(STORAGE.methods,methodRecords);
 }
 normalizeExpenses();
+repairExpenseReceiptSequence();
 syncActiveMethods();
 
 const baseApplyRestored=window.EFC_APPLY_RESTORED_STATE;
@@ -77,6 +89,7 @@ async function persistExtrasNow(){
 }
 function contributeExtras(state){
   state.expenses=expenses;
+  state.expenseReceiptSequenceV28={version:28,next:expenseReceiptNext};
   state.paymentMethodRecords=methodRecords;
   state.security=securityState;
   state.centerOpsMeta={updatedAt:localExtraUpdatedAt()||Date.now(),version:13};
@@ -98,12 +111,13 @@ async function hydrateExtrasFromDesktop(){
     const shouldUseNative=nativeUpdated>localUpdated;
     if(shouldUseNative&&Array.isArray(state.expenses))expenses=state.expenses;
     else if(!expenses.length&&Array.isArray(state.expenses))expenses=state.expenses;
+    expenseReceiptNext=Math.max(expenseReceiptNext,Number(state.expenseReceiptSequenceV28?.next||1));
     if(shouldUseNative&&Array.isArray(state.paymentMethodRecords))methodRecords=state.paymentMethodRecords;
     else if(!methodRecords.length&&Array.isArray(state.paymentMethodRecords))methodRecords=state.paymentMethodRecords;
     if(shouldUseNative&&state.security&&typeof state.security==='object')securityState=state.security;
     else if(!securityState.users.length&&state.security&&typeof state.security==='object')securityState=state.security;
     if(!Array.isArray(securityState.users))securityState.users=[];
-    normalizeExpenses();syncActiveMethods();writeJson(STORAGE.security,securityState);
+    normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);
     if(nativeUpdated>localUpdated)writeJson(STORAGE.meta,{updatedAt:nativeUpdated});
   }catch(error){console.error('EFC v13 extra-state hydration failed; local state kept.',error);}
 }
@@ -111,10 +125,11 @@ window.EFC_REGISTER_STATE_CONTRIBUTOR?.('center-operations',contributeExtras);
 if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
   const result=await baseApplyRestored(incoming);
   if(Array.isArray(incoming?.expenses))expenses=incoming.expenses;
+  expenseReceiptNext=Math.max(expenseReceiptNext,Number(incoming?.expenseReceiptSequenceV28?.next||1));
   if(Array.isArray(incoming?.paymentMethodRecords))methodRecords=incoming.paymentMethodRecords;
   if(incoming?.security&&typeof incoming.security==='object')securityState=incoming.security;
   if(!Array.isArray(securityState.users))securityState.users=[];
-  normalizeExpenses();syncActiveMethods();writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();
+  normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();
   return result;
 };
 
@@ -324,7 +339,9 @@ function currentNotifications(){return students.flatMap(notificationsForStudent)
 
 function expenseSpecialtyName(value){return value===GENERAL_EXPENSE?'مصروف عام':spec(value)?.name||value||'—';}
 function expenseMatches(item,{from,to,branch,specialty,method}={}){return(!from||item.date>=from)&&(!to||item.date<=to)&&(!branch||item.branch===branch)&&(!specialty||item.specialty===specialty)&&(!method||item.method===method);}
-function saveExpenses(next){expenses=Array.isArray(next)?next:expenses;normalizeExpenses();markExtrasChanged();persistExtrasSoon();}
+function allocateExpenseReceiptNumber(){repairExpenseReceiptSequence();const number=Math.max(1,Number(expenseReceiptNext||1));expenseReceiptNext=number+1;writeJson(STORAGE.expenseSequence,{version:28,next:expenseReceiptNext});markExtrasChanged();persistExtrasSoon();return number;}
+function expenseReceiptNumberOf(item){const value=Number(item?.receiptNo);return Number.isInteger(value)&&value>0?value:null;}
+function saveExpenses(next){expenses=Array.isArray(next)?next:expenses;normalizeExpenses();repairExpenseReceiptSequence();markExtrasChanged();persistExtrasSoon();}
 function saveMethodRecords(next){methodRecords=Array.isArray(next)?next:methodRecords;syncActiveMethods();markExtrasChanged();persistExtrasSoon();}
 function saveSecurity(next){securityState=next&&typeof next==='object'?next:securityState;if(!Array.isArray(securityState.users))securityState.users=[];writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();}
 
@@ -351,7 +368,8 @@ const ready=hydrateExtrasFromDesktop().then(()=>{
     paymentTotal,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,setDebtDate,stopStudent,
     notificationsForStudent,currentNotifications,expenseSpecialtyName,expenseMatches,
     getExpenses:()=>expenses,getMethodRecords:()=>methodRecords,getSecurity:()=>securityState,
-    saveExpenses,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon
+    saveExpenses,allocateExpenseReceiptNumber,expenseReceiptNumberOf,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon,
+    expenseReceiptsNumericOnly:true,expenseReceiptsStartAtOne:true,expenseReceiptNumbersNeverReused:true,expenseReceiptSequencePersisted:true
   });
   return window.EFC_DOMAIN_V13;
 });
