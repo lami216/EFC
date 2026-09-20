@@ -299,7 +299,7 @@ function debtMessage(student,amount,due,overdue=false,{monthNumber=null,fee=0}={
   const scope=monthNumber?`الشهر ${monthNumber} من دورة ${course}`:`دورة ${course}`;
   const total=fee>0&&Number(fee)!==Number(amount)?` من أصل ${cash(fee)}`:'';
   const timing=overdue?`وقد تجاوز موعد الاستحقاق المحدد بتاريخ ${showDate(due)}`:`وموعد الاستحقاق هو ${due===addDays(today(),1)?'غدًا، الموافق ':''}${showDate(due)}`;
-  return `عزيزي الطالب ${student.name}، نحيطكم علمًا بأن المبلغ المتبقي على ${scope} هو ${cash(amount)}${total}، ${timing}. نرجو تسوية المبلغ في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق لكم السداد، يرجى تجاهل هذا التذكير أو التواصل مع إدارة المركز لتأكيد العملية.`;
+  return `عزيزي الطالب/ة ${student.name}، نحيطكم علمًا بأن المبلغ المتبقي على ${scope} هو ${cash(amount)}${total}، ${timing}. نرجو تسوية المبلغ في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق لكم السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
 }
 function notificationsForStudent(student){
   if(!student||isInactive(student))return[];
@@ -315,14 +315,14 @@ function notificationsForStudent(student){
       }
       const opens=addDays(month.dueDate,-3);
       if(month.number>1&&asOf>=opens&&asOf<month.dueDate){
-        const message=`عزيزي الطالب ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون ديون قائمة. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع إدارة المركز لتحديث الحالة.`;
+        const message=`عزيزي الطالب/ة ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون ديون قائمة. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
         out.push(reminderNote(student,{kind:'monthly-upcoming',title:`تذكير بتجديد الشهر ${month.number}`,message,amount:month.fee,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:'upcoming',contextType:'month'}));
       }else if(asOf>=month.dueDate){
         const partial=month.remaining<month.fee,overdue=asOf>month.dueDate;
         let message='';
-        if(partial)message=`عزيزي الطالب ${student.name}، تم تسجيل دفعة جزئية للشهر ${month.number} من دورة ${course}، وما زال المبلغ المطلوب ${cash(month.remaining)} من أصل ${cash(month.fee)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو استكمال المتبقي في أقرب وقت حتى يصبح الشهر مسددًا بالكامل. إذا سبق لكم استكمال السداد، يرجى التواصل مع إدارة المركز لتحديث الملف.`;
-        else if(overdue)message=`عزيزي الطالب ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم الديون والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى تجاهل هذا التذكير أو تأكيد العملية مع الإدارة.`;
-        else message=`عزيزي الطالب ${student.name}، أصبحت رسوم الشهر ${month.number} من دورة ${course} مستحقة اليوم بقيمة ${cash(month.remaining)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو إتمام السداد في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع الإدارة لتأكيد العملية.`;
+        if(partial)message=`عزيزي الطالب/ة ${student.name}، تم تسجيل دفعة جزئية للشهر ${month.number} من دورة ${course}، وما زال المبلغ المطلوب ${cash(month.remaining)} من أصل ${cash(month.fee)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو استكمال المتبقي في أقرب وقت حتى يصبح الشهر مسددًا بالكامل. إذا سبق لكم استكمال السداد، يرجى التواصل مع إدارة المركز لتحديث الملف.`;
+        else if(overdue)message=`عزيزي الطالب/ة ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم الديون والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
+        else message=`عزيزي الطالب/ة ${student.name}، أصبحت رسوم الشهر ${month.number} من دورة ${course} مستحقة اليوم بقيمة ${cash(month.remaining)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو إتمام السداد في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
         out.push(reminderNote(student,{kind:partial?'monthly-partial':overdue?'monthly-overdue':'monthly-due',title:partial?`متبقي الشهر ${month.number}`:overdue?`دين قائم — الشهر ${month.number}`:`استحقاق الشهر ${month.number}`,message,amount:month.remaining,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:partial?'partial':overdue?'overdue':'due',contextType:'month'}));
       }
     });
@@ -369,7 +369,7 @@ const ready=hydrateExtrasFromDesktop().then(()=>{
     notificationsForStudent,currentNotifications,expenseSpecialtyName,expenseMatches,
     getExpenses:()=>expenses,getMethodRecords:()=>methodRecords,getSecurity:()=>securityState,
     saveExpenses,allocateExpenseReceiptNumber,expenseReceiptNumberOf,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon,
-    expenseReceiptsNumericOnly:true,expenseReceiptsStartAtOne:true,expenseReceiptNumbersNeverReused:true,expenseReceiptSequencePersisted:true
+    expenseReceiptsNumericOnly:true,expenseReceiptsStartAtOne:true,expenseReceiptNumbersNeverReused:true,expenseReceiptSequencePersisted:true,reminderInclusiveSalutation:true,reminderRequiresAdminReconciliation:true
   });
   return window.EFC_DOMAIN_V13;
 });

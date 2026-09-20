@@ -35,7 +35,7 @@ const RUNTIME=[
   './assets/production-security-ui-v13.js',
   './assets/production-login-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260919-expense-seq-ledger-responsive-v28-1';
+const RUNTIME_VERSION='20260920-search-reminders-ledger-startup-v29-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';

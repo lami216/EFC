@@ -40,7 +40,10 @@ for(const marker of [
   'noStartupSplash:true',
   'noLegacyDemoRuntime:true',
   'domainBeforeReceiptSequence:true',
-  'singleStartupRender:true'
+  'singleStartupRender:true',
+  'parallelRuntimePreload:true',
+  'gateOwnsBootReveal:true',
+  'finalUiBeforeReveal:true'
 ])requireText(source.gate,marker);
 for(const obsolete of ['demo-app.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-center-ops-v11.js','production-center-ops-v12.js','production-ledger-pdf-v6.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
 forbidText(source.gate,'mountStartupShield','visible startup shield');
@@ -66,6 +69,10 @@ requireText(source.receipts,'noWindowOpenPatch:true','receipt service does not i
 requireText(source.certificate,'noRouterHook:true','certificates do not own routing');
 requireText(source.security,'settingsOwnedByFinalRouter:true','settings routed by v13 router');
 requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates routed by v13 router');
+requireText(source.security,'bootRevealDeferredToGate:true','security does not reveal before login redesign is ready');
+forbidText(source.security,"classList.remove('efc-booting')",'intermediate security UI reveal');
+requireText(source.gate,"link.rel='preload'",'runtime scripts are prefetched in parallel');
+requireText(source.gate,'await new Promise(resolve=>requestAnimationFrame(()=>resolve()))','final UI settles before reveal');
 
 const hashOwners=['foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!=='security')throw new Error(`Expected one v13 hashchange owner (security), found: ${hashOwners.join(', ')||'none'}.`);

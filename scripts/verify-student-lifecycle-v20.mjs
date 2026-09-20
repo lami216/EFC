@@ -32,7 +32,10 @@ for(const [token,label] of [
   ['student-delete-v20','student delete action'],
   ['previewRegistrationNumber?.(branch,specialty)','automatic register preview on course/branch change'],
   ['registrationNumberHintRemoved:true','redundant register-number hint removed from edit form'],
-  ['تغيير المركز أو الدورة هنا يُعامل كتصحيح لنفس ملف الطالب','scope-change correction warning']
+  ['تغيير المركز أو الدورة هنا يُعامل كتصحيح لنفس ملف الطالب','scope-change correction warning'],
+  ['studentActionButtonsColored:true','student file actions use distinct colors'],
+  ['studentActionButtonsDarkBorder:true','student file actions have dark borders'],
+  ['.student-actions-v13 .prepay-next-v14{background:#0b705a!important','new monthly payment action is visibly green']
 ])need(ui,token,label);
 need(gate,"'./assets/production-student-lifecycle-domain-v20.js'",'domain runtime in gate');
 need(gate,"'./assets/production-student-lifecycle-ui-v20.js'",'UI runtime in gate');

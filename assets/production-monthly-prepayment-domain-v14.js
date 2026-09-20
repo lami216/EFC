@@ -271,9 +271,9 @@ function notificationsForStudent(student){
   const course=typeof spec==='function'?(spec(student.specialty)?.name||student.specialty||'الدورة'):(student.specialty||'الدورة'),renewalDate=String(focus.renewalDate||focus.dueDate||''),amount=Math.max(0,Number(focus.dueAmount||0));
   if(focus.state==='due'){
     const days=Math.max(1,daysUntil(asOf,renewalDate)),dayText=days===1?'يوم واحد':days===2?'يومان':`${days} أيام`;
-    return[{studentId:student.id,studentName:student.name,kind:'monthly-renewal-warning',title:`تنبيه التجديد — متبقي ${dayText}`,message:`عزيزي الطالب ${student.name}، متبقي ${dayText} على موعد التجديد بتاريخ ${showDate(renewalDate)} لدورة ${course}. المبلغ المطلوب ${cash(amount)}. يمكنك تسويته قبل الموعد حتى يبقى الحساب منتظمًا ولا يتحول الرصيد إلى دين.`,amount,dueDate:renewalDate,monthNumber:focus.number,fee:Number(focus.plan?.find(month=>month.number===focus.number)?.fee||0),state:'due',contextType:'month'}];
+    return[{studentId:student.id,studentName:student.name,kind:'monthly-renewal-warning',title:`تنبيه التجديد — متبقي ${dayText}`,message:`عزيزي الطالب/ة ${student.name}، متبقي ${dayText} على موعد التجديد بتاريخ ${showDate(renewalDate)} لدورة ${course}. المبلغ المطلوب ${cash(amount)}. يمكنك تسويته قبل الموعد حتى يبقى الحساب منتظمًا ولا يتحول الرصيد إلى دين.`,amount,dueDate:renewalDate,monthNumber:focus.number,fee:Number(focus.plan?.find(month=>month.number===focus.number)?.fee||0),state:'due',contextType:'month'}];
   }
-  return[{studentId:student.id,studentName:student.name,kind:'monthly-debt',title:`دين قائم — الشهر ${focus.number}`,message:`عزيزي الطالب ${student.name}، بدأ موعد التجديد بتاريخ ${showDate(renewalDate)} وما زال على الحساب دين بقيمة ${cash(amount)} لدورة ${course}. يرجى تسوية الدين لتحديث الحالة المالية.`,amount,dueDate:renewalDate,monthNumber:focus.number,fee:Number(focus.plan?.find(month=>month.number===focus.number)?.fee||0),state:'overdue',contextType:'month'}];
+  return[{studentId:student.id,studentName:student.name,kind:'monthly-debt',title:`دين قائم — الشهر ${focus.number}`,message:`عزيزي الطالب/ة ${student.name}، بدأ موعد التجديد بتاريخ ${showDate(renewalDate)} وما زال على الحساب دين بقيمة ${cash(amount)} لدورة ${course}. يرجى تسوية الدين لتحديث الحالة المالية.`,amount,dueDate:renewalDate,monthNumber:focus.number,fee:Number(focus.plan?.find(month=>month.number===focus.number)?.fee||0),state:'overdue',contextType:'month'}];
 }
 function currentNotifications(){return students.flatMap(notificationsForStudent);}
 
@@ -305,5 +305,5 @@ const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,r
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();
-window.EFC_MONTHLY_PREPAYMENT_DOMAIN_V14=Object.freeze({ready:true,maxMonths:MAX_MONTHS,prepayAcrossMonths:true,allocationPersisted:true,nextMonthVisibleBeforeRenewal:true,renewalReminderBeforeStart:true,renewalWarningBeforeMonth:true,renewalWarningDays:RENEWAL_WARNING_DAYS,debtStartsWithUnpaidRenewal:true,atomicRegistrationEdit:true,studentScopedEdits:true,historicalCourseSnapshotPreserved:true,registrationCollisionGuard:true,zeroPaymentRegistrationEdit:true,revisionAwareEdits:true});
+window.EFC_MONTHLY_PREPAYMENT_DOMAIN_V14=Object.freeze({ready:true,maxMonths:MAX_MONTHS,prepayAcrossMonths:true,allocationPersisted:true,nextMonthVisibleBeforeRenewal:true,renewalReminderBeforeStart:true,renewalWarningBeforeMonth:true,renewalWarningDays:RENEWAL_WARNING_DAYS,debtStartsWithUnpaidRenewal:true,inclusiveReminderSalutation:true,atomicRegistrationEdit:true,studentScopedEdits:true,historicalCourseSnapshotPreserved:true,registrationCollisionGuard:true,zeroPaymentRegistrationEdit:true,revisionAwareEdits:true});
 })();

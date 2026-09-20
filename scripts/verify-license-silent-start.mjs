@@ -12,7 +12,10 @@ for(const required of [
   'activationUiOnlyWhenInvalid:true',
   'noReloadAfterInstall:true',
   'noStartupSplash:true',
-  'singleStartupRender:true'
+  'singleStartupRender:true',
+  'parallelRuntimePreload:true',
+  'gateOwnsBootReveal:true',
+  'finalUiBeforeReveal:true'
 ]){
   if(!gate.includes(required))throw new Error(`Silent license startup behavior missing: ${required}`);
 }
@@ -21,6 +24,7 @@ if(gate.includes('جاري التحقق من حالة التفعيل…'))throw 
 if(gate.includes("setTimeout(()=>location.reload(),300)"))throw new Error('Successful first activation must unlock directly without reloading through the activation gate.');
 if(gate.includes('mountStartupShield')||gate.includes('جاري تجهيز النظام'))throw new Error('Valid startup must not render a startup splash/shield.');
 if(gate.includes('window.renderCurrentV13?.();'))throw new Error('License gate must not trigger a second final render after security v13 owns startup rendering.');
+if(!gate.includes("link.rel='preload'")||!gate.includes('preloadRuntime();'))throw new Error('Runtime files must be prefetched without changing execution order.');
 
 const silentIndex=gate.indexOf('async function silentStartup()');
 const statusIndex=gate.indexOf("status=await invoke('get_license_status')",silentIndex);

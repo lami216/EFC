@@ -5,7 +5,7 @@ const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check
 await waitUntil(()=>window.EFC_SEARCH_DETAIL_POLISH_V32?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&typeof window.renderPeriod==='function');
 
 const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodFromV13','periodToV13','periodBranchV13','periodSpecV13','periodStateV13']);
-const tabUnit={registrations:'طلاب',payments:'عمليات',dues:'مستحقات',ending:'دورات'};
+const tabUnit={registrations:'طلاب',payments:'عمليات',debts:'طلاب',ending:'دورات'};
 let syncTimer=0;
 
 function currentPage(){return location.hash.replace('#','')||window.currentPage||'';}
@@ -97,7 +97,7 @@ document.head.appendChild(style);
 
 window.EFC_PERIOD_COUNT_GRID_POLISH_V33=Object.freeze({
   ready:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,
-  registrationsStudents:true,paymentsOperations:true,duesCount:true,endingCourses:true,
+  registrationsStudents:true,paymentsOperations:true,debtsStudents:true,endingCourses:true,
   darkerThickerSearchGridLines:true,noSearchLogicChanged:true,mainUntouched:true
 });
 })();
