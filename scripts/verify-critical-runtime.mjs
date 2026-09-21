@@ -58,7 +58,7 @@ async function verifyPersistenceCompletes(){
   if(persisted.centerOpsMeta?.updatedAt!==123456789)throw new Error('State contributor metadata was dropped before native persistence.');
 }
 
-const registration=read('assets/production-registration-select-native-v19.js');
+const registration=read('assets/production-registration-schedule-matrix-v17.js');
 forbidText(registration,'select.onchange=','registration placeholder replacing the base onchange handler');
 requireText(registration,"select.addEventListener('change',sync)",'registration placeholder preserves the base onchange handler');
 
