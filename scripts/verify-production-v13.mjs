@@ -31,21 +31,19 @@ const build=read('scripts/build-production.mjs');
 const tauri=read('src-tauri/tauri.conf.json');
 const rust=read('src-tauri/src/main.rs');
 
-const activeRuntimeFiles=[
-  'production-loader.js',
-  'assets/production-license-gate-v8.js',
-  'assets/production-foundation-v13.js',
-  'assets/production-receipts-v13.js',
-  'assets/production-certificates-v13.js',
-  'assets/production-domain-v13.js',
-  'assets/production-monthly-prepayment-domain-v14.js',
-  'assets/production-receipt-sequences-v10.js',
-  'assets/production-student-ui-v13.js',
-  'assets/production-finance-ui-v13.js',
-  'assets/production-fiscal-year-v14.js',
-  'assets/production-security-ui-v13.js'
-];
-for(const path of activeRuntimeFiles)execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+const runtimeManifestMatch=gate.match(/const RUNTIME=\[([\s\S]*?)\];/);
+if(!runtimeManifestMatch)throw new Error('Production v13 missing: runtime manifest');
+const runtimeManifestFiles=[...runtimeManifestMatch[1].matchAll(/'\.\/(.*?)'/g)].map(match=>match[1]);
+const activeRuntimeFiles=['assets/production-license-gate-v8.js',...runtimeManifestFiles];
+for(const path of activeRuntimeFiles){
+  if(!existsSync(path))throw new Error(`Production runtime file is missing: ${path}`);
+  execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
+}
+const runtimeArchitectureSource=runtimeManifestFiles.map(path=>read(path)).join('\n');
+forbidText(runtimeArchitectureSource,'const baseRender','runtime renderer-wrapper chain');
+forbidText(runtimeArchitectureSource,'new MutationObserver(','runtime DOM patch observer');
+forbidText(runtimeArchitectureSource,'setTimeout(()=>window.renderCurrentV13','deferred route renderer');
+
 
 const obsoleteSourceFiles=[
   '.demo-imported','demo.css','demo-app.js','demo-period-merge.js','demo-monthly-finance-v3.js','demo-receipts-v4.js','demo-v5-runtime-guard.js','demo-brand-receipt-v5.js','demo-repair-v6.js','demo-receipt-layout-v7.js','demo-fix-v8.js','demo-receipt-logo-v9.js','demo-receipt-compact-v10.js','demo-receipt-paper-v11.js','demo-receipt-clean-v12.js','production-runtime.js','production-monthly-merge-v2.js',
