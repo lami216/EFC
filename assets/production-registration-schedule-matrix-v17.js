@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 if(window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready)return;
-if(!window.EFC_REGISTRATION_RESPONSIVE_V16?.ready||!window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready)throw new Error('Registration schedule matrix v17 loaded before redesign runtime.');
+if(!window.EFC_REGISTRATION_REDESIGN_V15?.ready||!window.EFC_REGISTRATION_REDESIGN_V15?.responsiveConsolidated||!window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready)throw new Error('Registration schedule matrix v17 loaded before consolidated redesign runtime.');
 
 const D=window.EFC_DOMAIN_V13;
 const {esc}=D;
