@@ -21,6 +21,10 @@ const financeUi=read('assets/production-finance-ui-v13.js');
 const fiscal=read('assets/production-fiscal-year-v14.js');
 const securityUi=read('assets/production-security-ui-v13.js');
 const registrationSelect=read('assets/production-registration-schedule-matrix-v17.js');
+const registrationSchedule=read('assets/production-registration-schedule-v13.js');
+const monthlyUi=read('assets/production-monthly-prepayment-ui-v14.js');
+const registrationRedesign=read('assets/production-registration-redesign-v15.js');
+const lifecycleUi=read('assets/production-student-lifecycle-ui-v20.js');
 const build=read('scripts/build-production.mjs');
 const tauri=read('src-tauri/tauri.conf.json');
 const rust=read('src-tauri/src/main.rs');
@@ -134,6 +138,11 @@ for(const token of ['financePrimaryActionV13','renderFinance=function','renderLe
 for(const token of ['renderCurrentV13',"else if(page==='settings')renderSettings()","else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'settingsOwnedByFinalRouter:true','certificatesOwnedByFinalRouter:true','EFC_ENHANCE_FISCAL_SETTINGS_V14','loginAttemptThrottle:true','notificationBell:true','allPagesFinalRenderBeforeReveal:true','allPageRenderStaging:true','memoizedRouteReconcile:true','memoizedNotifications:true','singleAfterRenderPerRoute:true','efc-route-rendering'])requireText(securityUi,token,`security UI ${token}`);
 forbidText(securityUi,'setTimeout(afterRenderV13,0)','route shell must not schedule duplicate finalization');
 for(const token of ['consistentBlueOptionHover:true','nativePopupAvoidedForRegistrationLists:true','efc-blue-select-option-v19:hover','background:#1469ad!important'])requireText(registrationSelect,token,`registration select ${token}`);
+for(const token of ['baseRegistrationRenderer:true','finalRegistrationRendererOwnedByMatrix:true','EFC_REGISTRATION_BASE_V13'])requireText(registrationSchedule,token,`registration base ${token}`);
+forbidText(monthlyUi,'const baseRenderRegister=window.renderRegister','monthly registration wrapper chain');
+forbidText(registrationRedesign,'const baseRenderRegister=window.renderRegister','redesign registration wrapper chain');
+forbidText(lifecycleUi,'const baseRenderRegister=window.renderRegister','lifecycle registration wrapper chain');
+for(const token of ['canonicalRegistrationRenderer:true','singleRegistrationRenderOwner:true','noRenderWrapperChain:true'])requireText(registrationSelect,token,`registration canonical owner ${token}`);
 
 const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].join('\n');
 for(const forbidden of ['new MutationObserver(','window.MutationObserver =','window.MutationObserver=','window.open=function','Storage.prototype.setItem =','Storage.prototype.setItem=','Storage.prototype.removeItem =','Storage.prototype.removeItem='])forbidText(activeCombined,forbidden,`active runtime global side effect ${forbidden}`);

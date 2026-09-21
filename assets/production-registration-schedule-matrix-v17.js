@@ -15,7 +15,8 @@ const DAYS=[
   {key:'sunday',ar:'الأحد',fr:'Dimanche'}
 ];
 const NOTE='ملاحظة: لا يسمح بتأخر الطالب عن 20 دقيقة.';
-const baseRenderRegister=window.renderRegister;
+const renderRegistrationBase=window.EFC_REGISTRATION_BASE_V13?.render;
+if(typeof renderRegistrationBase!=='function')throw new Error('Registration matrix requires the explicit v13 base renderer.');
 let editSession=null;
 
 function clone(value){try{return structuredClone(value);}catch{return JSON.parse(JSON.stringify(value));}}
@@ -490,8 +491,12 @@ document.head.appendChild(selectStyle);
 
 
 window.renderRegister=function(){
-  baseRenderRegister();
+  const result=renderRegistrationBase();
+  window.EFC_MONTHLY_PREPAYMENT_UI_V14?.enhanceRegistration?.();
+  window.EFC_REGISTRATION_REDESIGN_V15?.enhanceRegistration?.();
   enhanceRegister();
+  window.EFC_STUDENT_LIFECYCLE_UI_V20?.enhanceRegistration?.();
+  return result;
 };
 
 const style=document.createElement('style');
@@ -557,6 +562,9 @@ document.head.appendChild(style);
 
 window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   ready:true,
+  canonicalRegistrationRenderer:true,
+  singleRegistrationRenderOwner:true,
+  noRenderWrapperChain:true,
   noPromptOptions:true,
   noDefaultSelections:true,
   visualPlaceholders:true,

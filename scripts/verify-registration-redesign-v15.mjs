@@ -16,6 +16,7 @@ const ui=read(uiPath);
 const registration=read('assets/production-registration-schedule-v13.js');
 const monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
+const lifecycleUi=read('assets/production-student-lifecycle-ui-v20.js');
 const selectNative=scheduleMatrix;
 const receiptSchedule=scheduleMatrix;
 const receipts=read('assets/production-receipts-v13.js');
@@ -49,6 +50,10 @@ for(const token of [
 forbidText(ui,'.onsubmit=','redesign must not replace the working registration submit handler');
 forbidText(ui,'appendPayment(','redesign must not duplicate payment/accounting logic');
 forbidText(ui,'students.unshift(','redesign must not duplicate student creation logic');
+forbidText(monthly,'const baseRenderRegister=window.renderRegister','monthly UI must not wrap registration renderer');
+forbidText(ui,'const baseRenderRegister=window.renderRegister','redesign must not wrap registration renderer');
+forbidText(lifecycleUi,'const baseRenderRegister=window.renderRegister','lifecycle UI must not wrap registration renderer');
+for(const token of ['canonicalRegistrationRenderer:true','singleRegistrationRenderOwner:true','noRenderWrapperChain:true','const result=renderRegistrationBase()','EFC_MONTHLY_PREPAYMENT_UI_V14?.enhanceRegistration?.()','EFC_REGISTRATION_REDESIGN_V15?.enhanceRegistration?.()','EFC_STUDENT_LIFECYCLE_UI_V20?.enhanceRegistration?.()'])requireText(scheduleMatrix,token,`canonical registration pipeline ${token}`);
 
 for(const [token,label] of [
   ['form.onsubmit=event=>','monthly registration submit owner'],

@@ -16,7 +16,8 @@ const gate=read('assets/production-license-gate-v8.js');
 const build=read('scripts/build-production.mjs');
 
 for(const [token,label] of [
-  ['authoritativeRegistrationRenderer:true','registration renderer ownership'],
+  ['baseRegistrationRenderer:true','explicit registration base renderer'],
+  ['finalRegistrationRendererOwnedByMatrix:true','final registration ownership delegated to matrix'],
   ['registration-schedule-layout-v13','side-by-side registration and schedule layout'],
   ['schedule-table-v13','weekly schedule table'],
   ['schedule-hour-select-v13','hour-only schedule selector'],

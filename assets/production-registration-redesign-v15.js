@@ -3,7 +3,6 @@
 if(window.EFC_REGISTRATION_REDESIGN_V15?.ready)return;
 if(!window.EFC_REGISTRATION_SCHEDULE_V13?.ready||!window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready)throw new Error('Registration redesign v15 loaded before registration/monthly UI.');
 
-const baseRenderRegister=window.renderRegister;
 const icon=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
 const ICONS={
   student:icon('<circle cx="9" cy="8" r="3"/><path d="M3.5 19c.7-3.6 2.6-5.5 5.5-5.5 1.7 0 3.1.6 4.1 1.8M18 8v7M14.5 11.5h7"/>'),
@@ -122,10 +121,7 @@ function enhanceRegister(){
   addScheduleCourseMirror(form,schedule);
 }
 
-window.renderRegister=function(){
-  baseRenderRegister();
-  enhanceRegister();
-};
+function enhanceRegistrationRedesignV15(){enhanceRegister();}
 
 const style=document.createElement('style');
 style.id='efc-registration-redesign-style-v15';
@@ -428,6 +424,8 @@ document.head.appendChild(style);
 syncPageClass();
 window.EFC_REGISTRATION_REDESIGN_V15=Object.freeze({
   ready:true,
+  enhanceRegistration:enhanceRegistrationRedesignV15,
+  canonicalRegistrationEnhancer:true,
   screenshotRegistrationReference:true,
   existingRegistrationFlowPreserved:true,
   noSubmitOverride:true,

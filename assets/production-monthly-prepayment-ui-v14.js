@@ -6,7 +6,6 @@ if(!D?.ready||!D.monthlyPrepayment||!window.EFC_STUDENT_UI_V13?.ready||!window.E
 
 const {esc,today,nowTime,cash,courseTypeOf,isDynamicMonthly,isInactive,paymentTotal,reconcileStudent,installmentPlan,targetRemaining,appendPayment,allocationSummary,paymentAllocations}=D;
 const DAYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-const baseRenderRegister=window.renderRegister;
 const baseOpenPayment=window.openPayment;
 const baseOpenStudent=window.openStudent;
 const baseRenderLedger=window.renderLedger;
@@ -41,8 +40,7 @@ function readSchedule(root,item){
   return{version:2,specialtyId,specialtyName:String(item?.name||''),days};
 }
 
-window.renderRegister=function(){
-  baseRenderRegister();
+function enhanceRegistrationV14(){
   const form=document.getElementById('regFormV13'),scheduleRoot=document.querySelector('.registration-schedule-card-v13');if(!form||!scheduleRoot)return;
   const spEl=form.elements.specialty,priceEl=form.elements.price,paidEl=form.elements.paid,summary=document.getElementById('regSummaryV13');
   const refreshSummary=()=>{const item=spec(spEl.value),type=courseTypeOf(item||{}),fee=Math.max(0,Number(priceEl.value||0)),paid=Math.max(0,Number(paidEl.value||0));if(!summary||!item||fee<=0)return;summary.hidden=false;summary.innerHTML=`<div><span>نوع الدورة</span><b>${type==='normal'?'عادية شهرية':'سريعة'}</b></div><div><span>${type==='normal'?'سعر الشهر':'سعر الدورة'}</span><b>${cash(fee)}</b></div><div><span>المدفوع الآن</span><b>${cash(type==='normal'?paid:Math.min(paid,fee))}</b></div><div><span>${type==='normal'?'تغطية الدفعة':'المتبقي'}</span><b>${type==='normal'?esc(coverageText(paid,fee)):cash(Math.max(0,fee-paid))}</b></div>`;};
@@ -58,7 +56,7 @@ window.renderRegister=function(){
     catch(error){students=students.filter(value=>value!==student);return alert(String(error?.message||error));}
     form.reset();form.elements.start.value=today();form.elements.paid.value=0;scheduleRoot.querySelectorAll('[data-day-check]').forEach(input=>input.checked=false);scheduleRoot.querySelectorAll('[data-day-time]').forEach(input=>input.value='');if(summary){summary.hidden=true;summary.innerHTML='';}setTimeout(()=>window.EFC_SHOW_RECEIPT_V13?.(student,paymentIndex,'reg'),30);
   };
-};
+}
 
 window.openPayment=function(id,targetMonth=null){
   const student=students.find(value=>String(value.id)===String(id));if(!student)return;
@@ -96,5 +94,5 @@ function enhanceLedger(){
 window.renderLedger=function(){baseRenderLedger();enhanceLedger();['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(enhanceLedger,0)));};
 
 const style=document.createElement('style');style.textContent=`.prepay-note-v14{margin:-4px 0 12px;padding:9px 11px;border:1px solid #cfe0d9;border-radius:9px;background:#f4faf7;color:var(--muted);font-size:9px;line-height:1.7}.prepay-preview-v14{min-height:38px;padding:9px 11px;border:1px dashed var(--border);border-radius:8px;background:var(--surface2);font-size:9px;line-height:1.7;color:var(--primary);font-weight:700}`;document.head.appendChild(style);
-window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,newPaymentButtonLabel:true,scheduleDirectFromMatrix:true});
+window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,enhanceRegistration:enhanceRegistrationV14,canonicalRegistrationEnhancer:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,newPaymentButtonLabel:true,scheduleDirectFromMatrix:true});
 })();
