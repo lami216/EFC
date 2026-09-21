@@ -2,9 +2,12 @@ import {readFileSync} from 'node:fs';
 
 const finance=readFileSync('assets/production-finance-ui-v13.js','utf8');
 const security=readFileSync('assets/production-security-ui-v13.js','utf8');
+const auth=readFileSync('assets/production-auth-bootstrap-v13.js','utf8');
 const requireFinance=(needle,label=needle)=>{if(!finance.includes(needle))throw new Error(`Finance feedback missing: ${label}`);};
 const forbidFinance=(needle,label=needle)=>{if(finance.includes(needle))throw new Error(`Finance feedback regression: ${label}`);};
-const requireSecurity=(needle,label=needle)=>{if(!security.includes(needle))throw new Error(`Login feedback missing: ${label}`);};
+const requireSecurity=(needle,label=needle)=>{if(!security.includes(needle))throw new Error(`Security feedback missing: ${label}`);};
+const requireAuth=(needle,label=needle)=>{if(!auth.includes(needle))throw new Error(`Login feedback missing: ${label}`);};
+const forbidAuth=(needle,label=needle)=>{if(auth.includes(needle))throw new Error(`Login feedback regression: ${label}`);};
 
 for(const [token,label] of [
   ['finance-topbar-v13','finance tabs and view actions share one row'],
@@ -95,10 +98,13 @@ forbidFinance('<small>صافي اليوم</small>','obsolete daily net label');
 
 for(const [token,label] of [
   ['name="pin" type="password"','masked login PIN input'],
-  ['transform:scale(.5)','50 percent compact login card'],
-  ['.pin-v13{font-size:34px','larger PIN bullets'],
-  ['pinMasked:true','PIN mask marker'],
-  ['compactLogin:true','compact login marker']
-])requireSecurity(token,label);
+  ["input.dataset.realPin=value",'canonical star-mask state'],
+  ["input.value=isRevealed(input)?value:'*'.repeat(value.length)",'PIN digits remain masked by default'],
+  ['.login-card-v13 .pin-v13{font-size:25px','final PIN field styling'],
+  ['canonicalLoginRenderer:true','canonical login renderer marker'],
+  ['noLegacyLoginRenderer:true','legacy login renderer removed']
+])requireAuth(token,label);
+forbidAuth('transform:scale(.5)','obsolete 50 percent login scaling');
+requireSecurity('canonicalLoginOwnedByAuth:true','security delegates login rendering to canonical auth');
 
 console.log('User feedback v13 verified: finance dashboards without graphs, selected daily/monthly/yearly periods, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
