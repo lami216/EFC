@@ -6,6 +6,7 @@ import {webcrypto} from 'node:crypto';
 const files={
   gate:'assets/production-license-gate-v8.js',
   loader:'production-loader.js',
+  auth:'assets/production-auth-bootstrap-v13.js',
   foundation:'assets/production-foundation-v13.js',
   receipts:'assets/production-receipts-v13.js',
   certificate:'assets/production-certificates-v13.js',
@@ -21,11 +22,12 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Forbidden v13 pattern: ${label}`);};
 
-const activeKeys=['gate','loader','foundation','receipts','certificate','domain','sequence','student','finance','security'];
+const activeKeys=['gate','loader','auth','foundation','receipts','certificate','domain','sequence','student','finance','security'];
 for(const key of activeKeys)execFileSync(process.execPath,['--check',files[key]],{stdio:'inherit'});
 
 for(const marker of [
   "'./production-loader.js'",
+  "'./assets/production-auth-bootstrap-v13.js'",
   "'./assets/production-foundation-v13.js'",
   "'./assets/production-receipts-v13.js'",
   "'./assets/production-certificates-v13.js'",
@@ -67,14 +69,17 @@ requireText(source.foundation,'noRouter:true','foundation has no router');
 requireText(source.foundation,'noMutationObserver:true','foundation has no observer');
 requireText(source.receipts,'noWindowOpenPatch:true','receipt service does not intercept window.open');
 requireText(source.certificate,'noRouterHook:true','certificates do not own routing');
+requireText(source.auth,'canonicalLoginRenderer:true','auth bootstrap owns one canonical login renderer');
+requireText(source.auth,'loginBeforeAppRuntime:true','login is completed before heavy app runtime');
+forbidText(source.auth,'new MutationObserver(','auth/login observer');
 requireText(source.security,'settingsOwnedByFinalRouter:true','settings routed by v13 router');
 requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates routed by v13 router');
-requireText(source.security,'bootRevealDeferredToGate:true','security does not reveal before login redesign is ready');
+requireText(source.security,'bootRevealDeferredToGate:true','security does not reveal before canonical login/app readiness');
 forbidText(source.security,"classList.remove('efc-booting')",'intermediate security UI reveal');
 requireText(source.gate,"link.rel='preload'",'runtime scripts are prefetched in parallel');
 requireText(source.gate,'await new Promise(resolve=>requestAnimationFrame(()=>resolve()))','final UI settles before reveal');
 
-const hashOwners=['foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
+const hashOwners=['auth','foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!=='security')throw new Error(`Expected one v13 hashchange owner (security), found: ${hashOwners.join(', ')||'none'}.`);
 
 requireText(source.domain,'EFC_RECEIPTS_V13?.ready','domain waits for clean receipt service');
