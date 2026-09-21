@@ -240,12 +240,12 @@ requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close comman
 if(Number(tauriConfig?.app?.windows?.[0]?.minWidth)!==840||Number(tauriConfig?.app?.windows?.[0]?.minHeight)!==560)throw new Error('Registration redesign missing: compact Tauri minimum window size.');
 
 const order=[
+  'production-auth-bootstrap-v13.js',
   'production-registration-schedule-v13.js',
   'production-finance-ui-v13.js',
   'production-monthly-prepayment-ui-v14.js',
   'production-registration-redesign-v15.js',
-  'production-security-ui-v13.js',
-  'production-login-ui-v13.js'
+  'production-security-ui-v13.js'
 ];
 let last=-1;
 for(const token of order){
