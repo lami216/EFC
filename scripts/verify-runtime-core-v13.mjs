@@ -93,7 +93,7 @@ forbidText(source.student,'renderRegister=function(){','student UI no longer own
 requireText(source.student,'appendPayment(student,{amount,method:','profile/payment modal uses transaction writer');
 forbidText(source.student,'student.paid=Number(student.paid||0)+','manual paid accumulator');
 requireText(source.student,'DEBT_IDLE_MS=450','debt-date typing debounce');
-requireText(source.student,'paidTouched&&paid>0&&price>0&&paid<price','registration debt date only for real partial payment');
+requireText(source.registration,'paidTouched&&paid>0&&price>0&&paid<price','registration debt date only for real partial payment');
 requireText(source.student,'.quick-days-v13[hidden]','quick duration hidden rule');
 requireText(source.student,"typeEl.value==='quick'",'quick duration conditional');
 requireText(source.student,"form.setAttribute('autocomplete','off')",'global form autocomplete disable');
