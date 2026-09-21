@@ -44,7 +44,8 @@ for(const token of [
 
 requireText(security,"else if(page==='settings')renderSettings()",'settings owned by final router');
 requireText(security,"else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'certificates owned by final router');
-requireText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0))",'final v13 hash router');
+requireText(security,"window.addEventListener('hashchange',()=>window.renderCurrentV13?.())",'final v13 hash router');
+forbidText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0))",'delayed duplicate route scheduling');
 forbidText(security,"else if(typeof renderCurrent==='function')renderCurrent()",'legacy router fallback');
 forbidText(certificate,"addEventListener('hashchange'",'certificate-specific router hook');
 
