@@ -20,8 +20,6 @@ window.renderStudents=function(){
   baseRenderStudents();
   enhanceStudentSearch();
 };
-window.addEventListener('hashchange',()=>setTimeout(syncPageClass,0));
-if((location.hash.replace('#','')||window.currentPage)==='students')setTimeout(enhanceStudentSearch,0);
 
 const style=document.createElement('style');
 style.id='efc-student-search-redesign-style-v31';
@@ -105,6 +103,6 @@ document.head.appendChild(style);
 
 window.EFC_STUDENT_SEARCH_REDESIGN_V31=Object.freeze({
   ready:true,periodVisualLanguage:true,preservedStudentSearchContent:true,preservedStudentSearchBehavior:true,
-  noNewControls:true,noRemovedControls:true,mainUntouched:true
+  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,mainUntouched:true
 });
 })();
