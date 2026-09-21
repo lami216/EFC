@@ -13,7 +13,7 @@ for(const required of [
   'noReloadAfterInstall:true',
   'noStartupSplash:true',
   'singleStartupRender:true',
-  'parallelRuntimePreload:true',
+  'parallelRuntimePreload:true','loginFirstPreload:true','heavyPreloadAfterLogin:true',
   'gateOwnsBootReveal:true',
   'finalUiBeforeReveal:true'
 ]){
@@ -24,7 +24,8 @@ if(gate.includes('جاري التحقق من حالة التفعيل…'))throw 
 if(gate.includes("setTimeout(()=>location.reload(),300)"))throw new Error('Successful first activation must unlock directly without reloading through the activation gate.');
 if(gate.includes('mountStartupShield')||gate.includes('جاري تجهيز النظام'))throw new Error('Valid startup must not render a startup splash/shield.');
 if(gate.includes('window.renderCurrentV13?.();'))throw new Error('License gate must not trigger a second final render after security v13 owns startup rendering.');
-if(!gate.includes("link.rel='preload'")||!gate.includes('preloadRuntime();'))throw new Error('Runtime files must be prefetched without changing execution order.');
+if(!gate.includes("link.rel='preload'")||!gate.includes("preloadRuntime(BOOTSTRAP_RUNTIME,'efcBootstrapPreloaded')")||!gate.includes("preloadRuntime(APP_RUNTIME,'efcAppPreloaded')"))throw new Error('Bootstrap must preload first and heavy runtime only after login.');
+if(!(gate.indexOf("await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin()")<gate.indexOf("preloadRuntime(APP_RUNTIME,'efcAppPreloaded')")))throw new Error('Heavy runtime preload must not compete with the login screen.');
 
 const silentIndex=gate.indexOf('async function silentStartup()');
 const statusIndex=gate.indexOf("status=await invoke('get_license_status')",silentIndex);
