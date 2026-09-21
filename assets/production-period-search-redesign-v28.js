@@ -72,8 +72,6 @@ window.renderPeriod=function(){
   baseRenderPeriod();
   enhancePeriod();
 };
-window.addEventListener('hashchange',()=>setTimeout(syncPageClass,0));
-if((location.hash.replace('#','')||window.currentPage)==='period')setTimeout(enhancePeriod,0);
 
 const style=document.createElement('style');style.id='efc-period-search-redesign-style-v28';style.textContent=`
 body.efc-period-redesign-v28{font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif!important;background:#f5fbf9!important;overflow:hidden!important}
@@ -129,5 +127,5 @@ body.efc-period-redesign-v28 .sortable-head-prod:hover{background:#075846!import
 }
 `;
 document.head.appendChild(style);
-window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,mainUntouched:true});
+window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,mainUntouched:true});
 })();
