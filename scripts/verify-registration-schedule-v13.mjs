@@ -37,8 +37,10 @@ for(const [token,label] of [
   ['input.showPicker?.()','native date/time picker support remains available'],
   ['::-webkit-calendar-picker-indicator','native picker icon compatibility styles remain available'],
   ['courseTerminology:true','course terminology marker'],
+  ['nativeCourseTerminology:true','course terminology lives in canonical source strings'],
+  ['noCourseTermShellWrapper:true','course terminology does not wrap the global shell'],
+  ['noDelayedModalTerminologyPatch:true','modals do not get terminology patched after display'],
   ['<th class="schedule-course-head-v13">الدورة</th>','schedule course header'],
-  ["nav[2]='الدورات و المراكز'",'courses and centers navigation label'],
   ['expandedTimetable:true','expanded timetable marker'],
   ['grid-template-columns:minmax(0,470px) minmax(0,1fr)','timetable consumes remaining page width'],
   ['max-width:none;width:100%','schedule card is not artificially capped'],
@@ -60,6 +62,9 @@ for(const [token,label] of [
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note']
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
+forbidText(registration,'const baseShell=window.shell','registration must not wrap shell for terminology translation');
+forbidText(registration,'function courseTerms(value)','runtime terminology translator must be removed');
+forbidText(registration,"document.addEventListener('click',()=>setTimeout(()=>document.querySelectorAll('.modal')",'modal terminology must not be patched after it is visible');
 forbidText(registration,'const baseRenderSpecialties=window.renderSpecialties','registration schedule must not wrap specialties renderer');
 forbidText(registration,'min-width:720px','oversized forced timetable width');
 forbidText(registration,'schedule-course-head-v13">التخصص / الدورة','mixed specialty/course schedule heading');
