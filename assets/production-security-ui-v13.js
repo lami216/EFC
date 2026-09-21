@@ -144,24 +144,8 @@ window.renderSettingsProd=window.renderSettings;
 
 function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);mountUser();applyPermissions();window.EFC_SYNC_REGISTRATION_SELECTS_V19?.();mountBell();}
 window.afterRenderV13=afterRenderV13;
-const baseShell=shell;
-shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;};
 
-let routeRenderRevision=0;
-function beginPageRender(){
-  const state={token:++routeRenderRevision,staged:!document.documentElement.classList.contains('efc-booting')};
-  if(state.staged)document.documentElement.classList.add('efc-route-rendering');
-  return state;
-}
-function finishPageRender(state){
-  try{afterRenderV13();}
-  finally{
-    if(!state.staged)return;
-    setTimeout(()=>requestAnimationFrame(()=>{if(state.token===routeRenderRevision)document.documentElement.classList.remove('efc-route-rendering');}),0);
-  }
-}
 window.renderCurrentV13=function(){
-  const routeState=beginPageRender();
   reconcileStudentsIfNeeded();
   let page=currentSection();
   document.body.classList.toggle('efc-home-page-v35',page===HOME_ID);
@@ -184,17 +168,16 @@ window.renderCurrentV13=function(){
     else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.();
     else{history.replaceState(null,'','#home');renderHome();}
   }catch(error){console.error('EFC v13 route render failed.',error);}
-  finally{finishPageRender(routeState);}
+  finally{afterRenderV13();}
 };
 window.addEventListener('hashchange',()=>window.renderCurrentV13?.());
 
 const style=document.createElement('style');style.textContent=`
-html.efc-route-rendering .shell-v13 main>.content{visibility:hidden!important;pointer-events:none!important}
 .shell-v13 main{position:relative;isolation:isolate;background:radial-gradient(circle at 52% 36%,#effaf6 0,#f7fbf9 35%,#edf7f3 70%,#f7faf9 100%)!important}.shell-v13 main::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(130deg,transparent 0 12%,rgba(116,198,170,.08) 12% 26%,transparent 26% 60%,rgba(111,195,166,.07) 60% 76%,transparent 76%),radial-gradient(ellipse at 0 100%,rgba(28,143,107,.16) 0 14%,rgba(93,190,157,.08) 14.5% 24%,transparent 24.5%),radial-gradient(ellipse at 100% 100%,rgba(90,184,151,.10) 0 15%,transparent 15.5%)}.shell-v13 main::after{content:"";position:absolute;top:-110px;right:72px;z-index:0;width:360px;height:420px;border-radius:0 0 68px 68px;background:linear-gradient(160deg,rgba(157,222,200,.35),rgba(98,181,151,.18));transform:skewX(-20deg);pointer-events:none}.shell-v13 main>.content{position:relative;z-index:1;min-height:100vh}.efc-home-v35{min-height:calc(100vh - 78px);display:grid;place-content:center;justify-items:center;text-align:center;padding:48px 32px}.efc-home-v35 img{display:block;width:clamp(180px,17vw,260px);height:auto;max-height:220px;object-fit:contain;filter:drop-shadow(0 18px 28px rgba(18,91,68,.12))}.efc-home-v35 h1{margin:18px 0 0;color:#0b4f3c;font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;font-size:clamp(24px,2.45vw,38px);line-height:1.45;font-weight:800;text-shadow:0 1px 0 #fff;letter-spacing:.1px}
 .efc-bell-v13{position:fixed;top:18px;left:22px;z-index:35;width:43px;height:43px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer}.efc-bell-v13>b{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:#777;color:#fff;font-size:9px}.efc-bell-v13.has-items>b{background:#b43d3d}.efc-notification-panel-v13{position:fixed;top:69px;left:22px;z-index:40;width:min(430px,92vw);max-height:75vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px #0003;padding:12px;direction:rtl}.notification-head-v13{display:flex;justify-content:space-between}.notification-item-v13{display:block;width:100%;border:1px solid var(--border);background:#fff;border-radius:9px;padding:10px;text-align:right;margin-top:7px}.notification-item-v13 small{display:block;color:var(--muted);font-size:8px;margin-top:2px}.notification-item-v13 span{display:block;font-size:9px;line-height:1.8;margin-top:5px}.efc-reminder-toast-v13{position:fixed;top:74px;left:22px;z-index:45;background:#17332b;color:#fff;border-radius:10px;padding:10px 14px;font-size:10px;box-shadow:0 10px 30px #0003}.reminder-viewer-v13{padding:18px}.reminder-viewer-card-v13{width:min(1160px,96vw);height:min(820px,94vh);background:#eef1f0;border-radius:15px;box-shadow:0 24px 70px #0005;overflow:hidden;display:grid;grid-template-rows:48px minmax(0,1fr)}.reminder-viewer-head-v13{display:flex;align-items:center;justify-content:space-between;padding:0 15px;background:#fff;border-bottom:1px solid #d7dfdc}.reminder-viewer-head-v13 b{font-size:12px}.reminder-viewer-close-v13{width:32px;height:32px;border:0;border-radius:8px;background:#edf2f0;color:#23443a;font-size:20px;cursor:pointer}.reminder-viewer-frame-v13{width:100%;height:100%;border:0;background:#eef1f0}.permissions-grid-v13{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.permissions-grid-v13>div{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px}.users-list-v13{display:grid;gap:7px}.user-row-v13{display:flex;justify-content:space-between;align-items:center;padding:9px;border:1px solid var(--border);border-radius:8px}.settings-empty-row-v13{min-height:34px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:9px;background:#ffffff90}.user-controls-v13{display:grid;gap:6px;border-bottom:1px solid #ffffff20;padding-bottom:9px}.user-controls-v13 button{border:1px solid #ffffff2b;background:#ffffff0c;color:#fff;border-radius:8px;padding:7px}.locked-nav-v13{opacity:.48}.locked-page-v13{max-width:650px;margin:80px auto;text-align:center;padding:35px}@media(max-width:1250px){.permissions-grid-v13{grid-template-columns:1fr}}
 `;document.head.appendChild(style);
 
 renderCurrentV13();
-window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,noSettingsPostRenderEnhancement:true});
-window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,allPageRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
+window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,noSettingsPostRenderEnhancement:true,directCanonicalRouteRender:true,noRouteConcealment:true,noShellRenderWrapper:true});
+window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,directCanonicalRoutes:true,noRouteRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
 })();
