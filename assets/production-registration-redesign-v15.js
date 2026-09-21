@@ -19,7 +19,6 @@ function syncPageClass(){
   const page=location.hash.replace('#','')||window.currentPage||'register';
   document.body.classList.toggle('efc-registration-redesign-v15',page==='register');
 }
-window.addEventListener('hashchange',()=>setTimeout(syncPageClass,0));
 
 function addFieldDecorations(form){
   const icons={phone:ICONS.phone,start:ICONS.calendar,debtDate:ICONS.calendar,paid:ICONS.money};
@@ -244,6 +243,7 @@ window.EFC_REGISTRATION_REDESIGN_V15=Object.freeze({
   scheduleMirrorFunctional:true,
   sidebarRestyledOnRegistrationOnly:true,
   segoeUiVariable:true,
+  routerOwnsPageClass:true,
   mainUntouched:true
 });
 })();
