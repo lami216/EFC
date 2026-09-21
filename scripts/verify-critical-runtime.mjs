@@ -177,8 +177,6 @@ const deterministicPostLicenseRuntime=[
   'production-period-search-redesign-v28.js',
   'production-sidebar-lock-v30.js',
   'production-student-search-redesign-v31.js',
-  'production-search-detail-polish-v32.js',
-  'production-period-count-and-grid-polish-v33.js',
   'production-search-title-grid-unify-v34.js'
 ];
 let lastRuntimeIndex=-1;
