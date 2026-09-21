@@ -40,7 +40,7 @@ function syncPeriodCount(){
 const baseRenderPeriod=window.renderPeriod;
 window.renderPeriod=function(){
   baseRenderPeriod();
-  scheduleSync();
+  syncPeriodCount();
 };
 
 document.addEventListener('input',event=>{if(currentPage()==='period'&&PERIOD_INPUT_IDS.has(event.target?.id))scheduleSync();});
@@ -49,8 +49,6 @@ document.addEventListener('click',event=>{
   if(currentPage()!=='period')return;
   if(event.target?.closest?.('.period-tabs-prod button,.sortable-head-prod'))scheduleSync();
 });
-window.addEventListener('hashchange',()=>{if((location.hash.replace('#','')||window.currentPage)==='period')setTimeout(syncPeriodCount,40);});
-if(currentPage()==='period')scheduleSync();
 
 const style=document.createElement('style');
 style.id='efc-period-count-grid-polish-style-v33';
@@ -98,6 +96,6 @@ document.head.appendChild(style);
 window.EFC_PERIOD_COUNT_GRID_POLISH_V33=Object.freeze({
   ready:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,
   registrationsStudents:true,paymentsOperations:true,debtsStudents:true,endingCourses:true,
-  darkerThickerSearchGridLines:true,noSearchLogicChanged:true,mainUntouched:true
+  darkerThickerSearchGridLines:true,noSearchLogicChanged:true,synchronousPostRenderCount:true,noHashEnhancer:true,mainUntouched:true
 });
 })();
