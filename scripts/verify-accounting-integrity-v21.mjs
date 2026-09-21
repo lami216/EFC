@@ -91,8 +91,8 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(three.expenses.length===3,'legacy expense dedupe must preserve multiplicity instead of collapsing identical real rows');
 }
 
-requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260921-canonical-runtime-cleanup-2','index loads accounting integrity with synchronized cache version');
-const gateScript=index.indexOf('./assets/production-license-gate-v8.js?v=20260921-canonical-runtime-cleanup-2'),integrityScript=index.indexOf('./assets/production-accounting-integrity-v21.js?v=20260921-canonical-runtime-cleanup-2');
+requireText(index,'./assets/production-accounting-integrity-v21.js?v=20260921-select-hover-native-1','index loads accounting integrity with synchronized cache version');
+const gateScript=index.indexOf('./assets/production-license-gate-v8.js?v=20260921-select-hover-native-1'),integrityScript=index.indexOf('./assets/production-accounting-integrity-v21.js?v=20260921-select-hover-native-1');
 assert(gateScript>=0&&integrityScript>gateScript,'accounting integrity must load after the runtime gate script');
 assert(!gate.includes("'./assets/production-accounting-integrity-v21.js'"),'accounting integrity must not be duplicated inside the dynamically loaded RUNTIME list');
 requireText(build,"'assets/production-accounting-integrity-v21.js'",'production build copies accounting integrity runtime');
