@@ -7,7 +7,7 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-receipts-v13.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
@@ -19,7 +19,7 @@ const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js
 const selectNative=scheduleMatrix;
 const receiptSchedule=scheduleMatrix;
 const receipts=read('assets/production-receipts-v13.js');
-const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
+const coursesCompact=read('assets/production-courses-centers-redesign-v23.js');
 const sidebar=read('assets/production-sidebar-lock-v30.js');
 const monthly=read('assets/production-monthly-prepayment-ui-v14.js');
 const gate=read('assets/production-license-gate-v8.js');
