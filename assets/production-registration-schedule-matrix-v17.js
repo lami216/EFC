@@ -609,6 +609,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   noCrossRegistrationPendingState:true,
   consistentBlueOptionHover:true,
   nativePopupAvoidedForRegistrationLists:true,
+  nativePopupAvoidedForAllLists:true,
   nativeClosedSelectAppearancePreserved:true,
   onlyDropdownHoverColorCustomized:true,
   allNativeSelectsUseBlueHover:true,
