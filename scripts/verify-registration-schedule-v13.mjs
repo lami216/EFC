@@ -46,6 +46,8 @@ for(const [token,label] of [
   ['summary.hidden=!visible','financial summary hidden before pricing'],
   ['id="regSummaryV13" hidden','financial summary starts hidden'],
   ['centersManagedInUi:true','center management UI marker'],
+  ['enhanceSpecialties:enhanceSpecialtiesWithCenters','center controls exposed as a page enhancer'],
+  ['noSpecialtiesWrapper:true','registration schedule does not wrap the specialties renderer'],
   ['centersPersisted:true','center persistence marker'],
   ['coursesAndCenters:true','courses and centers page marker'],
   ["const CENTER_KEY='efc-branches-v13'",'persistent center storage key'],
@@ -58,6 +60,7 @@ for(const [token,label] of [
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note']
 ])requireText(registration,token,label);
 forbidText(registration,'side-summary','old side summary card');
+forbidText(registration,'const baseRenderSpecialties=window.renderSpecialties','registration schedule must not wrap specialties renderer');
 forbidText(registration,'min-width:720px','oversized forced timetable width');
 forbidText(registration,'schedule-course-head-v13">التخصص / الدورة','mixed specialty/course schedule heading');
 forbidText(registration,'width:102px;min-width:102px','oversized schedule course column');

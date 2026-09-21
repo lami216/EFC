@@ -129,6 +129,7 @@ for(const [token,label] of [
 ])requireText(scheduleMatrix,token,label);
 forbidText(scheduleMatrix,"specialties.map(courseRow).join('')",'registration timetable must not render every course');
 forbidText(scheduleMatrix,'window.receiptWindowV4=function','registration matrix must not override the canonical receipt viewer');
+forbidText(coursesCompact,'const baseRenderSpecialties=window.renderSpecialties','courses/centers page must not wrap a prior specialties renderer');
 forbidText(scheduleMatrix,'baseReceiptWindow','registration matrix must not wrap receiptWindowV4');
 forbidText(scheduleMatrix,'navigationBypass','registration edit navigation must not maintain a second render-bypass state machine');
 forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .registration-schedule-layout-v13{grid-template-columns','edit mode must not resize the base timetable/form columns');
@@ -214,6 +215,9 @@ forbidText(receiptPdfRust,'profile.join("Downloads")','receipt PDF must not forc
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
   ['longNamesWrapInsideCards:true','course and center names wrap inside their cards'],
+  ['canonicalSpecialtiesRenderer:true','courses/centers page owns one canonical renderer'],
+  ['singleSpecialtiesRenderOwner:true','single specialties render owner marker'],
+  ['noSpecialtiesWrapperChain:true','no specialties render wrapper chain'],
   ['height:auto!important;min-height:160px!important;max-height:none!important','course card height expands when its title wraps'],
   ['height:auto!important;min-height:136px!important;max-height:none!important','center card height expands when its title wraps'],
   ['overflow-wrap:anywhere!important;word-break:break-word!important','long card names cannot be clipped by unbroken text']

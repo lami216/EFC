@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Courses/centers redesign v23 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.registrationReceiptCaptureConsolidated&&typeof window.shell==='function'&&typeof window.renderSpecialties==='function');
+await waitUntil(()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.registrationReceiptCaptureConsolidated&&typeof window.shell==='function'&&typeof window.EFC_RENDER_SPECIALTIES_BASE_V13==='function'&&typeof window.EFC_REGISTRATION_SCHEDULE_V13?.enhanceSpecialties==='function');
 
 const icon=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
 const ICONS={
@@ -13,8 +13,6 @@ const ICONS={
   clock:icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   eye:icon('<path d="M2.5 12s3.2-5 9.5-5 9.5 5 9.5 5-3.2 5-9.5 5S2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.5"/>')
 };
-const baseRenderSpecialties=window.renderSpecialties;
-
 function makeViewAllButton(id){
   const button=document.createElement('button');
   button.type='button';button.id=id;button.className='efc-view-all-v23';
@@ -107,8 +105,10 @@ function enhanceSpecialtiesPage(){
 }
 
 window.renderSpecialties=function(){
-  baseRenderSpecialties();
+  const result=window.EFC_RENDER_SPECIALTIES_BASE_V13();
+  window.EFC_REGISTRATION_SCHEDULE_V13.enhanceSpecialties();
   enhanceSpecialtiesPage();
+  return result;
 };
 
 
@@ -315,5 +315,5 @@ body.efc-specialties-redesign-v23 .spec-facts>div:not(.efc-hidden-fact-v23){
 `;
 document.head.appendChild(style);
 
-window.EFC_COURSES_CENTERS_REDESIGN_V23=Object.freeze({ready:true,brandLogoEnlarged:true,brandNameSplit:true,coursesCentersPage:true,existingAddEditActionsPreserved:true,viewAllWorks:true,responsiveForDesktopViewport:true,compactConsolidated:true,detailFixConsolidated:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,rightAlignedCardTitles:true,centerTitleStopsBeforeEdit:true,naturalCourseTitleTop:true,subtleInternalBorders:true,noStretch:true,fixedCardWidths:true,adaptiveCardHeights:true,longNamesWrapInsideCards:true,centerTitleOnRight:true,visibleInnerBorders:true,outerBordersUntouched:true,routerOwnsPageClass:true,mainUntouched:true});
+window.EFC_COURSES_CENTERS_REDESIGN_V23=Object.freeze({ready:true,brandLogoEnlarged:true,brandNameSplit:true,coursesCentersPage:true,existingAddEditActionsPreserved:true,viewAllWorks:true,responsiveForDesktopViewport:true,compactConsolidated:true,detailFixConsolidated:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,rightAlignedCardTitles:true,centerTitleStopsBeforeEdit:true,naturalCourseTitleTop:true,subtleInternalBorders:true,noStretch:true,fixedCardWidths:true,adaptiveCardHeights:true,longNamesWrapInsideCards:true,centerTitleOnRight:true,visibleInnerBorders:true,outerBordersUntouched:true,routerOwnsPageClass:true,canonicalSpecialtiesRenderer:true,singleSpecialtiesRenderOwner:true,noSpecialtiesWrapperChain:true,mainUntouched:true});
 })();
