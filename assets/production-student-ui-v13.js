@@ -167,13 +167,13 @@ function studentSearchRow(student){
   reconcileStudent(student);const end=studentEndForSearch(student);
   return`<tr class="student-row student-info-row-v3" data-id="${esc(student.id)}"><td>${String(student.reg??'').padStart(4,'0')}</td><td><span class="student-name-v3">${esc(student.name)}</span></td><td class="student-phone-v3">${esc(String(student.phone||'').trim()||'—')}</td><td>${esc(branchName(student.branch))}</td><td>${esc(spec(student.specialty)?.name||student.specialty||'—')}</td><td>${showDate(student.start)}</td><td>${showDate(end)}</td><td>${badge(courseStatus(student))}</td></tr>`;
 }
-renderStudents=function(){
+function renderStudentsBaseV13(){
   currentPage='students';
   if(!canView('students')){shell(`${pageTitle('الملفات','البحث عن طالب','لا تملك صلاحية عرض ملفات الطلاب.')}<div class="card production-empty-config"><h2>غير مسموح</h2></div>`);return;}
   shell(`${pageTitle('الملفات','البحث عن طالب','ابحث عن الطالب واعرض معلوماته الأساسية والدورة دون إقحام التفاصيل المالية في قائمة البحث.')}<div class="card filters student-search-filters-v13"><input class="input" id="studentSearchV13" placeholder="الاسم، الهاتف أو رقم السجل" autocomplete="off"><select id="studentBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select><select id="studentSpecV13">${opts(specialties,x=>x.id,x=>x.name,'كل التخصصات')}</select></div><div id="studentsTableV13"></div>`);
   const draw=()=>{const q=document.getElementById('studentSearchV13').value.trim().toLowerCase(),branch=document.getElementById('studentBranchV13').value,specialty=document.getElementById('studentSpecV13').value,list=students.filter(student=>(!q||String(student.name||'').toLowerCase().includes(q)||String(student.phone||'').includes(q)||String(student.reg||'').includes(q))&&(!branch||student.branch===branch)&&(!specialty||student.specialty===specialty));document.getElementById('studentsTableV13').innerHTML=table(['السجل','الطالب','الهاتف','الفرع','التخصص','البداية','النهاية','حالة الدورة'],list.map(studentSearchRow).join(''));document.querySelectorAll('#studentsTableV13 tr[data-id]').forEach(row=>row.onclick=()=>openStudent(row.dataset.id,'profile'));};
   ['studentSearchV13','studentBranchV13','studentSpecV13'].forEach(id=>document.getElementById(id).addEventListener(id==='studentSearchV13'?'input':'change',draw));draw();autocompleteOff(document.getElementById('studentSearchV13')?.closest('.card'));
-};
+}
 
 function periodTable(columns,records,sortState,onSort){
   const sorted=[...records];if(sortState.key){const col=columns.find(value=>value.key===sortState.key);if(col)sorted.sort((a,b)=>{const av=a.sort[col.key],bv=b.sort[col.key];let result=col.type==='number'?Number(av||0)-Number(bv||0):String(av||'').localeCompare(String(bv||''),'ar',{numeric:true});return sortState.direction==='desc'?-result:result;});}
@@ -181,7 +181,7 @@ function periodTable(columns,records,sortState,onSort){
   const body=sorted.length?sorted.map(record=>`<tr class="student-row" data-id="${esc(record.studentId||'')}">${record.cells.join('')}</tr>`).join(''):`<tr><td colspan="${columns.length}"><div class="empty">لا توجد نتائج</div></td></tr>`;
   const wrap=document.createElement('div');wrap.innerHTML=`<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;wrap.querySelectorAll('[data-sort]').forEach(cell=>cell.onclick=()=>onSort(cell.dataset.sort));return wrap.firstElementChild;
 }
-renderPeriod=function(){
+function renderPeriodBaseV13(){
   currentPage='period';const current=today();
   shell(`${pageTitle('بحث موحد','آلية البحث','ابحث بالطالب والفترة والفرع والتخصص والوضعية، ثم تنقّل بين المسجلين والدفعات والديون ونهايات الدورات والأشهر.')}<div class="card period-search-card-prod"><input class="input" id="periodSearchV13" placeholder="ابحث بالاسم أو الهاتف أو رقم السجل" autocomplete="off"><select id="periodBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select><select id="periodSpecV13">${opts(specialties,x=>x.id,x=>x.name,'كل التخصصات')}</select><select id="periodStateV13"><option value="">كل الحالات المالية</option><option>دين</option><option>مستحق</option><option>دفع جزئي</option><option>لم يدفع</option><option>مدفوع كامل</option></select><div class="period-toolbar-prod"><div class="period-tabs-prod"><button class="active" data-tab="registrations">المسجلون</button><button data-tab="payments">الدفعات</button><button data-tab="debts">الديون</button><button data-tab="ending">نهايات الدورات / الأشهر</button></div><div class="period-dates-prod"><label>من (الأقدم إذا ترك فارغًا)<input class="input" id="periodFromV13" type="date" value=""></label><label>إلى<input class="input" id="periodToV13" type="date" value="${current}"></label></div></div></div><div class="period-help-prod"><span><b>الفترة:</b> ترك «من» فارغًا يعني البحث من أقدم بيانات موجودة.</span><span>اضغط عنوان أي عمود لترتيب النتائج.</span></div><div id="periodResultV13"></div>`);
   let tab='registrations',sortState={key:null,direction:'desc'};const result=document.getElementById('periodResultV13');
@@ -192,7 +192,7 @@ renderPeriod=function(){
     result.innerHTML=`<div class="period-result-head-prod"><b>${records.length} نتيجة</b><span>${from?`${showDate(from)} — ${showDate(to)}`:`حتى ${showDate(to)}`}</span></div>`;const node=periodTable(columns,records,sortState,key=>{sortState=sortState.key===key?{key,direction:sortState.direction==='desc'?'asc':'desc'}:{key,direction:'desc'};draw();});result.appendChild(node);node.querySelectorAll('tr[data-id]').forEach(row=>row.onclick=()=>openStudent(row.dataset.id,'finance'));autocompleteOff(result);
   }
   document.querySelectorAll('.period-tabs-prod button').forEach(button=>button.onclick=()=>{tab=button.dataset.tab;sortState={key:null,direction:'desc'};document.querySelectorAll('.period-tabs-prod button').forEach(value=>value.classList.toggle('active',value===button));draw();});['periodSearchV13','periodFromV13','periodToV13','periodBranchV13','periodSpecV13','periodStateV13'].forEach(id=>document.getElementById(id).addEventListener(id==='periodSearchV13'?'input':'change',draw));draw();
-};
+}
 
 const style=document.createElement('style');style.textContent=`
 .quick-days-v13[hidden]{display:none!important}.debt-slot-v13{min-height:67px;transition:opacity .08s ease}.debt-slot-v13.debt-slot-hidden{visibility:hidden;pointer-events:none}.course-note-v13{padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--surface2);color:var(--muted);font-size:9px}
@@ -204,10 +204,12 @@ const style=document.createElement('style');style.textContent=`
 @media(max-width:1250px){.student-profile-grid-v3{grid-template-columns:repeat(2,minmax(0,1fr))}.period-search-card-prod{grid-template-columns:repeat(2,minmax(0,1fr))}.period-toolbar-prod{align-items:stretch;flex-direction:column}.period-dates-prod{margin-inline-start:0;align-self:flex-start}}@media(max-width:900px){.period-dates-prod{width:100%}.period-dates-prod label{flex:1}.period-dates-prod .input{width:100%;min-width:0}.student-reminder-card-v13{display:grid}.student-reminder-actions-v13{justify-content:flex-start}}
 `;document.head.appendChild(style);
 window.EFC_RENDER_SPECIALTIES_BASE_V13=renderSpecialtiesBaseV13;
+window.EFC_RENDER_STUDENTS_BASE_V13=renderStudentsBaseV13;
+window.EFC_RENDER_PERIOD_BASE_V13=renderPeriodBaseV13;
 window.EFC_AUTOCOMPLETE_OFF_V13=autocompleteOff;
 window.EFC_SHOW_RECEIPT_V13=showReceiptConfirmation;
 window.EFC_MONTH_RECEIPT_SOURCE_V15=monthReceiptSourceV15;
 window.EFC_MONTH_RECEIPT_MODEL_V15=monthReceiptModelV13;
 window.EFC_DEBT_DATE_FOR_SEARCH_V30=debtDateForSearch;
-window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,specialtiesBaseRendererExported:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,monthReceiptSourceAware:true,derivedMonthReceiptGuard:true,sourceEquivalentMonthEditable:true,profileFirstFromStudentSearch:true,legacyRecordsUseRestoredStudentFile:true,reminderPreviewAction:true,reminderPdfAction:true,searchUsesUnifiedEndLabel:true,periodRegistrationsShowEndDate:true,debtTabShowsAllIncomplete:true,debtDateClampedToVisibleState:true});
+window.EFC_STUDENT_UI_V13=Object.freeze({ready:true,autocompleteRemoved:true,quickDaysOnlyForQuickCourse:true,debtDateAfterInputIdle:true,debtDateStableSlot:true,registrationPaymentRecordedAsTransaction:true,profilePaymentRecordedAsTransaction:true,dynamicDuesNative:true,studentSearchPageRestored:true,periodSearchHeaderRestored:true,specialtiesBaseRendererExported:true,studentSearchBaseRendererExported:true,periodBaseRendererExported:true,monthlyCourseDefault:true,originalStudentFileLayoutRestored:true,monthlyReceiptActionsRestored:true,monthReceiptSourceAware:true,derivedMonthReceiptGuard:true,sourceEquivalentMonthEditable:true,profileFirstFromStudentSearch:true,legacyRecordsUseRestoredStudentFile:true,reminderPreviewAction:true,reminderPdfAction:true,searchUsesUnifiedEndLabel:true,periodRegistrationsShowEndDate:true,debtTabShowsAllIncomplete:true,debtDateClampedToVisibleState:true});
 })();

@@ -2,9 +2,8 @@
 'use strict';
 if(window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Student search redesign v31 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_SIDEBAR_LOCK_V30?.ready&&typeof window.renderStudents==='function');
+await waitUntil(()=>window.EFC_SIDEBAR_LOCK_V30?.ready&&typeof window.EFC_RENDER_STUDENTS_BASE_V13==='function');
 
-const baseRenderStudents=window.renderStudents;
 function syncPageClass(){
   const page=location.hash.replace('#','')||window.currentPage||'';
   document.body.classList.toggle('efc-student-search-redesign-v31',page==='students');
@@ -42,9 +41,10 @@ function enhanceStudentFilters(){
 
 
 window.renderStudents=function(){
-  baseRenderStudents();
+  const result=window.EFC_RENDER_STUDENTS_BASE_V13();
   enhanceStudentSearch();
   enhanceStudentFilters();
+  return result;
 };
 
 const style=document.createElement('style');
@@ -163,6 +163,6 @@ document.head.appendChild(style);
 
 window.EFC_STUDENT_SEARCH_REDESIGN_V31=Object.freeze({
   ready:true,periodVisualLanguage:true,preservedStudentSearchContent:true,preservedStudentSearchBehavior:true,
-  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
+  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
 });
 })();

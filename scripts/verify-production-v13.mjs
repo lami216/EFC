@@ -24,6 +24,8 @@ const registrationSelect=read('assets/production-registration-schedule-matrix-v1
 const registrationSchedule=read('assets/production-registration-schedule-v13.js');
 const monthlyUi=read('assets/production-monthly-prepayment-ui-v14.js');
 const registrationRedesign=read('assets/production-registration-redesign-v15.js');
+const periodSearch=read('assets/production-period-search-redesign-v28.js');
+const studentSearch=read('assets/production-student-search-redesign-v31.js');
 const lifecycleUi=read('assets/production-student-lifecycle-ui-v20.js');
 const build=read('scripts/build-production.mjs');
 const tauri=read('src-tauri/tauri.conf.json');
@@ -124,7 +126,7 @@ forbidText(monthlyDomain,'عزيزي الطالب ','old male-only monthly remin
 forbidText(domain,'تجاهل','reminders must never tell a student to ignore a payment mismatch');
 forbidText(monthlyDomain,'تجاهل','monthly reminders must never tell a student to ignore a payment mismatch');
 for(const token of ['currentLevelImplementation:true','ownerChoosesStartDate:true','automaticEndDate:true','annualSameAnchor:true','continuingStudentsRetained:true','debtorsRetained:true','separateCourseAndCertificateIncome:true','tombstoneRestoreProtection:true','pendingCloseJournal:true','closedPeriodsImmutable:true','noRouterHook:true'])requireText(fiscal,token,`fiscal ${token}`);
-for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','renderPeriod=function','renderStudents=function','studentEndForSearch','data-tab="debts"','searchUsesUnifiedEndLabel:true','periodRegistrationsShowEndDate:true','debtTabShowsAllIncomplete:true','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','legacyRecordsUseRestoredStudentFile:true','snapshot.billing===\'monthly\'','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);
+for(const token of ['quickDaysV13','DEBT_IDLE_MS=450','appendPayment(student,{amount:paidNow','appendPayment(student,{amount,method:','autocompleteOff','function renderPeriodBaseV13','function renderStudentsBaseV13','EFC_RENDER_PERIOD_BASE_V13','EFC_RENDER_STUDENTS_BASE_V13','studentEndForSearch','data-tab="debts"','searchUsesUnifiedEndLabel:true','periodRegistrationsShowEndDate:true','debtTabShowsAllIncomplete:true','.quick-days-v13[hidden]','debtDateStableSlot:true','studentSearchPageRestored:true','periodSearchHeaderRestored:true','monthlyCourseDefault:true','debt-slot-hidden','originalStudentFileLayoutRestored:true','monthlyReceiptActionsRestored:true','profileFirstFromStudentSearch:true','legacyRecordsUseRestoredStudentFile:true','snapshot.billing===\'monthly\'','حالة التسجيل','روسي شامل للأشهر','روسي التسجيل','فتح الروسي','student-profile-section-v3','month-actions-mm'])requireText(studentUi,token,`student UI ${token}`);
 forbidText(studentUi,'legacyOpenStudent(id,mode)','legacy records must use the restored student-file UI');
 forbidText(studentUi,'كل المستحقات','obsolete all-dues filter');
 forbidText(studentUi,'مستحق الآن','obsolete due-now label');
@@ -142,6 +144,10 @@ for(const token of ['baseRegistrationRenderer:true','finalRegistrationRendererOw
 forbidText(monthlyUi,'const baseRenderRegister=window.renderRegister','monthly registration wrapper chain');
 forbidText(registrationRedesign,'const baseRenderRegister=window.renderRegister','redesign registration wrapper chain');
 forbidText(lifecycleUi,'const baseRenderRegister=window.renderRegister','lifecycle registration wrapper chain');
+for(const token of ['canonicalPeriodRenderer:true','singlePeriodRenderOwner:true','noPeriodWrapperChain:true'])requireText(periodSearch,token,`period canonical owner ${token}`);
+forbidText(periodSearch,'const baseRenderPeriod=window.renderPeriod','period search must not wrap a prior renderer');
+for(const token of ['canonicalStudentSearchRenderer:true','singleStudentSearchRenderOwner:true','noStudentSearchWrapperChain:true'])requireText(studentSearch,token,`student search canonical owner ${token}`);
+forbidText(studentSearch,'const baseRenderStudents=window.renderStudents','student search must not wrap a prior renderer');
 for(const token of ['canonicalRegistrationRenderer:true','singleRegistrationRenderOwner:true','noRenderWrapperChain:true'])requireText(registrationSelect,token,`registration canonical owner ${token}`);
 
 const activeCombined=[loader,foundation,receipts,certificate,sequence,domain,monthlyDomain,studentUi,financeUi,fiscal,securityUi].join('\n');

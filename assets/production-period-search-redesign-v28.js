@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Period search redesign v28 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready&&typeof window.renderPeriod==='function');
+await waitUntil(()=>window.EFC_STUDENT_UI_V13?.ready&&typeof window.EFC_RENDER_PERIOD_BASE_V13==='function');
 
 const icon=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
 const ICONS={
@@ -17,7 +17,6 @@ const ICONS={
   list:icon('<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>')
 };
 
-const baseRenderPeriod=window.renderPeriod;
 function syncPageClass(){
   const page=location.hash.replace('#','')||window.currentPage||'';
   document.body.classList.toggle('efc-period-redesign-v28',page==='period');
@@ -112,9 +111,10 @@ document.addEventListener('click',event=>{
 
 
 window.renderPeriod=function(){
-  baseRenderPeriod();
+  const result=window.EFC_RENDER_PERIOD_BASE_V13();
   enhancePeriod();
   syncPeriodCount();
+  return result;
 };
 
 const style=document.createElement('style');style.id='efc-period-search-redesign-style-v28';style.textContent=`
@@ -251,5 +251,5 @@ html body.efc-student-search-redesign-v31 .page-title::after{
 
 `;
 document.head.appendChild(style);
-window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,mainUntouched:true});
+window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,canonicalPeriodRenderer:true,singlePeriodRenderOwner:true,noPeriodWrapperChain:true,mainUntouched:true});
 })();
