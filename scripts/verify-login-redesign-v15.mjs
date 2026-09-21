@@ -16,7 +16,7 @@ execFileSync(process.execPath,['--check','assets/production-security-ui-v13.js']
 
 for(const token of [
   'canonicalLoginRenderer:true','loginBeforeAppRuntime:true','noLegacyLoginRenderer:true','noLoginMutationObserver:true',
-  'function renderMainLogin(overlay)','enhanceOverlay(overlay);document.body.appendChild(overlay)',
+  'function renderMainLogin(overlay)','renderMainLogin(overlay);document.body.appendChild(overlay)',
   "event.formData.set('pin'",
   '#forgotV13','#resetV13','./efc-logo.svg','efc-login-redesign-v15','efc-login-slogan-v15','efc-login-version-v15',
   "const LOGIN_FONT='Segoe UI Variable'",'arabicFont:LOGIN_FONT','introRemoved:true','largerLogo:true','width:136px!important','height:112px!important'
