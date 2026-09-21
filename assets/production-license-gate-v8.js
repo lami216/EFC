@@ -23,9 +23,6 @@ const RUNTIME=[
   './assets/production-period-search-redesign-v28.js',
   './assets/production-sidebar-lock-v30.js',
   './assets/production-student-search-redesign-v31.js',
-  './assets/production-search-detail-polish-v32.js',
-  './assets/production-period-count-and-grid-polish-v33.js',
-  './assets/production-search-title-grid-unify-v34.js',
   './assets/production-student-lifecycle-ui-v20.js',
   './assets/production-fiscal-year-v14.js',
   './assets/production-security-ui-v13.js'
@@ -78,9 +75,6 @@ async function startApplication(){
     await loadStage('./assets/production-period-search-redesign-v28.js','تصميم آلية البحث',()=>window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready);
     await loadStage('./assets/production-sidebar-lock-v30.js','توحيد الشريط الجانبي',()=>window.EFC_SIDEBAR_LOCK_V30?.ready);
     await loadStage('./assets/production-student-search-redesign-v31.js','تصميم البحث عن طالب',()=>window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready);
-    await loadStage('./assets/production-search-detail-polish-v32.js','تفاصيل صفحات البحث',()=>window.EFC_SEARCH_DETAIL_POLISH_V32?.ready);
-    await loadStage('./assets/production-period-count-and-grid-polish-v33.js','عداد ونتائج آلية البحث',()=>window.EFC_PERIOD_COUNT_GRID_POLISH_V33?.ready);
-    await loadStage('./assets/production-search-title-grid-unify-v34.js','توحيد جداول البحث',()=>window.EFC_SEARCH_TITLE_GRID_UNIFY_V34?.ready);
     await loadStage('./assets/production-student-lifecycle-ui-v20.js','واجهة دورة حياة الطالب',()=>window.EFC_STUDENT_LIFECYCLE_UI_V20?.ready);
     await loadStage('./assets/production-fiscal-year-v14.js','السنة المالية',()=>window.EFC_FISCAL_V14?.ready);
     await loadStage('./assets/production-security-ui-v13.js','النظام النهائي',()=>window.EFC_CENTER_OPS_V13?.ready&&window.EFC_SECURITY_UI_V13?.ready);
