@@ -142,7 +142,7 @@ window.renderSettings=function(){
 };
 window.renderSettingsProd=window.renderSettings;
 
-function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);mountUser();applyPermissions();window.EFC_SYNC_REGISTRATION_SELECTS_V19?.();mountBell();}
+function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);mountUser();applyPermissions();window.EFC_SYNC_SELECTS_V19?.(document);mountBell();}
 window.afterRenderV13=afterRenderV13;
 
 window.renderCurrentV13=function(){
@@ -179,5 +179,5 @@ const style=document.createElement('style');style.textContent=`
 
 renderCurrentV13();
 window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,noSettingsPostRenderEnhancement:true,directCanonicalRouteRender:true,noRouteConcealment:true,noShellRenderWrapper:true});
-window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,directCanonicalRoutes:true,noDeferredRouteRender:true,noRouteRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
+window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,directCanonicalRoutes:true,noDeferredRouteRender:true,globalSelectHoverSync:true,noRouteRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
 })();
