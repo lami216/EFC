@@ -140,8 +140,10 @@ forbidText(securityUi,'setTimeout(afterRenderV13,0)','route shell must not sched
 forbidText(securityUi,'efc-route-rendering','canonical routes must not be concealed while post-render patches run');
 forbidText(securityUi,'const baseShell=shell','security must not wrap the global shell');
 forbidText(securityUi,"function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13",'settings must be fully assembled by their canonical renderer before afterRender');
-for(const token of ['consistentBlueOptionHover:true','nativePopupAvoidedForRegistrationLists:true','nativeClosedSelectAppearancePreserved:true','onlyDropdownHoverColorCustomized:true','efc-blue-select-option-v19:hover','background:#1469ad!important','opacity:1!important;pointer-events:none!important'])requireText(registrationSelect,token,`registration select ${token}`);
-forbidText(registrationSelect,'opacity:0!important;pointer-events:none!important','registration native select must remain visibly styled');
+for(const token of ['consistentBlueOptionHover:true','nativePopupAvoidedForRegistrationLists:true','nativeClosedSelectAppearancePreserved:true','onlyDropdownHoverColorCustomized:true','allNativeSelectsUseBlueHover:true','closedSelectDomUntouched:true','dynamicSelectsCoveredByDelegation:true','window.EFC_SYNC_SELECTS_V19=syncAllBlueLists','efc-blue-select-option-v19:hover','background:#1469ad!important'])requireText(registrationSelect,token,`global select hover ${token}`);
+forbidText(registrationSelect,"host.className='efc-blue-select-v19'",'closed selects must not be reparented into custom hosts');
+forbidText(registrationSelect,'opacity:0!important;pointer-events:none!important','native selects must not be visually replaced');
+requireText(securityUi,'window.EFC_SYNC_SELECTS_V19?.(document)','all routed pages sync select hover behavior');
 for(const token of ['baseRegistrationRenderer:true','finalRegistrationRendererOwnedByMatrix:true','registrationPaymentRecordedAsTransaction:true','noLegacyStudentRegistrationRenderer:true','appendPayment(student,{amount:paidNow','EFC_REGISTRATION_BASE_V13'])requireText(registrationSchedule,token,`registration base ${token}`);
 forbidText(studentUi,'renderRegister=function(){','student UI must not keep an obsolete registration renderer');
 forbidText(monthlyUi,'const baseRenderRegister=window.renderRegister','monthly registration wrapper chain');
