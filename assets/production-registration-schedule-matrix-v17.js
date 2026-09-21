@@ -481,7 +481,6 @@ body.efc-registration-redesign-v15 .efc-blue-select-v19.is-disabled-v19>.efc-blu
 body.efc-registration-redesign-v15 .efc-blue-select-menu-v19{display:none;position:absolute;z-index:4;top:calc(100% + 1px);right:0;left:0;max-height:240px;overflow:auto;padding:0;background:#fff;border:1px solid #b8c1bd;border-radius:0;box-shadow:0 8px 20px rgba(25,40,35,.16)}
 body.efc-registration-redesign-v15 .efc-blue-select-v19.is-open-v19 .efc-blue-select-menu-v19{display:block}
 body.efc-registration-redesign-v15 .efc-blue-select-option-v19{display:block;width:100%;min-height:28px;border:0;border-radius:0;background:#fff;color:#252525;padding:4px 8px;font:400 12px "Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;line-height:20px;text-align:center;cursor:default}
-body.efc-registration-redesign-v15 .efc-blue-select-option-v19.is-selected-v19{font-weight:600}
 body.efc-registration-redesign-v15 .efc-blue-select-option-v19:hover,
 body.efc-registration-redesign-v15 .efc-blue-select-option-v19:focus{outline:0;background:#1469ad!important;color:#fff!important}
 body.efc-registration-redesign-v15 .efc-schedule-course-mirror-v15 .efc-blue-select-v19{width:122px;height:42px}
