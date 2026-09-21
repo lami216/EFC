@@ -13,6 +13,7 @@ const files={
   sequence:'assets/production-receipt-sequences-v10.js',
   domain:'assets/production-domain-v13.js',
   student:'assets/production-student-ui-v13.js',
+  registration:'assets/production-registration-schedule-v13.js',
   finance:'assets/production-finance-ui-v13.js',
   security:'assets/production-security-ui-v13.js',
   index:'index.html',
@@ -22,7 +23,7 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Forbidden v13 pattern: ${label}`);};
 
-const activeKeys=['gate','loader','auth','foundation','receipts','certificate','domain','sequence','student','finance','security'];
+const activeKeys=['gate','loader','auth','foundation','receipts','certificate','domain','sequence','student','registration','finance','security'];
 for(const key of activeKeys)execFileSync(process.execPath,['--check',files[key]],{stdio:'inherit'});
 
 for(const marker of [
@@ -87,7 +88,8 @@ requireText(source.domain,'EFC_RECEIPTS_V13?.ready','domain waits for clean rece
 requireText(source.domain,'function paymentTotal(student)','canonical payment sum');
 requireText(source.domain,'function appendPayment(student','single transaction writer');
 requireText(source.domain,'student.paid=paymentTotal(student)','paid amount reconciled from transactions');
-requireText(source.student,'appendPayment(student,{amount:paidNow','registration uses transaction writer');
+requireText(source.registration,'appendPayment(student,{amount:paidNow','registration uses transaction writer');
+forbidText(source.student,'renderRegister=function(){','student UI no longer owns a legacy registration renderer');
 requireText(source.student,'appendPayment(student,{amount,method:','profile/payment modal uses transaction writer');
 forbidText(source.student,'student.paid=Number(student.paid||0)+','manual paid accumulator');
 requireText(source.student,'DEBT_IDLE_MS=450','debt-date typing debounce');
