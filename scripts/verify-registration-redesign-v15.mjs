@@ -7,7 +7,7 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-registration-select-native-v19.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
@@ -16,7 +16,7 @@ const ui=read(uiPath);
 const registration=read('assets/production-registration-schedule-v13.js');
 const monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
-const selectNative=read('assets/production-registration-select-native-v19.js');
+const selectNative=scheduleMatrix;
 const receiptSchedule=read('assets/production-registration-receipt-schedule-v22.js');
 const receipts=read('assets/production-receipts-v13.js');
 const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
@@ -131,6 +131,7 @@ forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .efc-reg-hero-v15{w
 forbidText(scheduleMatrix,'body.efc-registration-editing-v17 .schedule-title-v13 h2{font-size:18px','edit mode must not shrink the timetable title');
 
 for(const [token,label] of [
+  ['registrationSelectsConsolidated:true','registration select behavior is owned by the matrix'],
   ['preservesReceiptEditSelections:true','native selects preserve edit-mode values'],
   ['preserveValue:editing','edit mode keeps center/course/payment selections'],
   ['EFC_REGISTRATION_EDIT_V17?.active?.()','native select layer detects active edit session']
