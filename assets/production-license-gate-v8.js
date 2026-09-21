@@ -27,13 +27,15 @@ const RUNTIME=[
   './assets/production-fiscal-year-v14.js',
   './assets/production-security-ui-v13.js'
 ];
+const BOOTSTRAP_RUNTIME=RUNTIME.slice(0,2);
+const APP_RUNTIME=RUNTIME.slice(2);
 const RUNTIME_VERSION='20260921-canonical-runtime-cleanup-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
 
 function runtimeUrl(src){return `${src}${src.includes('?')?'&':'?'}v=${RUNTIME_VERSION}`;}
-function preloadRuntime(){if(document.documentElement.dataset.efcRuntimePreloaded===RUNTIME_VERSION)return;document.documentElement.dataset.efcRuntimePreloaded=RUNTIME_VERSION;RUNTIME.forEach(src=>{const link=document.createElement('link');link.rel='preload';link.as='script';link.href=runtimeUrl(src);document.head.appendChild(link);});}
+function preloadRuntime(sources,key){const marker=`${RUNTIME_VERSION}:${key}`;if(document.documentElement.dataset[key]===marker)return;document.documentElement.dataset[key]=marker;sources.forEach(src=>{const link=document.createElement('link');link.rel='preload';link.as='script';link.href=runtimeUrl(src);document.head.appendChild(link);});}
 function loadScript(src){return new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=runtimeUrl(src);script.async=false;script.onload=resolve;script.onerror=()=>reject(new Error(`تعذر تحميل ${src}`));document.head.appendChild(script);});}
 function waitUntil(check,label,timeout=15000){const startedAt=Date.now();return new Promise((resolve,reject)=>{const poll=()=>{try{if(check()){resolve();return;}}catch{}if(Date.now()-startedAt>=timeout){reject(new Error(`تعذر اكتمال تشغيل ${label}.`));return;}setTimeout(poll,20);};poll();});}
 function reveal(){document.documentElement.classList.remove('efc-booting');}
@@ -46,7 +48,7 @@ async function startApplication(){
   if(started)return;
   if(startPromise)return startPromise;
   startPromise=(async()=>{
-    preloadRuntime();
+    preloadRuntime(BOOTSTRAP_RUNTIME,'efcBootstrapPreloaded');
     await loadScript('./production-loader.js');
     if(window.EFC_CORE_STORAGE_READY)await window.EFC_CORE_STORAGE_READY;
     await waitUntil(()=>window.EFC_CORE_STORAGE_V13?.ready,'تخزين البيانات');
@@ -55,6 +57,7 @@ async function startApplication(){
     if(window.EFC_AUTH_BOOTSTRAP_READY)await window.EFC_AUTH_BOOTSTRAP_READY;
     await waitUntil(()=>window.EFC_AUTH_BOOTSTRAP_V13?.ready,'الدخول والأمان');
     await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin();
+    preloadRuntime(APP_RUNTIME,'efcAppPreloaded');
 
     await loadStage('./assets/production-foundation-v13.js','الواجهة الأساسية',()=>window.EFC_FOUNDATION_V13?.ready&&typeof shell==='function');
     await loadStage('./assets/production-receipts-v13.js','خدمة الإيصالات',()=>window.EFC_RECEIPTS_V13?.ready&&typeof receiptModelV4==='function');
@@ -106,5 +109,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveConsolidated:true,registrationScheduleMatrixV17:true,studentLifecycleV20:true,earlyCanonicalLogin:true,loginBeforeAppRuntime:true,noPostSecurityLoginLayer:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,parallelRuntimePreload:true,gateOwnsBootReveal:true,finalUiBeforeReveal:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveConsolidated:true,registrationScheduleMatrixV17:true,studentLifecycleV20:true,earlyCanonicalLogin:true,loginBeforeAppRuntime:true,noPostSecurityLoginLayer:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,parallelRuntimePreload:true,loginFirstPreload:true,heavyPreloadAfterLogin:true,gateOwnsBootReveal:true,finalUiBeforeReveal:true,centerOpsV13:true});
 })();
