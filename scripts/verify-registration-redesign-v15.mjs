@@ -7,7 +7,7 @@ const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new
 
 const uiPath='assets/production-registration-redesign-v15.js';
 if(!existsSync(uiPath))throw new Error('Registration redesign runtime module is missing.');
-for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-registration-receipt-schedule-v22.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
+for(const path of [uiPath,'assets/production-monthly-prepayment-domain-v14.js','assets/production-registration-schedule-matrix-v17.js','assets/production-receipts-v13.js','assets/production-courses-centers-compact-v25.js','assets/production-sidebar-lock-v30.js']){
   if(!existsSync(path))throw new Error(`Registration redesign runtime module is missing: ${path}`);
   execFileSync(process.execPath,['--check',path],{stdio:'inherit'});
 }
@@ -17,7 +17,7 @@ const registration=read('assets/production-registration-schedule-v13.js');
 const monthlyDomain=read('assets/production-monthly-prepayment-domain-v14.js');
 const scheduleMatrix=read('assets/production-registration-schedule-matrix-v17.js');
 const selectNative=scheduleMatrix;
-const receiptSchedule=read('assets/production-registration-receipt-schedule-v22.js');
+const receiptSchedule=scheduleMatrix;
 const receipts=read('assets/production-receipts-v13.js');
 const coursesCompact=read('assets/production-courses-centers-compact-v25.js');
 const sidebar=read('assets/production-sidebar-lock-v30.js');
@@ -153,19 +153,19 @@ for(const [token,label] of [
 ])requireText(monthlyDomain,token,label);
 
 for(const [token,label] of [
-  ['registrationMatrixCapture:true','v22 remains a schedule capture compatibility module'],
-  ['sharedDayTimeCapture:true','v22 captures the active shared day-time values'],
-  ['directSavedSchedulePreferred:true','v22 preserves an already saved registration schedule'],
-  ['hourOnlyTimeValues:true','v22 preserves canonical HH:00 timetable values'],
-  ['existingScheduleMatches','v22 does not replace a valid schedule'],
-  ['receiptRenderingOwnedByBase:true','v22 delegates receipt rendering to the base receipt service'],
-  ['noReceiptWindowOverride:true','v22 advertises no receipt-window override'],
-  ['noReceiptDomPatch:true','v22 advertises no receipt DOM post-patching']
+  ['registrationMatrixCapture:true','matrix owns registration schedule capture'],
+  ['sharedDayTimeCapture:true','matrix captures the active shared day-time values'],
+  ['directSavedSchedulePreferred:true','matrix preserves an already saved registration schedule'],
+  ['hourOnlyTimeValues:true','matrix preserves canonical HH:00 timetable values'],
+  ['existingScheduleMatches','matrix does not replace a valid schedule'],
+  ['receiptRenderingOwnedByBase:true','matrix delegates receipt rendering to the base receipt service'],
+  ['noReceiptWindowOverride:true','matrix advertises no receipt-window override'],
+  ['noReceiptDomPatch:true','matrix advertises no receipt DOM post-patching']
 ])requireText(receiptSchedule,token,label);
-forbidText(receiptSchedule,'window.receiptWindowV4=function','v22 must not override the canonical receipt viewer');
-forbidText(receiptSchedule,'baseReceiptWindow','v22 must not wrap receiptWindowV4');
-forbidText(receiptSchedule,'patchReceipt','v22 must not post-patch receipt DOM');
-forbidText(receiptSchedule,'gridMarkup','v22 must not own receipt timetable rendering');
+forbidText(receiptSchedule,'window.receiptWindowV4=function','matrix must not override the canonical receipt viewer');
+forbidText(receiptSchedule,'baseReceiptWindow','matrix must not wrap receiptWindowV4');
+forbidText(receiptSchedule,'patchReceipt','matrix must not post-patch receipt DOM');
+forbidText(receiptSchedule,'gridMarkup','matrix must not own receipt timetable rendering');
 
 for(const [token,label] of [
   ['registrationScheduleRenderedByBase:true','base receipt service owns registration timetable rendering'],
