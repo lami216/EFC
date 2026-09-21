@@ -174,8 +174,6 @@ if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))
 
 const deterministicPostLicenseRuntime=[
   'production-courses-centers-redesign-v23.js',
-  'production-courses-centers-compact-v25.js',
-  'production-courses-centers-detail-fix-v27.js',
   'production-period-search-redesign-v28.js',
   'production-sidebar-lock-v30.js',
   'production-student-search-redesign-v31.js',
