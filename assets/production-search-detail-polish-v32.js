@@ -32,8 +32,6 @@ window.renderStudents=function(){
   baseRenderStudents();
   enhanceStudentFilters();
 };
-window.addEventListener('hashchange',()=>setTimeout(enhanceStudentFilters,40));
-if((location.hash.replace('#','')||window.currentPage)==='students')setTimeout(enhanceStudentFilters,0);
 
 const style=document.createElement('style');
 style.id='efc-search-detail-polish-style-v32';
@@ -73,6 +71,6 @@ document.head.appendChild(style);
 
 window.EFC_SEARCH_DETAIL_POLISH_V32=Object.freeze({
   ready:true,studentBranchCourseIcons:true,darkerTableLines:true,strongerRowHover:true,
-  noControlsAdded:true,noControlsRemoved:true,mainUntouched:true
+  noControlsAdded:true,noControlsRemoved:true,noHashEnhancer:true,mainUntouched:true
 });
 })();
