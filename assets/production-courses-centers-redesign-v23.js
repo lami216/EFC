@@ -111,11 +111,6 @@ window.renderSpecialties=function(){
   enhanceSpecialtiesPage();
 };
 
-window.addEventListener('hashchange',()=>{
-  const page=location.hash.replace('#','');
-  document.body.classList.toggle('efc-specialties-redesign-v23',page==='specialties');
-});
-if((location.hash.replace('#','')||window.currentPage)==='specialties')enhanceSpecialtiesPage();
 
 const style=document.createElement('style');style.id='efc-courses-centers-redesign-style-v23';style.textContent=`
 .shell-v13 .brand .logo{display:grid!important;place-items:center!important;overflow:hidden!important}
