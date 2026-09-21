@@ -372,56 +372,89 @@ function restoreEditPaymentMethod(method){
   method.value=existing;
 }
 
-let activeBlueHost=null;
-function closeBlueList(host=activeBlueHost){
-  if(!host)return;
-  host.classList.remove('is-open-v19');
-  host.querySelector('.efc-blue-select-trigger-v19')?.setAttribute('aria-expanded','false');
-  if(activeBlueHost===host)activeBlueHost=null;
+let activeBlueSelect=null;
+let activeBlueMenu=null;
+
+function eligibleBlueList(select){
+  return select instanceof HTMLSelectElement&&!select.multiple&&Number(select.size||0)<=1&&select.dataset.efcNativePopupAllowed!=='1';
 }
 function syncBlueList(select){
-  const host=select?.closest?.('.efc-blue-select-v19');if(!host)return;
-  const trigger=host.querySelector('.efc-blue-select-trigger-v19'),selected=select.selectedOptions?.[0],empty=!String(select.value||''),label=empty?String(select.dataset.efcPlaceholderLabel||'اختر'):String(selected?.textContent||select.value||'');
-  trigger.textContent=label;
-  trigger.setAttribute('aria-label',label);
-  trigger.classList.toggle('is-placeholder-v19',empty);
-  trigger.disabled=Boolean(select.disabled);
-  trigger.setAttribute('aria-expanded',host.classList.contains('is-open-v19')?'true':'false');
-  host.classList.toggle('is-disabled-v19',Boolean(select.disabled));
-  if(!empty){trigger.classList.remove('is-invalid-v19');host.classList.remove('is-invalid-v19');}
+  if(!eligibleBlueList(select))return;
+  select.classList.add('efc-blue-list-native-v19');
+  select.setAttribute('aria-haspopup','listbox');
+  select.setAttribute('aria-expanded',activeBlueSelect===select?'true':'false');
 }
-function buildBlueList(select,host){
-  const menu=host.querySelector('.efc-blue-select-menu-v19');menu.textContent='';
-  [...select.options].filter(option=>!option.disabled&&!option.hidden&&String(option.value||'')).forEach(option=>{
-    const item=document.createElement('button');item.type='button';item.className='efc-blue-select-option-v19';item.setAttribute('role','option');item.textContent=String(option.textContent||option.value);
-    const selected=String(option.value)===String(select.value);item.classList.toggle('is-selected-v19',selected);item.setAttribute('aria-selected',selected?'true':'false');
-    item.onclick=()=>{select.value=String(option.value);select.dataset.efcPlaceholderActive='0';select.setCustomValidity('');host.classList.remove('is-invalid-v19');select.dispatchEvent(new Event('input',{bubbles:true}));select.dispatchEvent(new Event('change',{bubbles:true}));closeBlueList(host);syncBlueList(select);};
+function closeBlueList({restoreFocus=false}={}){
+  const select=activeBlueSelect,menu=activeBlueMenu;
+  activeBlueSelect=null;activeBlueMenu=null;
+  menu?.remove();
+  if(select){select.setAttribute('aria-expanded','false');if(restoreFocus)select.focus({preventScroll:true});}
+}
+function positionBlueList(select,menu){
+  const rect=select.getBoundingClientRect(),viewportWidth=document.documentElement.clientWidth||window.innerWidth,viewportHeight=document.documentElement.clientHeight||window.innerHeight;
+  const width=Math.max(1,Math.round(rect.width)),left=Math.min(Math.max(0,Math.round(rect.left)),Math.max(0,viewportWidth-width));
+  menu.style.width=`${width}px`;menu.style.left=`${left}px`;menu.style.right='auto';
+  const desired=Math.min(240,Math.max(28,menu.scrollHeight||28)),below=viewportHeight-rect.bottom,above=rect.top;
+  if(below<Math.min(120,desired)&&above>below){menu.style.top='auto';menu.style.bottom=`${Math.max(0,Math.round(viewportHeight-rect.top+1))}px`;}
+  else{menu.style.bottom='auto';menu.style.top=`${Math.max(0,Math.round(rect.bottom+1))}px`;}
+}
+function buildBlueList(select){
+  const menu=document.createElement('div');menu.className='efc-blue-select-menu-v19';menu.setAttribute('role','listbox');
+  [...select.options].filter(option=>!option.disabled&&!option.hidden).forEach(option=>{
+    const item=document.createElement('button');item.type='button';item.className='efc-blue-select-option-v19';item.setAttribute('role','option');item.dataset.value=String(option.value);item.textContent=String(option.textContent||option.label||option.value);
+    const selected=String(option.value)===String(select.value);item.setAttribute('aria-selected',selected?'true':'false');
+    item.onclick=()=>{
+      select.value=String(option.value);
+      if(Object.prototype.hasOwnProperty.call(select.dataset,'efcPlaceholderActive'))select.dataset.efcPlaceholderActive='0';
+      select.setCustomValidity('');
+      select.dispatchEvent(new Event('input',{bubbles:true}));
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+      closeBlueList({restoreFocus:true});
+    };
     menu.appendChild(item);
   });
+  return menu;
 }
-function openBlueList(select,host){
-  if(select.disabled)return;
-  if(activeBlueHost&&activeBlueHost!==host)closeBlueList(activeBlueHost);
-  buildBlueList(select,host);host.classList.add('is-open-v19');activeBlueHost=host;syncBlueList(select);
+function openBlueList(select,{focusOption=false}={}){
+  if(!eligibleBlueList(select)||select.disabled)return;
+  closeBlueList();
+  syncBlueList(select);
+  const menu=buildBlueList(select);document.body.appendChild(menu);
+  activeBlueSelect=select;activeBlueMenu=menu;select.setAttribute('aria-expanded','true');positionBlueList(select,menu);
+  const selected=[...menu.querySelectorAll('.efc-blue-select-option-v19')].find(item=>String(item.dataset.value)===String(select.value));
+  selected?.scrollIntoView?.({block:'nearest'});
+  if(focusOption)queueMicrotask(()=>{(selected||menu.querySelector('.efc-blue-select-option-v19'))?.focus();});
 }
-function installBlueList(select,label){
-  if(!select)return;
-  if(select.dataset.efcBlueListBound==='1'){syncBlueList(select);return;}
-  select.dataset.efcBlueListBound='1';select.dataset.efcPlaceholderLabel=select.dataset.efcPlaceholderLabel||label;select.classList.add('efc-blue-list-native-v19');select.tabIndex=-1;
-  const host=document.createElement('span');host.className='efc-blue-select-v19';select.parentNode.insertBefore(host,select);host.appendChild(select);
-  const trigger=document.createElement('button');trigger.type='button';trigger.className='efc-blue-select-trigger-v19';trigger.setAttribute('aria-haspopup','listbox');trigger.setAttribute('aria-expanded','false');
-  const menu=document.createElement('span');menu.className='efc-blue-select-menu-v19';menu.setAttribute('role','listbox');
-  host.append(trigger,menu);
-  trigger.onclick=event=>{event.preventDefault();host.classList.contains('is-open-v19')?closeBlueList(host):openBlueList(select,host);};
-  trigger.onkeydown=event=>{if(['ArrowDown','ArrowUp','Enter',' '].includes(event.key)){event.preventDefault();openBlueList(select,host);queueMicrotask(()=>host.querySelector('.efc-blue-select-option-v19.is-selected-v19,.efc-blue-select-option-v19')?.focus());}};
-  select.addEventListener('change',()=>syncBlueList(select));
-  select.addEventListener('invalid',event=>{event.preventDefault();trigger.classList.add('is-invalid-v19');host.classList.add('is-invalid-v19');trigger.focus();});
-  host.addEventListener('focusout',event=>{if(event.relatedTarget instanceof Node&&host.contains(event.relatedTarget))return;closeBlueList(host);});
+function enableBlueList(select,label=''){
+  if(!eligibleBlueList(select))return;
+  if(label&&!select.dataset.efcPlaceholderLabel)select.dataset.efcPlaceholderLabel=label;
   syncBlueList(select);
 }
-document.addEventListener('pointerdown',event=>{if(activeBlueHost&&event.target instanceof Node&&!activeBlueHost.contains(event.target))closeBlueList(activeBlueHost);},true);
-document.addEventListener('keydown',event=>{if(event.key==='Escape')closeBlueList();},true);
-window.EFC_SYNC_REGISTRATION_SELECTS_V19=()=>document.querySelectorAll('select.efc-blue-list-native-v19').forEach(syncBlueList);
+function syncAllBlueLists(root=document){
+  root.querySelectorAll?.('select').forEach(select=>enableBlueList(select));
+}
+document.addEventListener('pointerdown',event=>{
+  const target=event.target;
+  if(activeBlueMenu&&target instanceof Node&&activeBlueMenu.contains(target))return;
+  if(target instanceof HTMLSelectElement&&eligibleBlueList(target)){
+    event.preventDefault();target.focus({preventScroll:true});openBlueList(target);return;
+  }
+  if(activeBlueMenu)closeBlueList();
+},true);
+document.addEventListener('click',event=>{
+  if(event.target instanceof HTMLSelectElement&&eligibleBlueList(event.target))event.preventDefault();
+},true);
+document.addEventListener('keydown',event=>{
+  const target=event.target;
+  if(event.key==='Escape'&&activeBlueMenu){event.preventDefault();closeBlueList({restoreFocus:true});return;}
+  if(target instanceof HTMLSelectElement&&eligibleBlueList(target)&&['Enter',' ','ArrowDown','ArrowUp'].includes(event.key)){
+    event.preventDefault();openBlueList(target,{focusOption:true});
+  }
+},true);
+window.addEventListener('resize',()=>activeBlueMenu&&closeBlueList(),{passive:true});
+window.addEventListener('scroll',()=>activeBlueMenu&&closeBlueList(),{passive:true,capture:true});
+window.EFC_SYNC_SELECTS_V19=syncAllBlueLists;
+window.EFC_SYNC_REGISTRATION_SELECTS_V19=()=>syncAllBlueLists(document);
 
 function enhanceRegistrationSelectsV19(){
   const form=document.getElementById('regFormV13');
@@ -435,11 +468,11 @@ function enhanceRegistrationSelectsV19(){
   installPlaceholder(branch,'اختر المركز',{required:true,preserveValue:editing});
   installPlaceholder(specialty,'اختر الدورة',{required:true,preserveValue:editing});
   installPlaceholder(method,'اختر وسيلة الدفع',{preserveValue:editing});
-  installBlueList(branch,'اختر المركز');
-  installBlueList(specialty,'اختر الدورة');
-  installBlueList(method,'اختر وسيلة الدفع');
+  enableBlueList(branch,'اختر المركز');
+  enableBlueList(specialty,'اختر الدورة');
+  enableBlueList(method,'اختر وسيلة الدفع');
   const mirror=document.getElementById('efcScheduleCourseMirrorV15');
-  installBlueList(mirror,'اختر الدورة');
+  enableBlueList(mirror,'اختر الدورة');
   if(mirror&&form.dataset.efcBlueMirrorSync!=='1'){
     form.dataset.efcBlueMirrorSync='1';
     specialty?.addEventListener('change',()=>syncBlueList(mirror));
@@ -470,22 +503,10 @@ selectStyle.id='efc-registration-select-native-style-v19';
 selectStyle.textContent=`
 body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-active="1"]{color:#9aa8a3!important;font-weight:600!important}
 body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-active="0"]{color:#17352d!important}
-body.efc-registration-redesign-v15 .efc-blue-select-v19{position:relative;display:block;width:100%;min-width:0;height:48px;z-index:2}
-body.efc-registration-redesign-v15 .efc-blue-select-v19.is-open-v19{z-index:120}
-body.efc-registration-redesign-v15 .efc-blue-select-v19>.efc-blue-list-native-v19{position:relative!important;display:block!important;width:100%!important;height:100%!important;opacity:1!important;pointer-events:none!important;margin:0!important}
-body.efc-registration-redesign-v15 .efc-blue-select-trigger-v19{position:absolute;z-index:3;inset:0;width:100%;height:100%;border:0;background:transparent;color:transparent;padding:0;margin:0;font-size:0;text-align:right;cursor:pointer;box-shadow:none;outline:0}
-body.efc-registration-redesign-v15 .efc-blue-select-trigger-v19::after{content:none!important}
-body.efc-registration-redesign-v15 .efc-blue-select-v19:focus-within>.efc-blue-list-native-v19{border-color:#128264!important;box-shadow:0 0 0 3px rgba(18,130,100,.10)!important}
-body.efc-registration-redesign-v15 .efc-blue-select-v19.is-invalid-v19>.efc-blue-list-native-v19{border-color:#c61a1a!important;box-shadow:0 0 0 3px rgba(198,26,26,.10)!important}
-body.efc-registration-redesign-v15 .efc-blue-select-v19.is-disabled-v19>.efc-blue-list-native-v19{cursor:not-allowed!important;opacity:.55!important;background:#f3f5f4!important}
-body.efc-registration-redesign-v15 .efc-blue-select-menu-v19{display:none;position:absolute;z-index:4;top:calc(100% + 1px);right:0;left:0;max-height:240px;overflow:auto;padding:0;background:#fff;border:1px solid #b8c1bd;border-radius:0;box-shadow:0 8px 20px rgba(25,40,35,.16)}
-body.efc-registration-redesign-v15 .efc-blue-select-v19.is-open-v19 .efc-blue-select-menu-v19{display:block}
-body.efc-registration-redesign-v15 .efc-blue-select-option-v19{display:block;width:100%;min-height:28px;border:0;border-radius:0;background:#fff;color:#252525;padding:4px 8px;font:400 12px "Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;line-height:20px;text-align:center;cursor:default}
-body.efc-registration-redesign-v15 .efc-blue-select-option-v19:hover,
-body.efc-registration-redesign-v15 .efc-blue-select-option-v19:focus{outline:0;background:#1469ad!important;color:#fff!important}
-body.efc-registration-redesign-v15 .efc-schedule-course-mirror-v15 .efc-blue-select-v19{width:122px;height:42px}
-@media(max-width:1260px){body.efc-registration-redesign-v15 .registration-fields-v13 .efc-blue-select-v19{height:42px}body.efc-registration-redesign-v15 .efc-schedule-course-mirror-v15 .efc-blue-select-v19{width:108px}}
-@media(max-height:760px){body.efc-registration-redesign-v15 .registration-fields-v13 .efc-blue-select-v19{height:38px}}
+.efc-blue-select-menu-v19{position:fixed;z-index:2147483000;max-height:240px;overflow:auto;padding:0;background:#fff;border:1px solid #b8c1bd;border-radius:0;box-shadow:0 8px 20px rgba(25,40,35,.16);box-sizing:border-box}
+.efc-blue-select-option-v19{display:block;width:100%;min-height:28px;border:0;border-radius:0;background:#fff;color:#252525;padding:4px 8px;font:400 12px "Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;line-height:20px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.efc-blue-select-option-v19:hover,
+.efc-blue-select-option-v19:focus{outline:0;background:#1469ad!important;color:#fff!important}
 `;
 document.head.appendChild(selectStyle);
 
@@ -590,6 +611,9 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   nativePopupAvoidedForRegistrationLists:true,
   nativeClosedSelectAppearancePreserved:true,
   onlyDropdownHoverColorCustomized:true,
+  allNativeSelectsUseBlueHover:true,
+  closedSelectDomUntouched:true,
+  dynamicSelectsCoveredByDelegation:true,
   preservesReceiptEditSelections:true,
   checkedCourseSquaresAreBlack:true,
   selectedCourseOnly:true,
