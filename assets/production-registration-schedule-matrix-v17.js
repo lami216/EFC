@@ -452,7 +452,7 @@ document.addEventListener('keydown',event=>{
   }
 },true);
 window.addEventListener('resize',()=>activeBlueMenu&&closeBlueList(),{passive:true});
-window.addEventListener('scroll',()=>activeBlueMenu&&closeBlueList(),{passive:true,capture:true});
+window.addEventListener('scroll',event=>{if(!activeBlueMenu)return;if(event.target instanceof Node&&activeBlueMenu.contains(event.target))return;closeBlueList();},{passive:true,capture:true});
 window.EFC_SYNC_SELECTS_V19=syncAllBlueLists;
 window.EFC_SYNC_REGISTRATION_SELECTS_V19=()=>syncAllBlueLists(document);
 
