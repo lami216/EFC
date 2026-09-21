@@ -462,9 +462,9 @@ function enhanceRegistrationSelectsV19(){
 }
 
 
-const style=document.createElement('style');
-style.id='efc-registration-select-native-style-v19';
-style.textContent=`
+const selectStyle=document.createElement('style');
+selectStyle.id='efc-registration-select-native-style-v19';
+selectStyle.textContent=`
 body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-active="1"]{color:#9aa8a3!important;font-weight:600!important}
 body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-active="0"]{color:#17352d!important}
 body.efc-registration-redesign-v15 .efc-blue-select-v19{position:relative;display:block;width:100%;min-width:0;height:48px;z-index:2}
@@ -486,7 +486,7 @@ body.efc-registration-redesign-v15 .efc-schedule-course-mirror-v15 .efc-blue-sel
 @media(max-width:1260px){body.efc-registration-redesign-v15 .registration-fields-v13 .efc-blue-select-v19{height:42px}body.efc-registration-redesign-v15 .efc-schedule-course-mirror-v15 .efc-blue-select-v19{width:108px}}
 @media(max-height:760px){body.efc-registration-redesign-v15 .registration-fields-v13 .efc-blue-select-v19{height:38px}}
 `;
-document.head.appendChild(style);
+document.head.appendChild(selectStyle);
 
 
 window.renderRegister=function(){
