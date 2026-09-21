@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_SIDEBAR_LOCK_V30?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Sidebar lock v30 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&typeof window.shell==='function');
+await waitUntil(()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready&&window.EFC_COURSES_CENTERS_REDESIGN_V23?.detailFixConsolidated&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.countGridConsolidated&&typeof window.shell==='function');
 
 const style=document.createElement('style');
 style.id='efc-sidebar-lock-style-v30';
