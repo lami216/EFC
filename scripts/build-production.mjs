@@ -10,6 +10,7 @@ const runtimeFiles = [
   'assets/efc-login-geometry-v15.svg',
   'assets/efc-home-brand.webp',
   'production-loader.js',
+  'assets/production-auth-bootstrap-v13.js',
   'efc-logo.svg',
   'assets/production-license-gate-v8.js',
   'assets/production-foundation-v13.js',
@@ -40,7 +41,6 @@ const runtimeFiles = [
   'assets/production-student-lifecycle-ui-v20.js',
   'assets/production-fiscal-year-v14.js',
   'assets/production-security-ui-v13.js',
-  'assets/production-login-ui-v13.js',
   'assets/production-accounting-integrity-v21.js'
 ];
 
@@ -72,6 +72,7 @@ const forbiddenProductionFiles = [
   'scripts/verify-production.mjs',
   'scripts/apply-reminder-document-polish.mjs',
   '.github/workflows/reminder-document-polish.yml',
+  'assets/production-login-ui-v13.js',
   'assets/production-registration-select-overlay-v18.js',
   'assets/production-brand-polish-v24.js',
   'assets/production-courses-centers-order-fix-v26.js',
@@ -115,4 +116,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC production runtime copied to dist with monthly prepayment v14, student lifecycle v20, accounting integrity v21, registration schedule and receipt support, courses/centers/search refinements, one sidebar design source, one consolidated certificate renderer and stylesheet, login UI, and offline PDF libraries; obsolete runtime sources are absent.');
+console.log('EFC production runtime copied to dist with monthly prepayment v14, student lifecycle v20, accounting integrity v21, registration schedule and receipt support, courses/centers/search refinements, one sidebar design source, one consolidated certificate renderer and stylesheet, canonical early login, and offline PDF libraries; obsolete runtime sources are absent.');
