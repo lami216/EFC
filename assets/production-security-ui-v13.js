@@ -42,12 +42,29 @@ function userEditor(id=null){securityState=D.getSecurity();const existing=id?sec
 function securityHtml(){securityState=D.getSecurity();const admin=!securityState.users.length||currentUser()?.role==='admin';return`<div class="card settings-card-prod security-settings-v13"><h2>الأمان والمستخدمون</h2><p>${securityState.users.length?'كل تشغيل جديد يتطلب اسم المستخدم وPIN.':'لا توجد حسابات؛ التطبيق يفتح بدون تسجيل دخول. أول حساب يجب أن يكون Admin.'}</p>${admin?`<div class="users-list-v13">${securityState.users.length?securityState.users.map(user=>`<div class="user-row-v13"><div><b>${esc(user.username)}</b><small>${user.role==='admin'?'Admin':'مستخدم'}</small></div><button class="mini edit-user-v13" data-id="${esc(user.id)}">تعديل / PIN</button></div>`).join(''):'<div class="settings-empty-row-v13">لا يوجد مستخدمون مسجلون</div>'}</div><button class="button" id="addUserV13">${securityState.users.length?'＋ إضافة مستخدم':'إنشاء Admin الأول'}</button>`:'<div class="info-box">الإدارة متاحة للـ Admin فقط.</div>'}</div>`;}
 function enhanceSecuritySettings(force=false){if(location.hash!=='#settings')return;const grid=document.querySelector('.settings-grid-prod');if(!grid)return;if(force)grid.querySelector('.security-settings-v13')?.remove();if(!grid.querySelector('.security-settings-v13'))grid.insertAdjacentHTML('beforeend',securityHtml());const addUser=document.getElementById('addUserV13');if(addUser)addUser.onclick=()=>userEditor();document.querySelectorAll('.edit-user-v13').forEach(button=>button.onclick=()=>userEditor(button.dataset.id));window.EFC_AUTOCOMPLETE_OFF_V13?.(grid);}
 
-function visibleNotifications(){if(D.getSecurity().users.length&&!canView('students'))return[];return currentNotifications();}
+let lastReconcileRevision='',notificationCacheKey='',notificationCache=[];
+function runtimeStateRevision(){return today()+'|'+(localStorage.getItem('efc-state-meta-v1')||'')+'|'+String(currentUser()?.username||'');}
+function reconcileStudentsIfNeeded(){
+  const before=runtimeStateRevision();
+  if(before===lastReconcileRevision)return false;
+  D.reconcileAllStudents();
+  lastReconcileRevision=runtimeStateRevision();
+  notificationCacheKey='';
+  return true;
+}
+function visibleNotifications({fresh=false}={}){
+  if(D.getSecurity().users.length&&!canView('students'))return[];
+  const key=runtimeStateRevision();
+  if(!fresh&&notificationCacheKey===key)return notificationCache;
+  notificationCache=currentNotifications();
+  notificationCacheKey=key;
+  return notificationCache;
+}
 function mountBell(){let bell=document.querySelector('.efc-bell-v13');if(!bell){bell=document.createElement('button');bell.type='button';bell.className='efc-bell-v13';bell.innerHTML='<span>🔔</span><b>0</b>';bell.title='الإشعارات';bell.onclick=toggleNotifications;document.body.appendChild(bell);}refreshBell();}
-function refreshBell(){const bell=document.querySelector('.efc-bell-v13');if(!bell)return;const list=visibleNotifications();bell.querySelector('b').textContent=String(list.length);bell.classList.toggle('has-items',list.length>0);const panel=document.querySelector('.efc-notification-panel-v13');if(panel&&!panel.hidden)renderNotificationPanel(panel,list);if(list.length&&!sessionStorage.getItem('efc-reminder-toast-v13')){sessionStorage.setItem('efc-reminder-toast-v13','1');const toast=document.createElement('div');toast.className='efc-reminder-toast-v13';toast.textContent=`لديك ${list.length} تذكير مستحقات`;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3500);}}
+function refreshBell({fresh=false}={}){const bell=document.querySelector('.efc-bell-v13');if(!bell)return;const list=visibleNotifications({fresh});bell.querySelector('b').textContent=String(list.length);bell.classList.toggle('has-items',list.length>0);const panel=document.querySelector('.efc-notification-panel-v13');if(panel&&!panel.hidden)renderNotificationPanel(panel,list);if(list.length&&!sessionStorage.getItem('efc-reminder-toast-v13')){sessionStorage.setItem('efc-reminder-toast-v13','1');const toast=document.createElement('div');toast.className='efc-reminder-toast-v13';toast.textContent=`لديك ${list.length} تذكير مستحقات`;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3500);}}
 function toggleNotifications(){let panel=document.querySelector('.efc-notification-panel-v13');if(!panel){panel=document.createElement('aside');panel.className='efc-notification-panel-v13';document.body.appendChild(panel);}panel.hidden=!panel.hidden;if(!panel.hidden)renderNotificationPanel(panel,visibleNotifications());}
 function renderNotificationPanel(panel,list){panel.innerHTML=`<div class="notification-head-v13"><b>الإشعارات</b><button class="x" type="button">×</button></div>${list.length?list.map(note=>`<button class="notification-item-v13" data-id="${esc(note.studentId)}" type="button"><b>${esc(note.title||'تذكير مستحقات')}</b><small>${esc(note.studentName)}</small><span>${esc(note.message)}</span></button>`).join(''):'<div class="empty small">لا توجد تذكيرات حاليًا.</div>'}`;panel.querySelector('.x').onclick=()=>panel.hidden=true;panel.querySelectorAll('[data-id]').forEach(button=>button.onclick=()=>{panel.hidden=true;openStudent(button.dataset.id,'profile');});}
-setInterval(()=>refreshBell(),60000);window.addEventListener('focus',()=>{D.reconcileAllStudents();refreshBell();});
+setInterval(()=>refreshBell(),60000);window.addEventListener('focus',()=>{reconcileStudentsIfNeeded();refreshBell();});
 
 const reminderLogo=()=>new URL('./efc-logo.svg',location.href).href;
 const reminderWhatsappIcon=()=>`<span class="socialIcon12" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M16.05 3.2A12.65 12.65 0 0 0 5.2 22.34L3.5 28.5l6.3-1.65a12.63 12.63 0 1 0 6.25-23.65Zm0 22.98a10.4 10.4 0 0 1-5.3-1.45l-.38-.23-3.74.98 1-3.64-.25-.38a10.42 10.42 0 1 1 8.67 4.72Zm5.72-7.8c-.31-.16-1.85-.91-2.14-1.02-.28-.1-.49-.16-.7.16-.2.31-.8 1.02-.98 1.23-.18.2-.36.23-.67.08-.31-.16-1.31-.48-2.5-1.54-.92-.82-1.55-1.84-1.73-2.15-.18-.31-.02-.48.14-.64.14-.14.31-.36.47-.55.16-.18.2-.31.31-.52.1-.2.05-.39-.03-.55-.08-.16-.7-1.68-.96-2.3-.25-.6-.51-.52-.7-.53h-.6c-.2 0-.54.08-.83.39-.28.31-1.08 1.05-1.08 2.57 0 1.51 1.1 2.98 1.26 3.18.16.2 2.17 3.31 5.25 4.64.73.32 1.3.5 1.75.64.74.23 1.4.2 1.93.12.59-.09 1.85-.76 2.11-1.49.26-.73.26-1.36.18-1.49-.08-.13-.29-.2-.6-.36Z"/></svg></span>`;
@@ -139,15 +156,30 @@ document.addEventListener('click',event=>{
   setTimeout(applyPermissions,0);
 },true);
 document.addEventListener('submit',event=>{if(!D.getSecurity().users.length||event.target.closest('.login-overlay-v13'))return;const page=currentSection();if(!canEdit(page)){event.preventDefault();event.stopImmediatePropagation();alert('الحساب الحالي لا يملك صلاحية التعديل.');}},true);
-function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();enhanceSecuritySettings();mountUser();applyPermissions();mountBell();mountLogin();}
+function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();enhanceSecuritySettings();mountUser();applyPermissions();window.EFC_SYNC_REGISTRATION_SELECTS_V19?.();mountBell();mountLogin();}
 window.afterRenderV13=afterRenderV13;
 const baseShell=shell;
-shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;setTimeout(afterRenderV13,0);};
+shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;};
 
+let routeRenderRevision=0;
+function beginPageRender(){
+  const state={token:++routeRenderRevision,staged:!document.documentElement.classList.contains('efc-booting')};
+  if(state.staged)document.documentElement.classList.add('efc-route-rendering');
+  return state;
+}
+function finishPageRender(state){
+  try{afterRenderV13();}
+  finally{
+    if(!state.staged)return;
+    setTimeout(()=>requestAnimationFrame(()=>{if(state.token===routeRenderRevision)document.documentElement.classList.remove('efc-route-rendering');}),0);
+  }
+}
 window.renderCurrentV13=function(){
-  D.reconcileAllStudents();
+  const routeState=beginPageRender();
+  reconcileStudentsIfNeeded();
   let page=currentSection();
   document.body.classList.toggle('efc-home-page-v35',page===HOME_ID);
+  document.body.classList.toggle('efc-registration-redesign-v15',page==='register');
   document.body.classList.toggle('efc-certificates-redesign-v35',page==='certificates');
   document.body.classList.toggle('efc-certificates-workspace-v36',page==='certificates');
   try{
@@ -163,16 +195,17 @@ window.renderCurrentV13=function(){
     else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.();
     else{history.replaceState(null,'','#home');renderHome();}
   }catch(error){console.error('EFC v13 route render failed.',error);}
-  setTimeout(afterRenderV13,0);
+  finally{finishPageRender(routeState);}
 };
-window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0));
+window.addEventListener('hashchange',()=>window.renderCurrentV13?.());
 
 const style=document.createElement('style');style.textContent=`
+html.efc-route-rendering .shell-v13 main>.content{visibility:hidden!important;pointer-events:none!important}
 .shell-v13 main{position:relative;isolation:isolate;background:radial-gradient(circle at 52% 36%,#effaf6 0,#f7fbf9 35%,#edf7f3 70%,#f7faf9 100%)!important}.shell-v13 main::before{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(130deg,transparent 0 12%,rgba(116,198,170,.08) 12% 26%,transparent 26% 60%,rgba(111,195,166,.07) 60% 76%,transparent 76%),radial-gradient(ellipse at 0 100%,rgba(28,143,107,.16) 0 14%,rgba(93,190,157,.08) 14.5% 24%,transparent 24.5%),radial-gradient(ellipse at 100% 100%,rgba(90,184,151,.10) 0 15%,transparent 15.5%)}.shell-v13 main::after{content:"";position:absolute;top:-110px;right:72px;z-index:0;width:360px;height:420px;border-radius:0 0 68px 68px;background:linear-gradient(160deg,rgba(157,222,200,.35),rgba(98,181,151,.18));transform:skewX(-20deg);pointer-events:none}.shell-v13 main>.content{position:relative;z-index:1;min-height:100vh}.efc-home-v35{min-height:calc(100vh - 78px);display:grid;place-content:center;justify-items:center;text-align:center;padding:48px 32px}.efc-home-v35 img{display:block;width:clamp(180px,17vw,260px);height:auto;max-height:220px;object-fit:contain;filter:drop-shadow(0 18px 28px rgba(18,91,68,.12))}.efc-home-v35 h1{margin:18px 0 0;color:#0b4f3c;font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;font-size:clamp(24px,2.45vw,38px);line-height:1.45;font-weight:800;text-shadow:0 1px 0 #fff;letter-spacing:.1px}
 .efc-bell-v13{position:fixed;top:18px;left:22px;z-index:35;width:43px;height:43px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer}.efc-bell-v13>b{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:#777;color:#fff;font-size:9px}.efc-bell-v13.has-items>b{background:#b43d3d}.efc-notification-panel-v13{position:fixed;top:69px;left:22px;z-index:40;width:min(430px,92vw);max-height:75vh;overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px #0003;padding:12px;direction:rtl}.notification-head-v13{display:flex;justify-content:space-between}.notification-item-v13{display:block;width:100%;border:1px solid var(--border);background:#fff;border-radius:9px;padding:10px;text-align:right;margin-top:7px}.notification-item-v13 small{display:block;color:var(--muted);font-size:8px;margin-top:2px}.notification-item-v13 span{display:block;font-size:9px;line-height:1.8;margin-top:5px}.efc-reminder-toast-v13{position:fixed;top:74px;left:22px;z-index:45;background:#17332b;color:#fff;border-radius:10px;padding:10px 14px;font-size:10px;box-shadow:0 10px 30px #0003}.reminder-viewer-v13{padding:18px}.reminder-viewer-card-v13{width:min(1160px,96vw);height:min(820px,94vh);background:#eef1f0;border-radius:15px;box-shadow:0 24px 70px #0005;overflow:hidden;display:grid;grid-template-rows:48px minmax(0,1fr)}.reminder-viewer-head-v13{display:flex;align-items:center;justify-content:space-between;padding:0 15px;background:#fff;border-bottom:1px solid #d7dfdc}.reminder-viewer-head-v13 b{font-size:12px}.reminder-viewer-close-v13{width:32px;height:32px;border:0;border-radius:8px;background:#edf2f0;color:#23443a;font-size:20px;cursor:pointer}.reminder-viewer-frame-v13{width:100%;height:100%;border:0;background:#eef1f0}.login-overlay-v13{position:fixed;inset:0;z-index:2147483600;background:#eef3f1;display:grid;place-items:center;padding:22px;direction:rtl;font-family:Tahoma,Arial;overflow:hidden}.login-card-v13{width:min(520px,96vw);background:#fff;border:1px solid #d7e1dd;border-radius:18px;padding:28px;text-align:center;transform:scale(.5);transform-origin:center}.login-card-v13 img{width:90px;height:70px}.login-card-v13 form{display:grid;gap:12px;text-align:right}.pin-v13{font-size:34px;letter-spacing:12px;text-align:center;font-weight:800}.login-links-v13{display:flex;justify-content:center;gap:10px;margin-top:12px}.login-links-v13 button{border:0;background:transparent;color:var(--primary)}.recovery-code-v13{min-height:130px;direction:ltr}.permissions-grid-v13{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}.permissions-grid-v13>div{display:grid;grid-template-columns:1fr auto auto;gap:8px;padding:8px;border:1px solid var(--border);border-radius:8px}.users-list-v13{display:grid;gap:7px}.user-row-v13{display:flex;justify-content:space-between;align-items:center;padding:9px;border:1px solid var(--border);border-radius:8px}.settings-empty-row-v13{min-height:34px;display:flex;align-items:center;justify-content:center;border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:9px;background:#ffffff90}.user-controls-v13{display:grid;gap:6px;border-bottom:1px solid #ffffff20;padding-bottom:9px}.user-controls-v13 button{border:1px solid #ffffff2b;background:#ffffff0c;color:#fff;border-radius:8px;padding:7px}.locked-nav-v13{opacity:.48}.locked-page-v13{max-width:650px;margin:80px auto;text-align:center;padding:35px}@media(max-width:1250px){.permissions-grid-v13{grid-template-columns:1fr}}
 `;document.head.appendChild(style);
 
-renderCurrentV13();afterRenderV13();
-window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,compactLogin:true,homePage:true,globalLoginBackground:true,officialName:OFFICIAL_NAME});
-window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true});
+renderCurrentV13();
+window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,compactLogin:true,homePage:true,globalLoginBackground:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true});
+window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,allPageRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true});
 })();
