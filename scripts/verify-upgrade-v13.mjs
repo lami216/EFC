@@ -23,7 +23,7 @@ for(const token of [
   "crypto.subtle.verify({name:'RSA-PSS',saltLength:32}",
   "value.n!==pending.n",
   "value.d!==pending.d",
-  "localStorage.removeItem(STORAGE.recovery)",
+  "localStorage.removeItem(RECOVERY_KEY)",
   'adminRecoverySigned:true',
   'recoveryDeviceBound:true',
   'recoveryOneTime:true'
