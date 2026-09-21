@@ -62,7 +62,7 @@ const registration=read('assets/production-registration-schedule-matrix-v17.js')
 forbidText(registration,'select.onchange=','registration placeholder replacing the base onchange handler');
 requireText(registration,"select.addEventListener('change',sync)",'registration placeholder preserves the base onchange handler');
 
-const registrationReceipt=read('assets/production-registration-receipt-schedule-v22.js');
+const registrationReceipt=read('assets/production-registration-schedule-matrix-v17.js');
 forbidText(registrationReceipt,'pendingSchedule','registration receipt global state leaking between registrations');
 requireText(registrationReceipt,'noCrossRegistrationPendingState:true','registration receipts use the saved student schedule without cross-operation pending state');
 
@@ -173,7 +173,6 @@ if(!runtimeVersion)throw new Error('Critical runtime missing: license gate cache
 if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))throw new Error('Preview cache versions are not synchronized between index.html and the license gate runtime.');
 
 const deterministicPostLicenseRuntime=[
-  'production-registration-receipt-schedule-v22.js',
   'production-courses-centers-redesign-v23.js',
   'production-courses-centers-compact-v25.js',
   'production-courses-centers-detail-fix-v27.js',
