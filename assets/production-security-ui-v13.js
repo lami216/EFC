@@ -133,7 +133,16 @@ document.addEventListener('click',event=>{
   setTimeout(applyPermissions,0);
 },true);
 document.addEventListener('submit',event=>{if(!D.getSecurity().users.length||event.target.closest('.login-overlay-v13'))return;const page=currentSection();if(!canEdit(page)){event.preventDefault();event.stopImmediatePropagation();alert('الحساب الحالي لا يملك صلاحية التعديل.');}},true);
-function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();enhanceSecuritySettings();mountUser();applyPermissions();window.EFC_SYNC_REGISTRATION_SELECTS_V19?.();mountBell();}
+window.renderSettings=function(){
+  const result=window.EFC_RENDER_SETTINGS_BASE_V13?.();
+  window.EFC_ENHANCE_FINANCE_SETTINGS_V13?.();
+  window.EFC_ENHANCE_FISCAL_SETTINGS_V14?.();
+  enhanceSecuritySettings();
+  return result;
+};
+window.renderSettingsProd=window.renderSettings;
+
+function afterRenderV13(){document.title=OFFICIAL_NAME;window.EFC_SYNC_BRAND_V13?.();window.EFC_AUTOCOMPLETE_OFF_V13?.(document);mountUser();applyPermissions();window.EFC_SYNC_REGISTRATION_SELECTS_V19?.();mountBell();}
 window.afterRenderV13=afterRenderV13;
 const baseShell=shell;
 shell=function(content){baseShell(content);document.title=OFFICIAL_NAME;};
@@ -186,6 +195,6 @@ html.efc-route-rendering .shell-v13 main>.content{visibility:hidden!important;po
 `;document.head.appendChild(style);
 
 renderCurrentV13();
-window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true});
+window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,noSettingsPostRenderEnhancement:true});
 window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,allPageRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
 })();

@@ -73,6 +73,7 @@ requireText(source.auth,'canonicalLoginRenderer:true','auth bootstrap owns one c
 requireText(source.auth,'loginBeforeAppRuntime:true','login is completed before heavy app runtime');
 forbidText(source.auth,'new MutationObserver(','auth/login observer');
 requireText(source.security,'settingsOwnedByFinalRouter:true','settings routed by v13 router');
+for(const token of ['canonicalSettingsRenderer:true','singleSettingsRenderOwner:true','noSettingsPostRenderEnhancement:true'])requireText(source.security,token,`canonical settings ${token}`);
 requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates routed by v13 router');
 requireText(source.security,'bootRevealDeferredToGate:true','security does not reveal before canonical login/app readiness');
 forbidText(source.security,"classList.remove('efc-booting')",'intermediate security UI reveal');
