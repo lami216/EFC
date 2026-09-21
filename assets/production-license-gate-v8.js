@@ -35,7 +35,7 @@ const RUNTIME=[
   './assets/production-fiscal-year-v14.js',
   './assets/production-security-ui-v13.js'
 ];
-const RUNTIME_VERSION='20260921-debt-route-select-fix-1';
+const RUNTIME_VERSION='20260921-canonical-runtime-cleanup-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
