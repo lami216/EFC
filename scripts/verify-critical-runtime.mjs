@@ -173,7 +173,6 @@ if(!runtimeVersion)throw new Error('Critical runtime missing: license gate cache
 if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))throw new Error('Preview cache versions are not synchronized between index.html and the license gate runtime.');
 
 const deterministicPostLicenseRuntime=[
-  'production-registration-select-native-v19.js',
   'production-registration-receipt-schedule-v22.js',
   'production-courses-centers-redesign-v23.js',
   'production-courses-centers-compact-v25.js',
