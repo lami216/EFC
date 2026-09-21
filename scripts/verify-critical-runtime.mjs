@@ -141,6 +141,7 @@ forbidText(financeUi,'zoom:.86','finance page should not shrink the entire works
 forbidText(financeUi,"pageTitle('الإدارة المالية','المالية','المداخيل والمصاريف والربحية حسب الفترة والفلاتر.')",'legacy finance title notes');
 
 const securityUi=read('assets/production-security-ui-v13.js');
+const authUi=read('assets/production-auth-bootstrap-v13.js');
 const foundationUi=read('assets/production-foundation-v13.js');
 forbidText(securityUi,"document.getElementById('addUserV13')?.addEventListener",'settings user button must not accumulate duplicate click listeners across rerenders');
 forbidText(financeUi,"document.getElementById('addMethodV13')?.addEventListener",'payment-method button must not accumulate duplicate click listeners across rerenders');
@@ -158,8 +159,8 @@ requireText(securityUi,'settings-empty-row-v13','settings user list has an expli
 for(const token of ['function reminderHeader(','function reminderDocument(','function openReminder(','window.EFC_OPEN_REMINDER_V13=openReminder','reminder-viewer-v13','Centre EFC','class=\"official12\">للغات والمعلوماتية','grid-template-columns:repeat(8','contextValue'])requireText(securityUi,token,`reminder document ${token}`);
 forbidText(securityUi,"stage.innerHTML=`<div class=\"reminder-paper-v13\"",'legacy reminder-only PDF stage without preview document');
 forbidText(securityUi,'<span>Rappel</span>','duplicate reminder title in receipt-style header');
-requireText(securityUi,"if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true",'registration access also exposes the daily ledger');
-requireText(securityUi,"if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true",'registration edit access can record daily expenses');
+requireText(authUi,"if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true",'registration access also exposes the daily ledger');
+requireText(authUi,"if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true",'registration edit access can record daily expenses');
 requireText(securityUi,"finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13'",'finance view actions stay usable while daily expense creation has its own guard');
 const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
@@ -192,8 +193,9 @@ for(const file of deterministicPostLicenseRuntime){
   if(current<=lastRuntimeIndex)throw new Error(`Post-license runtime order is not deterministic at ${file}.`);
   lastRuntimeIndex=current;
 }
-requireText(licenseGate,"RUNTIME[25]",'security UI loads only after all redesign modules');
-requireText(licenseGate,"RUNTIME[26]",'login UI loads after the consolidated security runtime');
+requireText(licenseGate,"await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin()",'canonical login completes before heavy app runtime');
+requireText(licenseGate,"loadStage('./assets/production-security-ui-v13.js'",'security UI remains the final routed app layer');
+forbidText(licenseGate,'production-login-ui-v13.js','obsolete post-security login layer');
 
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
