@@ -4,6 +4,7 @@ import {webcrypto} from 'node:crypto';
 
 const read=path=>readFileSync(path,'utf8');
 const domain=read('assets/production-domain-v13.js');
+const auth=read('assets/production-auth-bootstrap-v13.js');
 const security=read('assets/production-security-ui-v13.js');
 const certificate=read('assets/production-certificates-v13.js');
 const receipt=read('assets/production-receipts-v13.js');
@@ -26,9 +27,10 @@ for(const token of [
   'adminRecoverySigned:true',
   'recoveryDeviceBound:true',
   'recoveryOneTime:true'
-])requireText(security,token,`recovery ${token}`);
-forbidText(security,'s:secret','raw recovery secret persisted');
-forbidText(security,'value.s!==pending.s','unsigned secret-only reset');
+])requireText(auth,token,`recovery ${token}`);
+forbidText(auth,'s:secret','raw recovery secret persisted');
+forbidText(auth,'value.s!==pending.s','unsigned secret-only reset');
+forbidText(security,"RECOVERY_PREFIX='EFC-ADMIN-RECOVERY-2.'",'recovery implementation must not be duplicated in late security UI');
 
 for(const token of [
   "canView('students')",
