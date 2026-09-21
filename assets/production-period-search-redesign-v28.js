@@ -68,9 +68,53 @@ function enhancePeriod(){
   result.classList.add('efc-period-result-v28');
 }
 
+// Consolidated result-count behavior formerly loaded as v33.
+const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodFromV13','periodToV13','periodBranchV13','periodSpecV13','periodStateV13']);
+const tabUnit={registrations:'طلاب',payments:'عمليات',debts:'طلاب',ending:'دورات'};
+let syncTimer=0;
+
+function currentPage(){return location.hash.replace('#','')||window.currentPage||'';}
+function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncPeriodCount,0);}
+function syncPeriodCount(){
+  if(currentPage()!=='period')return;
+  const toolbar=document.querySelector('.period-toolbar-prod');
+  const tabs=toolbar?.querySelector('.period-tabs-prod');
+  const result=document.getElementById('periodResultV13');
+  if(!toolbar||!tabs||!result)return;
+
+  let badge=toolbar.querySelector('.efc-period-count-v33');
+  const freshHead=result.querySelector('.period-result-head-prod');
+  const sourceText=freshHead?.querySelector('b')?.textContent||badge?.dataset.count||'0';
+  const match=String(sourceText).match(/\d+/);
+  const count=match?Number(match[0]):0;
+  freshHead?.remove();
+
+  if(!badge){
+    badge=document.createElement('div');
+    badge.className='efc-period-count-v33';
+    badge.setAttribute('aria-live','polite');
+    tabs.insertAdjacentElement('afterend',badge);
+  }
+  const tab=tabs.querySelector('button.active')?.dataset.tab||'registrations';
+  const unit=tabUnit[tab]||'نتائج';
+  badge.dataset.count=String(count);
+  badge.dataset.tab=tab;
+  badge.innerHTML=`<b>${count}</b><span>${unit}</span>`;
+}
+
+
+document.addEventListener('input',event=>{if(currentPage()==='period'&&PERIOD_INPUT_IDS.has(event.target?.id))scheduleSync();});
+document.addEventListener('change',event=>{if(currentPage()==='period'&&PERIOD_INPUT_IDS.has(event.target?.id))scheduleSync();});
+document.addEventListener('click',event=>{
+  if(currentPage()!=='period')return;
+  if(event.target?.closest?.('.period-tabs-prod button,.sortable-head-prod'))scheduleSync();
+});
+
+
 window.renderPeriod=function(){
   baseRenderPeriod();
   enhancePeriod();
+  syncPeriodCount();
 };
 
 const style=document.createElement('style');style.id='efc-period-search-redesign-style-v28';style.textContent=`
@@ -125,7 +169,87 @@ body.efc-period-redesign-v28 .sortable-head-prod:hover{background:#075846!import
 @media(max-width:1040px){
  body.efc-period-redesign-v28 .content{transform:scale(.82)!important;transform-origin:top right!important}
 }
+
+/* Consolidated period count/grid polish v33. */
+
+/* Move the existing result count into the period toolbar, with a tab-aware unit. */
+html body.efc-period-redesign-v28 .period-toolbar-prod.efc-period-toolbar-v28{
+  justify-content:flex-start!important;
+}
+html body.efc-period-redesign-v28 .efc-period-count-v33{
+  direction:rtl!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  gap:5px!important;height:34px!important;min-width:92px!important;padding:0 12px!important;
+  margin-inline-start:16px!important;margin-inline-end:2px!important;
+  border:1.2px solid #75a9d6!important;border-radius:10px!important;
+  background:#e6f2ff!important;color:#174a71!important;box-sizing:border-box!important;
+  font-size:11px!important;font-weight:750!important;white-space:nowrap!important;
+}
+html body.efc-period-redesign-v28 .efc-period-count-v33::before{
+  content:'☷'!important;font-size:17px!important;line-height:1!important;font-weight:800!important;
+}
+html body.efc-period-redesign-v28 .efc-period-count-v33 b{font-size:12px!important;font-weight:900!important;line-height:1!important}
+html body.efc-period-redesign-v28 .efc-period-count-v33 span{font-size:11px!important;font-weight:800!important;line-height:1!important}
+html body.efc-period-redesign-v28 .period-dates-prod{margin-inline-start:auto!important}
+html body.efc-period-redesign-v28 .period-result-head-prod{display:none!important}
+
+/* Slightly thicker, darker grid lines on both search tables. */
+html body.efc-period-redesign-v28 .efc-period-result-v28 .table-wrap,
+html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
+  border:1.35px solid rgba(0,0,0,.86)!important;
+}
+html body.efc-period-redesign-v28 .efc-period-result-v28 th,
+html body.efc-student-search-redesign-v31 #studentsTableV13 th{
+  border:1.25px solid rgba(0,0,0,.90)!important;
+}
+html body.efc-period-redesign-v28 .efc-period-result-v28 td,
+html body.efc-student-search-redesign-v31 #studentsTableV13 td{
+  border:1.2px solid rgba(0,0,0,.72)!important;
+}
+
+@media(max-width:1250px){
+  html body.efc-period-redesign-v28 .efc-period-count-v33{margin-inline-start:10px!important}
+}
+
+/* Consolidated final search title/grid rules v34. */
+
+/* Make the outer table border exactly the same visual weight as the inner grid on both search pages. */
+html body.efc-period-redesign-v28 .efc-period-result-v28 .table-wrap,
+html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
+  border:1.2px solid rgba(0,0,0,.78)!important;
+}
+html body.efc-period-redesign-v28 .efc-period-result-v28 th,
+html body.efc-period-redesign-v28 .efc-period-result-v28 td,
+html body.efc-student-search-redesign-v31 #studentsTableV13 th,
+html body.efc-student-search-redesign-v31 #studentsTableV13 td{
+  border-width:1.2px!important;
+  border-style:solid!important;
+}
+html body.efc-period-redesign-v28 .efc-period-result-v28 th,
+html body.efc-student-search-redesign-v31 #studentsTableV13 th{border-color:rgba(0,0,0,.82)!important}
+html body.efc-period-redesign-v28 .efc-period-result-v28 td,
+html body.efc-student-search-redesign-v31 #studentsTableV13 td{border-color:rgba(0,0,0,.78)!important}
+
+/* Student Search title: only the page name plus the same short underline used by the redesigned pages. */
+html body.efc-student-search-redesign-v31 .page-title{
+  position:relative!important;
+  height:76px!important;min-height:76px!important;max-height:76px!important;
+  padding:0 22px!important;
+}
+html body.efc-student-search-redesign-v31 .page-title>div{
+  height:100%!important;display:flex!important;align-items:center!important;justify-content:center!important;
+}
+html body.efc-student-search-redesign-v31 .page-title p,
+html body.efc-student-search-redesign-v31 .page-title span{display:none!important}
+html body.efc-student-search-redesign-v31 .page-title h1{
+  margin:0!important;font-size:31px!important;line-height:1!important;font-weight:850!important;color:#073f35!important;
+}
+html body.efc-student-search-redesign-v31 .page-title::after{
+  content:''!important;position:absolute!important;bottom:9px!important;left:50%!important;
+  transform:translateX(-50%)!important;width:48px!important;height:3px!important;
+  border-radius:6px!important;background:#0a7f62!important;
+}
+
 `;
 document.head.appendChild(style);
-window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,mainUntouched:true});
+window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,mainUntouched:true});
 })();
