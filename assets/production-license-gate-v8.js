@@ -19,7 +19,6 @@ const RUNTIME=[
   './assets/production-monthly-prepayment-ui-v14.js',
   './assets/production-registration-redesign-v15.js',
   './assets/production-registration-schedule-matrix-v17.js',
-  './assets/production-registration-select-native-v19.js',
   './assets/production-registration-receipt-schedule-v22.js',
   './assets/production-courses-centers-redesign-v23.js',
   './assets/production-courses-centers-compact-v25.js',
@@ -78,7 +77,6 @@ async function startApplication(){
     await loadStage('./assets/production-monthly-prepayment-ui-v14.js','واجهة الدفعات الشهرية',()=>window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready);
     await loadStage('./assets/production-registration-redesign-v15.js','التصميم النهائي لتسجيل الطالب',()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready);
     await loadStage('./assets/production-registration-schedule-matrix-v17.js','جدول الدورات في تسجيل الطالب',()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready);
-    await loadStage('./assets/production-registration-select-native-v19.js','قوائم تسجيل الطالب',()=>window.EFC_REGISTRATION_SELECT_NATIVE_V19?.ready);
     await loadStage('./assets/production-registration-receipt-schedule-v22.js','جدول إيصال التسجيل',()=>window.EFC_REGISTRATION_RECEIPT_SCHEDULE_V22?.ready);
     await loadStage('./assets/production-courses-centers-redesign-v23.js','تصميم الدورات والمراكز',()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready);
     await loadStage('./assets/production-courses-centers-compact-v25.js','تحجيم الدورات والمراكز',()=>window.EFC_COURSES_CENTERS_COMPACT_V25?.ready);
