@@ -223,7 +223,7 @@ function setSessionUser(username){sessionStorage.setItem(SESSION_KEY,String(user
 const authReady=(async()=>{
   await loadSecurityState();
   const publicAuth=Object.freeze({currentUser,canView,canEdit});
-  const api=Object.freeze({ready:true,currentUser,canView,canEdit,defaultPerms,hashPin,verifyPin,replaceSecurityState,saveSecurityLocal,requireLogin,finishStartup,logout,setSessionUser,sessionKey:SESSION_KEY,canonicalLoginRenderer:true,loginBeforeAppRuntime:true,noLegacyLoginRenderer:true,noLoginMutationObserver:true});
+  const api=Object.freeze({ready:true,currentUser,canView,canEdit,defaultPerms,hashPin,verifyPin,replaceSecurityState,saveSecurityLocal,requireLogin,finishStartup,logout,setSessionUser,sessionKey:SESSION_KEY,canonicalLoginRenderer:true,loginBeforeAppRuntime:true,noLegacyLoginRenderer:true,noLoginMutationObserver:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true});
   window.EFC_AUTH_V13=publicAuth;window.EFC_AUTH_BOOTSTRAP_V13=api;return api;
 })();
 window.EFC_AUTH_BOOTSTRAP_READY=authReady;
