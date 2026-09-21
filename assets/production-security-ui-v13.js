@@ -4,7 +4,7 @@ if(window.EFC_SECURITY_UI_V13?.ready)return;
 const D=window.EFC_DOMAIN_V13,Auth=window.EFC_AUTH_BOOTSTRAP_V13;if(!D?.ready||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_FINANCE_UI_V13?.ready||!Auth?.ready)throw new Error('Security UI v13 loaded before v13 domain/UI/auth layers.');
 const {OFFICIAL_NAME,STORAGE,esc,normalize,uid,currentNotifications,today,cash,showDate}=D;
 const invoke=window.__TAURI__?.core?.invoke;
-const SECTIONS=[['register','تسجيل الطلاب'],['specialties','التخصصات'],['period','آلية البحث'],['students','ملفات الطلاب'],['certificates','الشهادات'],['finance','المالية والمصاريف'],['ledger','اليومية'],['settings','الإعدادات']];
+const SECTIONS=[['register','تسجيل الطلاب'],['specialties','الدورات'],['period','آلية البحث'],['students','ملفات الطلاب'],['certificates','الشهادات'],['finance','المالية والمصاريف'],['ledger','اليومية'],['settings','الإعدادات']];
 const HOME_ID='home';
 const HOME_ICON='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5.5 9.5V20h13V9.5M9.5 20v-6h5v6"/></g></svg>';
 if(Array.isArray(window.navItems)&&!window.navItems.some(item=>item?.[0]===HOME_ID))window.navItems.unshift([HOME_ID,HOME_ICON,'الصفحة الرئيسية']);
@@ -88,7 +88,7 @@ function reminderBody(note){
     {label:'رقم الهاتف',value:model.phone||'—',group:'identity'},
     {label:'رقم السجل',value:model.reg?String(model.reg).padStart(4,'0'):'—',group:'academic'},
     {label:'الفرع',value:model.branchName,group:'academic'},
-    {label:'التخصص',value:model.specialtyName,group:'academic'},
+    {label:'الدورة',value:model.specialtyName,group:'academic'},
     {label:model.contextLabel||'الشهر',value:model.contextValue||'—',group:'academic'},
     {label:'المبلغ المطلوب',value:model.amount?cash(model.amount):'—',group:'finance'},
     {label:'موعد الاستحقاق',value:model.dueDate?showDate(model.dueDate):'—',group:'finance'}
