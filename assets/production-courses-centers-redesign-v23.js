@@ -123,7 +123,7 @@ body.efc-specialties-redesign-v23{font-family:"Segoe UI Variable","Segoe UI",Tah
 body.efc-specialties-redesign-v23 .shell{min-width:0!important;background:radial-gradient(circle at 42% 28%,#fbfffe 0,#f4faf7 54%,#edf6f2 100%)!important}
 body.efc-specialties-redesign-v23 .shell aside{width:clamp(230px,18vw,268px)!important;padding:22px 16px 18px!important;background:linear-gradient(180deg,#075445 0%,#05473d 48%,#033d35 100%)!important;box-shadow:-10px 0 35px rgba(5,55,47,.08)!important}
 body.efc-specialties-redesign-v23 .shell main{margin-right:clamp(230px,18vw,268px)!important;width:calc(100% - clamp(230px,18vw,268px))!important;min-width:0!important;overflow-x:hidden}
-body.efc-specialties-redesign-v23 .content{width:100%!important;max-width:none!important;min-width:0!important;padding:18px 22px 34px!important;overflow-x:hidden}
+body.efc-specialties-redesign-v23 .content{width:100%!important;max-width:none!important;min-width:0!important;padding:18px 22px 34px!important}
 body.efc-specialties-redesign-v23 .brand{gap:11px!important;padding:0 3px 18px!important}
 body.efc-specialties-redesign-v23 .brand .logo{width:52px!important;height:52px!important;padding:3px!important;border-radius:12px!important;background:#fff!important}
 body.efc-specialties-redesign-v23 .shell nav{gap:5px!important;padding-top:18px!important}
@@ -315,5 +315,5 @@ body.efc-specialties-redesign-v23 .spec-facts>div:not(.efc-hidden-fact-v23){
 `;
 document.head.appendChild(style);
 
-window.EFC_COURSES_CENTERS_REDESIGN_V23=Object.freeze({ready:true,brandLogoEnlarged:true,brandNameSplit:true,coursesCentersPage:true,existingAddEditActionsPreserved:true,viewAllWorks:true,responsiveForDesktopViewport:true,compactConsolidated:true,detailFixConsolidated:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,rightAlignedCardTitles:true,centerTitleStopsBeforeEdit:true,naturalCourseTitleTop:true,subtleInternalBorders:true,noStretch:true,fixedCardWidths:true,adaptiveCardHeights:true,longNamesWrapInsideCards:true,centerTitleOnRight:true,visibleInnerBorders:true,outerBordersUntouched:true,routerOwnsPageClass:true,canonicalSpecialtiesRenderer:true,singleSpecialtiesRenderOwner:true,noSpecialtiesWrapperChain:true,mainUntouched:true});
+window.EFC_COURSES_CENTERS_REDESIGN_V23=Object.freeze({ready:true,brandLogoEnlarged:true,brandNameSplit:true,coursesCentersPage:true,existingAddEditActionsPreserved:true,viewAllWorks:true,responsiveForDesktopViewport:true,compactConsolidated:true,detailFixConsolidated:true,singleMainScrollOwner:true,fixedCanvas:true,slightlyLarger:true,anchoredToSidebar:true,rightAlignedTitle:true,tallerPanels:true,rightAlignedCardTitles:true,centerTitleStopsBeforeEdit:true,naturalCourseTitleTop:true,subtleInternalBorders:true,noStretch:true,fixedCardWidths:true,adaptiveCardHeights:true,longNamesWrapInsideCards:true,centerTitleOnRight:true,visibleInnerBorders:true,outerBordersUntouched:true,routerOwnsPageClass:true,canonicalSpecialtiesRenderer:true,singleSpecialtiesRenderOwner:true,noSpecialtiesWrapperChain:true,mainUntouched:true});
 })();
