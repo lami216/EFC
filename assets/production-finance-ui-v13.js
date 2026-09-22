@@ -222,6 +222,55 @@ const style=document.createElement('style');style.textContent=`
 .profitability-details-v13 .table-wrap{max-height:420px!important;overflow:auto!important;border:1px solid #aaccc1!important;border-radius:10px!important;background:#fff!important}.profitability-details-v13 table{font-size:10px!important}.profitability-details-v13 th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important}.profitability-details-v13 td{height:35px!important;padding:6px 9px!important}
 
 @media(max-width:1250px){.finance-controls-v13{grid-template-columns:repeat(2,1fr)!important}}
+
+
+@media(max-width:1180px){
+  .content:has(.finance-switch-v13),
+  .content:has(.expense-history-v13){
+    width:calc(100% - 24px)!important;max-width:900px!important;min-width:0!important;
+    margin:0 auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;overflow:visible!important
+  }
+  .finance-hero-v13{width:min(470px,100%)!important;max-width:470px!important;min-width:0!important}
+  .content:has(.finance-switch-v13) .finance-topbar-v13,
+  .expense-history-toolbar-v13,
+  .profitability-details-toolbar-v13{width:100%!important;max-width:100%!important;min-width:0!important}
+  .content:has(.finance-switch-v13) .finance-controls-v13{
+    width:100%!important;max-width:100%!important;min-width:0!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis,
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important
+  }
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23>.card:last-child{grid-column:1/-1!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card:last-child{grid-column:1/-1!important}
+  .expense-history-v13,.profitability-details-v13{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+  .expense-history-v13 table{min-width:760px!important}
+  .profitability-details-v13 table{min-width:620px!important}
+}
+@media(max-width:940px){
+  .content:has(.finance-switch-v13) .finance-topbar-v13{flex-wrap:wrap!important}
+  .content:has(.finance-switch-v13) .finance-switch-v13{
+    width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important
+  }
+  .content:has(.finance-switch-v13) .finance-switch-v13 button{min-width:0!important;width:100%!important;padding:0 8px!important}
+  .content:has(.finance-switch-v13) #financePrimaryActionV13{width:100%!important;justify-content:flex-end!important}
+  .content:has(.finance-switch-v13) .finance-controls-v13{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .content:has(.finance-switch-v13) #financeModeV13{grid-column:1/-1!important;width:100%!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns{grid-template-columns:1fr!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card:last-child{grid-column:auto!important}
+  .profitability-details-v13 .profitability-mode-v13{width:100%!important;margin-left:0!important;margin-right:0!important}
+  .profitability-details-toolbar-v13,.expense-history-toolbar-v13{flex-wrap:wrap!important}
+}
+@media(max-height:650px) and (max-width:1180px){
+  .content:has(.finance-switch-v13){padding-top:8px!important;padding-bottom:8px!important}
+  .finance-hero-v13{height:68px!important;margin-bottom:8px!important}
+  .content:has(.finance-switch-v13) .finance-topbar-v13{margin-bottom:6px!important}
+  .content:has(.finance-switch-v13) .finance-controls-v13{padding-top:6px!important;padding-bottom:6px!important;margin-bottom:6px!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis{margin-bottom:6px!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card{min-height:82px!important;padding-top:7px!important;padding-bottom:7px!important}
+}
 `;document.head.appendChild(style);
 window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;
 window.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;
@@ -265,5 +314,5 @@ ledgerRedesignStyle.textContent=`
 `;
 document.head.appendChild(ledgerRedesignStyle);
 window.EFC_RENDER_LEDGER_BASE_V13=renderLedgerBaseV13;
-window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,expenseHistoryActionRed:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,expenseReceiptsNumericSequence:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
+window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,expenseHistoryActionRed:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,expenseReceiptsNumericSequence:true,financeResponsiveLikeLedger:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
 })();
