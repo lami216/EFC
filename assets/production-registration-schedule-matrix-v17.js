@@ -117,7 +117,7 @@ function installBlankSelection(select,label,{required=false,preserveValue=false}
   sync();
 }
 
-const ALLOWED_HOURS=[8,10,12,14,16,18,20];
+const ALLOWED_HOURS=[8,10,12,14,16,17,18,19,20];
 function hourOptions(selected=''){
   const current=String(selected||'');
   return`<option value="">--</option>${ALLOWED_HOURS.map(hour=>{
@@ -620,7 +620,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   selectedCourseOnly:true,
   longCourseNamesWrapInMatrix:true,
   hourOnlyTimes:true,
-  restrictedScheduleHours:true,
+  restrictedScheduleHours:true,extraEveningHours:true,
   fixedMinuteZero:true,
   legacyNonHourTimesPreservedDuringEdit:true,
   directRegistrationSchedulePreferred:true,
