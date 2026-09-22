@@ -135,12 +135,12 @@ function setScheduleTime(select,value){
 }
 
 function timeRow(){
-  return`<tr class="schedule-time-row-v17"><th>الوقت</th>${DAYS.map(day=>`<td><select class="schedule-day-time-v17" data-schedule-day-time="${day.key}" aria-label="ساعة ${day.ar}">${hourOptions()}</select></td>`).join('')}</tr>`;
+  return`<tr class="schedule-time-row-v17"><th>الوقت</th>${DAYS.map(day=>`<td data-schedule-day-column="${day.key}"><select class="schedule-day-time-v17" data-schedule-day-time="${day.key}" aria-label="ساعة ${day.ar}">${hourOptions()}</select></td>`).join('')}</tr>`;
 }
 
 function courseRow(course){
-  if(!course)return`<tr class="schedule-matrix-row-v17 is-empty-course-v17" data-course-id=""><th><span>اختر الدورة</span></th>${DAYS.map(day=>`<td><label class="schedule-course-check-v17 is-disabled-v17" title="اختر الدورة أولاً"><input type="checkbox" data-matrix-course="" data-matrix-day="${day.key}" aria-label="${day.ar}" disabled><span></span></label></td>`).join('')}</tr>`;
-  return`<tr class="schedule-matrix-row-v17 is-registration-course-v17" data-course-id="${esc(course.id)}"><th><span>${esc(course.name)}</span></th>${DAYS.map(day=>`<td><label class="schedule-course-check-v17" title="${esc(course.name)} - ${day.ar}"><input type="checkbox" data-matrix-course="${esc(course.id)}" data-matrix-day="${day.key}" aria-label="${esc(course.name)} - ${day.ar}"><span></span></label></td>`).join('')}</tr>`;
+  if(!course)return`<tr class="schedule-matrix-row-v17 is-empty-course-v17" data-course-id=""><th><span>اختر الدورة</span></th>${DAYS.map(day=>`<td data-schedule-day-column="${day.key}"><label class="schedule-course-check-v17 is-disabled-v17" title="اختر الدورة أولاً"><input type="checkbox" data-matrix-course="" data-matrix-day="${day.key}" aria-label="${day.ar}" disabled><span></span></label></td>`).join('')}</tr>`;
+  return`<tr class="schedule-matrix-row-v17 is-registration-course-v17" data-course-id="${esc(course.id)}"><th><span>${esc(course.name)}</span></th>${DAYS.map(day=>`<td data-schedule-day-column="${day.key}"><label class="schedule-course-check-v17" title="${esc(course.name)} - ${day.ar}"><input type="checkbox" data-matrix-course="${esc(course.id)}" data-matrix-day="${day.key}" aria-label="${esc(course.name)} - ${day.ar}"><span></span></label></td>`).join('')}</tr>`;
 }
 
 function bindMatrixBehavior(scheduleRoot){
@@ -390,16 +390,27 @@ function closeBlueList({restoreFocus=false}={}){
   menu?.remove();
   if(select){select.setAttribute('aria-expanded','false');if(restoreFocus)select.focus({preventScroll:true});}
 }
+function isScheduleTimeSelect(select){
+  return select instanceof HTMLSelectElement&&(select.classList.contains('schedule-day-time-v17')||select.classList.contains('schedule-hour-select-v13'));
+}
 function positionBlueList(select,menu){
   const rect=select.getBoundingClientRect(),viewportWidth=document.documentElement.clientWidth||window.innerWidth,viewportHeight=document.documentElement.clientHeight||window.innerHeight;
-  const width=Math.max(1,Math.round(rect.width)),left=Math.min(Math.max(0,Math.round(rect.left)),Math.max(0,viewportWidth-width));
+  const scheduleTime=menu.classList.contains('is-schedule-time-v19'),minWidth=scheduleTime?54:1,width=Math.max(minWidth,Math.round(rect.width)),left=Math.min(Math.max(0,Math.round(rect.left)),Math.max(0,viewportWidth-width));
   menu.style.width=`${width}px`;menu.style.left=`${left}px`;menu.style.right='auto';
-  const desired=Math.min(240,Math.max(28,menu.scrollHeight||28)),below=viewportHeight-rect.bottom,above=rect.top;
-  if(below<Math.min(120,desired)&&above>below){menu.style.top='auto';menu.style.bottom=`${Math.max(0,Math.round(viewportHeight-rect.top+1))}px`;}
+  const naturalHeight=Math.max(28,menu.scrollHeight||28),viewportLimit=Math.max(28,viewportHeight-16);
+  if(scheduleTime&&naturalHeight<=viewportLimit){
+    menu.style.maxHeight='none';menu.style.overflowY='hidden';menu.style.bottom='auto';
+    const preferredTop=Math.round(rect.bottom+1),maxTop=Math.max(8,viewportHeight-naturalHeight-8);
+    menu.style.top=`${Math.min(Math.max(8,preferredTop),maxTop)}px`;
+    return;
+  }
+  const desired=Math.min(240,naturalHeight),below=viewportHeight-rect.bottom,above=rect.top;
+  menu.style.maxHeight=`${Math.min(desired,Math.max(28,Math.max(below,above)-8))}px`;menu.style.overflowY='auto';
+  if(below<desired&&above>below){menu.style.top='auto';menu.style.bottom=`${Math.max(0,Math.round(viewportHeight-rect.top+1))}px`;}
   else{menu.style.bottom='auto';menu.style.top=`${Math.max(0,Math.round(rect.bottom+1))}px`;}
 }
 function buildBlueList(select){
-  const menu=document.createElement('div');menu.className='efc-blue-select-menu-v19';menu.setAttribute('role','listbox');
+  const menu=document.createElement('div');menu.className='efc-blue-select-menu-v19';if(isScheduleTimeSelect(select))menu.classList.add('is-schedule-time-v19');menu.setAttribute('role','listbox');
   [...select.options].filter(option=>!option.disabled&&!option.hidden).forEach(option=>{
     const item=document.createElement('button');item.type='button';item.className='efc-blue-select-option-v19';item.setAttribute('role','option');item.dataset.value=String(option.value);item.textContent=String(option.textContent||option.label||option.value);
     const selected=String(option.value)===String(select.value);item.setAttribute('aria-selected',selected?'true':'false');
@@ -505,6 +516,7 @@ body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-activ
 body.efc-registration-redesign-v15 #regFormV13 select[data-efc-placeholder-active="0"]{color:#17352d!important}
 .efc-blue-select-menu-v19{position:fixed;z-index:2147483000;max-height:240px;overflow:auto;padding:0;background:#fff;border:1px solid #b8c1bd;border-radius:0;box-shadow:0 8px 20px rgba(25,40,35,.16);box-sizing:border-box}
 .efc-blue-select-option-v19{display:block;width:100%;min-height:28px;border:0;border-radius:0;background:#fff;color:#252525;padding:4px 8px;font:400 12px "Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif;line-height:20px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.efc-blue-select-menu-v19.is-schedule-time-v19 .efc-blue-select-option-v19{min-height:26px;padding:3px 4px;font-weight:650;text-overflow:clip}
 .efc-blue-select-option-v19:hover,
 .efc-blue-select-option-v19:focus{outline:0;background:#1469ad!important;color:#fff!important}
 `;
@@ -620,7 +632,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   selectedCourseOnly:true,
   longCourseNamesWrapInMatrix:true,
   hourOnlyTimes:true,
-  restrictedScheduleHours:true,extraEveningHours:true,
+  restrictedScheduleHours:true,extraEveningHours:true,sundayHiddenFromRegistrationView:true,sevenDayScheduleDataPreserved:true,scheduleTimeListNoScroll:true,
   fixedMinuteZero:true,
   legacyNonHourTimesPreservedDuringEdit:true,
   directRegistrationSchedulePreferred:true,
