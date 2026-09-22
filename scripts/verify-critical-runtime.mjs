@@ -113,6 +113,7 @@ const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
 const mainWindow=tauriConfig?.app?.windows?.[0]||{};
 if(Number(mainWindow.minWidth||0)!==840)throw new Error('Critical runtime missing: responsive desktop minimum width must remain 840px.');
 if(Number(mainWindow.minHeight||0)!==560)throw new Error('Critical runtime missing: responsive desktop minimum height must remain 560px.');
+if(mainWindow.maximized!==true)throw new Error('Critical runtime missing: desktop window must start maximized inside the Windows work area.');
 requireText(read('index.html'),'body{min-width:840px}','browser preview minimum width matches the responsive desktop workspace');
 for(const [token,label] of [
   ['@media(max-width:1080px)','sidebar compacts for narrower Windows displays'],
@@ -123,7 +124,12 @@ for(const [token,label] of [
   ['width:min(900px,calc(100% - 32px))!important','settings workspace shrinks with available width'],
   ['responsiveSmallViewport:true','responsive sidebar runtime advertises its compact-screen safeguard'],
   ['settingsFitAvailableWidth:true','settings runtime advertises width-safe layout'],
-  ['shortScreenSidebarScrollFallback:true','short-screen sidebar exposes a scroll fallback']
+  ['shortScreenSidebarScrollFallback:true','short-screen sidebar exposes a scroll fallback'],
+  ['height:100dvh!important;max-height:100dvh!important','main workspace is constrained to the visible app viewport'],
+  ['overflow-x:hidden!important;overflow-y:auto!important','main workspace scrolls vertically instead of losing bottom actions'],
+  ['main::after{content:"";display:block;width:100%;height:56px;min-height:56px','short screens keep a taskbar-safe bottom clearance'],
+  ['mainViewportScroll:true','sidebar runtime advertises the main viewport scroll safeguard'],
+  ['taskbarSafeBottomClearance:true','sidebar runtime advertises the taskbar bottom clearance']
 ])requireText(sidebarUi,token,label);
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
