@@ -78,6 +78,8 @@ for(const [token,label] of [
   ['renderSelectedCourseRow','selected course row synchronization'],
   ['hourOnlyTimes:true','registration timetable exposes hour-only choices'],
   ['fixedMinuteZero:true','registration timetable fixes minutes to zero'],
+  ['extraEveningHours:true','registration timetable includes added evening hours'],
+  ['const ALLOWED_HOURS=[8,10,12,14,16,17,18,19,20];','registration timetable exposes 17:00 and 19:00'],
   ['legacyNonHourTimesPreservedDuringEdit:true','legacy non-hour timetable values survive an edit until explicitly changed'],
   ['setScheduleTime(select,value)','legacy timetable values are inserted only for the edited record'],
   ['<select class="schedule-day-time-v17"','active timetable uses an hour selector instead of an editable time field'],
