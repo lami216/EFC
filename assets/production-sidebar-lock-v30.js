@@ -146,7 +146,7 @@ document.head.appendChild(style);
 window.EFC_SIDEBAR_LOCK_V30=Object.freeze({
   ready:true,singleSidebarDesignSource:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
   redesignedPagesUseRegistrationGap:true,redesignedTitlesMatchRegistrationHero:true,
-  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,mainViewportScroll:true,taskbarSafeBottomClearance:true,
+  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,mainViewportScroll:true,taskbarSafeBottomClearance:true,singleMainScrollOwner:true,
   centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,canonicalTaskbarSpacer:true
 });
 })();
