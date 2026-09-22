@@ -20,7 +20,8 @@ html body .shell.shell-v13 aside{
 }
 html body .shell.shell-v13 main{
   margin-right:clamp(230px,18vw,268px)!important;width:calc(100% - clamp(230px,18vw,268px))!important;
-  min-width:0!important;overflow-x:hidden!important;
+  height:100dvh!important;max-height:100dvh!important;min-height:0!important;min-width:0!important;
+  overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:auto!important;
 }
 html body .shell.shell-v13 aside .brand{
   display:flex!important;align-items:center!important;gap:11px!important;
@@ -114,6 +115,8 @@ html body.efc-period-redesign-v28 .efc-period-hero-v28::after{content:''!importa
   html body .content:has(.settings-grid-prod){width:calc(100% - 20px)!important}
 }
 @media(max-height:760px){
+  html body .shell.shell-v13 main{scroll-padding-bottom:56px!important}
+  html body .shell.shell-v13 main::after{content:"";display:block;width:100%;height:56px;min-height:56px;pointer-events:none}
   html body .shell.shell-v13 aside{padding-top:12px!important;padding-bottom:10px!important;overflow-y:auto!important;scrollbar-width:thin!important}
   html body .shell.shell-v13 aside .brand{padding-bottom:10px!important;gap:8px!important}
   html body .shell.shell-v13 aside .brand .logo{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex-basis:44px!important}
@@ -142,7 +145,7 @@ document.head.appendChild(style);
 window.EFC_SIDEBAR_LOCK_V30=Object.freeze({
   ready:true,singleSidebarDesignSource:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
   redesignedPagesUseRegistrationGap:true,redesignedTitlesMatchRegistrationHero:true,
-  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,
+  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,mainViewportScroll:true,taskbarSafeBottomClearance:true,
   centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,mainUntouched:true
 });
 })();
