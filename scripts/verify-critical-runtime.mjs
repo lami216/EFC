@@ -109,6 +109,9 @@ const periodUi=read('assets/production-period-search-redesign-v28.js');
 const studentSearchUi=read('assets/production-student-search-redesign-v31.js');
 const sidebarUi=read('assets/production-sidebar-lock-v30.js');
 const baseUi=read('assets/production-ui-v13.css');
+const homeBackground=read('assets/production-home-background-v36.css');
+const registrationRedesign=read('assets/production-registration-redesign-v15.js');
+const coursesRedesign=read('assets/production-courses-centers-redesign-v23.js');
 const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
 const mainWindow=tauriConfig?.app?.windows?.[0]||{};
 if(Number(mainWindow.minWidth||0)!==840)throw new Error('Critical runtime missing: responsive desktop minimum width must remain 840px.');
@@ -130,8 +133,17 @@ for(const [token,label] of [
   ['main>.efc-taskbar-safe-space-v30{display:block!important;width:100%!important;height:56px!important;min-height:56px!important','short screens keep a taskbar-safe bottom clearance without reusing the decorative main pseudo-element'],
   ['canonicalTaskbarSpacer:true','sidebar runtime advertises the canonical bottom spacer'],
   ['mainViewportScroll:true','sidebar runtime advertises the main viewport scroll safeguard'],
-  ['taskbarSafeBottomClearance:true','sidebar runtime advertises the taskbar bottom clearance']
+  ['taskbarSafeBottomClearance:true','sidebar runtime advertises the taskbar bottom clearance'],
+  ['singleMainScrollOwner:true','main is the canonical page-level scroll owner']
 ])requireText(sidebarUi,token,label);
+requireText(homeBackground,'main>.content{position:relative!important;z-index:1!important;height:auto!important;min-height:100%!important;overflow:visible!important','page content grows inside the single main scrollbar');
+requireText(homeBackground,'main>.content:has(.efc-home-v35){height:100%!important;min-height:100%!important;overflow:hidden!important','home page keeps its full-height artwork exception');
+requireText(registrationRedesign,'singleMainScrollOwner:true','registration redesign uses the canonical main scrollbar');
+requireText(coursesRedesign,'singleMainScrollOwner:true','courses/centers redesign uses the canonical main scrollbar');
+forbidText(registrationRedesign,'padding:20px 22px 34px!important;\n  overflow-x:hidden;','registration content must not become a nested vertical scroll container through overflow-x');
+forbidText(coursesRedesign,'padding:18px 22px 34px!important;overflow-x:hidden','courses content must not become a nested vertical scroll container through overflow-x');
+forbidText(registration,'body.efc-registration-editing-v17{overflow-y:auto!important}','registration edit mode must not move page scrolling back to body');
+forbidText(registration,'max-height:calc(100dvh - 118px)!important;overflow-y:auto!important','registration edit form must not create a second page-height scrollbar');
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
