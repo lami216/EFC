@@ -127,7 +127,8 @@ for(const [token,label] of [
   ['shortScreenSidebarScrollFallback:true','short-screen sidebar exposes a scroll fallback'],
   ['height:100dvh!important;max-height:100dvh!important','main workspace is constrained to the visible app viewport'],
   ['overflow-x:hidden!important;overflow-y:auto!important','main workspace scrolls vertically instead of losing bottom actions'],
-  ['main::after{content:"";display:block;width:100%;height:56px;min-height:56px','short screens keep a taskbar-safe bottom clearance'],
+  ['main>.efc-taskbar-safe-space-v30{display:block!important;width:100%!important;height:56px!important;min-height:56px!important','short screens keep a taskbar-safe bottom clearance without reusing the decorative main pseudo-element'],
+  ['canonicalTaskbarSpacer:true','sidebar runtime advertises the canonical bottom spacer'],
   ['mainViewportScroll:true','sidebar runtime advertises the main viewport scroll safeguard'],
   ['taskbarSafeBottomClearance:true','sidebar runtime advertises the taskbar bottom clearance']
 ])requireText(sidebarUi,token,label);
@@ -159,6 +160,7 @@ for(const token of [
   'activeSubviewNavigationReset:true'
 ])requireText(securityUi,token,`active sidebar navigation resets nested view ${token}`);
 if((securityUi.match(/#addCenterV13/g)||[]).length<2||(securityUi.match(/\.edit-center-v13/g)||[]).length<2)throw new Error('Critical runtime missing: center add/edit controls must be covered by both permission disabling and click guards.');
+requireText(foundationUi,'efc-taskbar-safe-space-v30','canonical shell includes one real bottom safety spacer for short Windows work areas');
 requireText(foundationUi,'grid-template-rows:155px 300px auto auto!important','settings gives more height to payment methods and users than backup cards');
 requireText(foundationUi,'max-height:188px!important;overflow:auto!important','settings payment and user lists scroll internally when needed');
 requireText(securityUi,'settings-empty-row-v13','settings user list has an explicit empty state and renders account rows when present');
