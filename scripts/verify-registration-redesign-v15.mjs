@@ -31,6 +31,7 @@ const rustMain=read('src-tauri/src/main.rs');
 const receiptPdfRust=read('src-tauri/src/receipt_pdf.rs');
 const packageJson=JSON.parse(read('package.json'));
 const foundation=read('assets/production-foundation-v13.js');
+const homeBackground=read('assets/production-home-background-v36.css');
 
 for(const token of [
   'screenshotRegistrationReference:true',
@@ -45,7 +46,8 @@ for(const token of [
   'حفظ التسجيل',
   'efcScheduleCourseMirrorV15',
   "source.dispatchEvent(new Event('change',{bubbles:true}))",
-  'efc-registration-redesign-v15'
+  'efc-registration-redesign-v15',
+  'singleMainScrollOwner:true'
 ])requireText(ui,token);
 
 forbidText(ui,'.onsubmit=','redesign must not replace the working registration submit handler');
@@ -224,6 +226,7 @@ forbidText(receiptPdfRust,'profile.join("Downloads")','receipt PDF must not forc
 
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
+  ['singleMainScrollOwner:true','courses and centers use the shared page scrollbar'],
   ['longNamesWrapInsideCards:true','course and center names wrap inside their cards'],
   ['canonicalSpecialtiesRenderer:true','courses/centers page owns one canonical renderer'],
   ['singleSpecialtiesRenderOwner:true','single specialties render owner marker'],
@@ -241,10 +244,17 @@ for(const [token,label] of [
   ['mainViewportScroll:true','main workspace scroll fallback'],
   ['taskbarSafeBottomClearance:true','taskbar-safe bottom action clearance'],
   ['canonicalTaskbarSpacer:true','taskbar clearance uses the canonical shell spacer rather than the page background pseudo-element'],
+  ['singleMainScrollOwner:true','sidebar runtime owns one page-level scroll container'],
   ['@media(max-height:760px)','short display layout rules'],
   ['width:min(900px,calc(100% - 32px))','settings no longer force 900px width']
 ])requireText(sidebar,token,label);
 requireText(foundation,'efc-taskbar-safe-space-v30','canonical shell contains the taskbar-safe bottom spacer');
+requireText(homeBackground,'main>.content{position:relative!important;z-index:1!important;height:auto!important;min-height:100%!important;overflow:visible!important','main content grows naturally inside the single page scrollbar');
+requireText(homeBackground,'main>.content:has(.efc-home-v35){height:100%!important;min-height:100%!important;overflow:hidden!important','home keeps the fixed-height artwork behavior');
+forbidText(ui,'padding:20px 22px 34px!important;\n  overflow-x:hidden;','registration content must not own a second vertical scrollbar');
+forbidText(coursesCompact,'padding:18px 22px 34px!important;overflow-x:hidden','courses content must not own a second vertical scrollbar');
+forbidText(scheduleMatrix,'body.efc-registration-editing-v17{overflow-y:auto!important}','registration edit mode must keep scrolling on main rather than body');
+forbidText(scheduleMatrix,'max-height:calc(100dvh - 118px)!important;overflow-y:auto!important','registration edit form must not create a nested page scrollbar');
 forbidText(sidebar,'main::after{content:"";display:block;width:100%;height:56px','taskbar fix must not overwrite the decorative main pseudo-element');
 
 requireText(index,'body{min-width:840px}','compact browser viewport minimum');
