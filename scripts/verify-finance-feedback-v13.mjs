@@ -3,11 +3,13 @@ import {readFileSync} from 'node:fs';
 const finance=readFileSync('assets/production-finance-ui-v13.js','utf8');
 const security=readFileSync('assets/production-security-ui-v13.js','utf8');
 const auth=readFileSync('assets/production-auth-bootstrap-v13.js','utf8');
+const certificates=readFileSync('assets/production-certificates-v13.js','utf8');
 const requireFinance=(needle,label=needle)=>{if(!finance.includes(needle))throw new Error(`Finance feedback missing: ${label}`);};
 const forbidFinance=(needle,label=needle)=>{if(finance.includes(needle))throw new Error(`Finance feedback regression: ${label}`);};
 const requireSecurity=(needle,label=needle)=>{if(!security.includes(needle))throw new Error(`Security feedback missing: ${label}`);};
 const requireAuth=(needle,label=needle)=>{if(!auth.includes(needle))throw new Error(`Login feedback missing: ${label}`);};
 const forbidAuth=(needle,label=needle)=>{if(auth.includes(needle))throw new Error(`Login feedback regression: ${label}`);};
+const requireCertificate=(needle,label=needle)=>{if(!certificates.includes(needle))throw new Error(`Certificate finance feedback missing: ${label}`);};
 
 for(const [token,label] of [
   ['finance-topbar-v13','finance tabs and view actions share one row'],
@@ -61,6 +63,8 @@ for(const [token,label] of [
   ['finance-profit-details-action-v27','profit details button class'],
   ['expenseReceiptsNumericSequence:true','expense receipts use numeric sequence'],
   ['function expenseReceiptCode(row){const number=expenseReceiptNumberOf','expense receipt header is numeric'],
+  ['financeResponsiveLikeLedger:true','finance dashboards adapt like the daily ledger on narrower screens'],
+  ['@media(max-width:1180px){','finance compact viewport breakpoint'],
   ['ledgerResponsiveLikeFinance:true','ledger adapts on narrower screens'],
   ['@media(max-width:1180px)','ledger responsive breakpoint'],
   ['min-width:760px!important','ledger table scrolls instead of clipping'],
@@ -96,6 +100,11 @@ forbidFinance('${income.length} · ${cash(incomeTotal)}','income summary must no
 forbidFinance('${costs.length} · ${cash(expenseTotal)}','expense summary must not mix count with money');
 forbidFinance('<small>صافي اليوم</small>','obsolete daily net label');
 
+for(const [token,label] of [
+  ['certificateFinanceResponsiveLikeLedger:true','certificate finance adapts like the daily ledger'],
+  ['@media(max-height:650px) and (max-width:1100px)','certificate finance compacts vertically on short narrow displays'],
+  ['cert-finance-controls-v13[data-mode]{grid-template-columns:repeat(2,minmax(0,1fr))!important','certificate finance filters wrap safely on compact screens']
+])requireCertificate(token,label);
 for(const [token,label] of [
   ['name="pin" type="password"','masked login PIN input'],
   ["input.dataset.realPin=value",'canonical star-mask state'],
