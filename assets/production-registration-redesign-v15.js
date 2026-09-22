@@ -252,7 +252,6 @@ body.efc-registration-redesign-v15 .content{
   max-width:none;
   box-sizing:border-box;
   padding:20px 22px 34px!important;
-  overflow-x:hidden;
 }
 body.efc-registration-redesign-v15 .brand{gap:11px;padding:0 3px 18px!important}
 body.efc-registration-redesign-v15 .brand .logo{width:50px!important;height:50px!important;padding:7px!important;border-radius:12px!important}
@@ -433,7 +432,7 @@ window.EFC_REGISTRATION_REDESIGN_V15=Object.freeze({
   sidebarRestyledOnRegistrationOnly:true,
   segoeUiVariable:true,
   routerOwnsPageClass:true,
-  responsiveConsolidated:true,
+  responsiveConsolidated:true,singleMainScrollOwner:true,
   realViewportSizing:true,
   tauriDefault1440x900:true,
   tauriMinimum1100x700:true,
