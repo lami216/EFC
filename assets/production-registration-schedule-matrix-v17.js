@@ -563,11 +563,7 @@ body.efc-registration-redesign-v15 .schedule-table-v13 tbody th span,
 body.efc-registration-redesign-v15 .schedule-time-row-v17 th{color:#111!important;opacity:1!important;font-weight:800!important}
 body.efc-registration-redesign-v15 .schedule-table-v13 thead th:first-child{width:112px!important;min-width:112px!important}
 
-body.efc-registration-editing-v17{overflow-y:auto!important}
-body.efc-registration-editing-v17 .shell.shell-v13,
-body.efc-registration-editing-v17 .shell.shell-v13 main,
-body.efc-registration-editing-v17 .content{overflow-y:visible!important}
-body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 10px 28px rgba(7,88,68,.10)!important;max-height:calc(100dvh - 118px)!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:stable!important;scrollbar-width:thin!important}
+body.efc-registration-editing-v17 .registration-edit-mode-v17{border-color:#118063!important;box-shadow:0 10px 28px rgba(7,88,68,.10)!important;max-height:none!important;overflow:visible!important}
 body.efc-registration-editing-v17 .registration-edit-mode-v17 .debt-slot-v13.debt-slot-hidden{display:none!important;visibility:hidden!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17{margin-top:0!important}
 body.efc-registration-editing-v17 .registration-edit-meta-v17{grid-column:1/-1!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px 12px!important;align-items:end!important;margin-top:1px!important}
@@ -632,7 +628,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   selectedCourseOnly:true,
   longCourseNamesWrapInMatrix:true,
   hourOnlyTimes:true,
-  restrictedScheduleHours:true,extraEveningHours:true,sundayHiddenFromRegistrationView:true,sevenDayScheduleDataPreserved:true,scheduleTimeListNoScroll:true,
+  restrictedScheduleHours:true,extraEveningHours:true,sundayHiddenFromRegistrationView:true,sevenDayScheduleDataPreserved:true,scheduleTimeListNoScroll:true,singleMainScrollOwner:true,
   fixedMinuteZero:true,
   legacyNonHourTimesPreservedDuringEdit:true,
   directRegistrationSchedulePreferred:true,
