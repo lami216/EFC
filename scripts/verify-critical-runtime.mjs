@@ -67,7 +67,7 @@ forbidText(registrationReceipt,'pendingSchedule','registration receipt global st
 requireText(registrationReceipt,'noCrossRegistrationPendingState:true','registration receipts use the saved student schedule without cross-operation pending state');
 
 const certificates=read('assets/production-certificates-v13.js');
-for(const token of ['selectStudent(id)','clearStudentSelection()','renderStudentPicker()','renderHistoryRows()','resetTransientIssueState()','issueInFlight','addBranchOption(branch)'])requireText(certificates,token,`certificate controller ${token}`);
+for(const token of ['selectStudent(id)','clearStudentSelection()','renderStudentPicker()','renderHistoryRows(receipts=state.certificateReceipts)','drawCertificateHistory()','resetTransientIssueState()','issueInFlight','addBranchOption(branch)'])requireText(certificates,token,`certificate controller ${token}`);
 requireText(certificates,'state.certificateReceipts=state.certificateReceipts.filter','certificate issue rollback after persistence failure');
 requireText(certificates,"'\"':'&quot;'",'certificate HTML quote escaping');
 forbidText(certificates,'persist().then(renderCertificates)','certificate branch add rerendering and discarding the external form draft');
