@@ -9,7 +9,7 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const need=(text,token,label=token)=>{if(!text.includes(token))throw new Error(`Receipt/source verifier missing: ${label}`);};
 const forbid=(text,token,label=token)=>{if(text.includes(token))throw new Error(`Receipt/source verifier regression: ${label}`);};
 
-for(const text of [source.base,source.matrix]){need(text,'const ALLOWED_HOURS=[8,10,12,14,16,18,20];','restricted timetable hour list');forbid(text,'Array.from({length:24},(_,hour)=>{','24-hour timetable list');}
+for(const text of [source.base,source.matrix]){need(text,'const ALLOWED_HOURS=[8,10,12,14,16,17,18,19,20];','restricted timetable hour list');forbid(text,'Array.from({length:24},(_,hour)=>{','24-hour timetable list');}
 for(const token of ['registrationNumberImmutable:true','registrationCollisionOnlyOnScopeChange:true',"changes.reg!==undefined",'const scopeChanged='])need(source.domain,token,`registration guard ${token}`);
 for(const token of ['function receiptEditable(model)','model?.editableReceipt!==false','editableReceipt:!statement',"receiptSource:statement?'statement':'payment'",'aggregateReceiptNotEditable:true'])need(source.receipts,token,`receipt edit rule ${token}`);
 for(const token of ['function monthReceiptSourceV15','D.paymentAllocations','contributions.length===1','sourceEquivalent:true','editableReceipt:false',"receiptSource:'derived-month'",'EFC_MONTH_RECEIPT_MODEL_V15'])need(source.students,token,`month receipt source rule ${token}`);

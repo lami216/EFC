@@ -10,6 +10,7 @@ const runtimeFiles = [
   'assets/efc-login-geometry-v15.svg',
   'assets/efc-home-brand.webp',
   'production-loader.js',
+  'assets/production-auth-bootstrap-v13.js',
   'efc-logo.svg',
   'assets/production-license-gate-v8.js',
   'assets/production-foundation-v13.js',
@@ -24,23 +25,15 @@ const runtimeFiles = [
   'assets/production-finance-ui-v13.js',
   'assets/production-monthly-prepayment-ui-v14.js',
   'assets/production-registration-redesign-v15.js',
-  'assets/production-registration-responsive-v16.js',
   'assets/production-registration-schedule-matrix-v17.js',
-  'assets/production-registration-select-native-v19.js',
-  'assets/production-registration-receipt-schedule-v22.js',
   'assets/production-courses-centers-redesign-v23.js',
-  'assets/production-courses-centers-compact-v25.js',
-  'assets/production-courses-centers-detail-fix-v27.js',
   'assets/production-period-search-redesign-v28.js',
   'assets/production-sidebar-lock-v30.js',
   'assets/production-student-search-redesign-v31.js',
-  'assets/production-search-detail-polish-v32.js',
-  'assets/production-period-count-and-grid-polish-v33.js',
-  'assets/production-search-title-grid-unify-v34.js',
   'assets/production-student-lifecycle-ui-v20.js',
   'assets/production-fiscal-year-v14.js',
   'assets/production-security-ui-v13.js',
-  'assets/production-login-ui-v13.js'
+  'assets/production-accounting-integrity-v21.js'
 ];
 
 const forbiddenProductionFiles = [
@@ -71,6 +64,15 @@ const forbiddenProductionFiles = [
   'scripts/verify-production.mjs',
   'scripts/apply-reminder-document-polish.mjs',
   '.github/workflows/reminder-document-polish.yml',
+  'assets/production-login-ui-v13.js',
+  'assets/production-registration-responsive-v16.js',
+  'assets/production-registration-select-native-v19.js',
+  'assets/production-registration-receipt-schedule-v22.js',
+  'assets/production-courses-centers-compact-v25.js',
+  'assets/production-courses-centers-detail-fix-v27.js',
+  'assets/production-search-detail-polish-v32.js',
+  'assets/production-period-count-and-grid-polish-v33.js',
+  'assets/production-search-title-grid-unify-v34.js',
   'assets/production-registration-select-overlay-v18.js',
   'assets/production-brand-polish-v24.js',
   'assets/production-courses-centers-order-fix-v26.js',
@@ -114,4 +116,4 @@ for (const file of forbiddenProductionFiles) {
   if (existsSync(`dist/${file}`)) throw new Error(`Obsolete runtime leaked into production dist: ${file}`);
 }
 
-console.log('EFC production runtime copied to dist with monthly prepayment v14, student lifecycle v20, registration schedule and receipt support, courses/centers/search refinements, one sidebar design source, one consolidated certificate renderer and stylesheet, login UI, and offline PDF libraries; obsolete runtime sources are absent.');
+console.log('EFC production runtime copied to dist with monthly prepayment v14, student lifecycle v20, accounting integrity v21, registration schedule and receipt support, courses/centers/search refinements, one sidebar design source, one consolidated certificate renderer and stylesheet, canonical early login, and offline PDF libraries; obsolete runtime sources are absent.');

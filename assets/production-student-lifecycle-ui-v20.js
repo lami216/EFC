@@ -5,7 +5,6 @@ const D=window.EFC_DOMAIN_V13,sequence=window.EFC_RECEIPT_SEQUENCES_V10;
 if(!D?.studentLifecycleV20||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready)throw new Error('Student lifecycle UI v20 loaded before lifecycle/student/registration UI.');
 
 const baseOpenStudent=window.openStudent;
-const baseRenderRegister=window.renderRegister;
 const canEditStudents=()=>window.EFC_AUTH_V13?.canEdit?.('students')??true;
 const isMonthly=student=>Boolean(D.isDynamicMonthly?.(student)||student?.snapshot?.billing==='monthly');
 const studentById=id=>students.find(item=>String(item?.id||'')===String(id||''));
@@ -46,19 +45,18 @@ window.openStudent=function(id,mode='finance'){
 function installRegistrationNumberPreview(){
   const session=window.EFC_REGISTRATION_EDIT_V17?.current?.();if(!session?.student)return;
   const form=document.getElementById('regFormV13'),fixed=document.querySelector('.registration-reg-fixed-v17');if(!form||!fixed)return;
-  let hint=fixed.parentElement?.querySelector('.registration-reg-auto-v20');if(!hint){hint=document.createElement('small');hint.className='registration-reg-auto-v20';hint.textContent='رقم السجل يتحدد تلقائيًا حسب المركز والدورة عند الحفظ.';fixed.insertAdjacentElement('afterend',hint);}
   let warning=form.querySelector('.registration-scope-warning-v20');if(!warning){warning=document.createElement('div');warning.className='registration-scope-warning-v20';warning.hidden=true;warning.textContent='تغيير المركز أو الدورة هنا يُعامل كتصحيح لنفس ملف الطالب؛ تبقى دفعاته مرتبطة بالملف بعد التصحيح. النقل الحقيقي إلى دورة جديدة يجب تسجيله كعملية مستقلة. ولا يسمح النظام بإعادة تصنيف حركات سنة مالية مقفلة.';form.querySelector('.registration-edit-actions-v17')?.insertAdjacentElement('beforebegin',warning);}
   const sync=()=>{
     const branch=String(form.elements.branch?.value||''),specialty=String(form.elements.specialty?.value||''),same=branch===String(session.student.branch||'')&&specialty===String(session.student.specialty||'');
     const number=same?Number(session.student.reg||0):Number(sequence.previewRegistrationNumber?.(branch,specialty)||0);fixed.textContent=number?String(number).padStart(4,'0'):'—';fixed.classList.toggle('is-auto-target-v20',!same);
-    hint.textContent=same?'رقم السجل الحالي محفوظ ما دام المركز والدورة لم يتغيرا.':'سيُعطى هذا الرقم تلقائيًا من تسلسل المركز والدورة الجديدة عند الحفظ.';if(warning)warning.hidden=same;
+    if(warning)warning.hidden=same;
   };
   form.elements.branch?.addEventListener('change',sync);form.elements.specialty?.addEventListener('change',sync);sync();
 }
-window.renderRegister=function(...args){const result=baseRenderRegister.apply(this,args);installRegistrationNumberPreview();return result;};
+function enhanceRegistrationLifecycleV20(){installRegistrationNumberPreview();}
 
 const style=document.createElement('style');style.textContent=`
-.student-delete-v20{background:#a93636!important;color:#fff!important;border-color:#a93636!important}.student-delete-v20:hover{background:#8f2929!important}.student-edit-info-v20{margin-inline-start:auto}.registration-reg-auto-v20{display:block;margin-top:5px;color:#6b7c76;font-size:8px;font-weight:600;line-height:1.5}.registration-reg-fixed-v17.is-auto-target-v20{border-color:#17856b!important;background:#eefaf6!important;color:#075844!important}.registration-scope-warning-v20{margin:10px 0;padding:9px 11px;border:1px solid #e5c97a;border-radius:9px;background:#fff9e9;color:#70551f;font-size:9px;line-height:1.8}.registration-scope-warning-v20[hidden]{display:none!important}
+.student-profile-actions-v3 .button,.student-actions-v13 .button{border:1.3px solid #17211e!important;box-shadow:0 4px 10px rgba(20,40,34,.06)!important}.student-profile-actions-v3 .close,.student-actions-v13 .close{background:#e7ecea!important;color:#263b35!important}.student-profile-actions-v3 .stop-student-v13,.student-actions-v13 .stop-student-v13{background:#ffe7af!important;color:#704d00!important}.student-profile-actions-v3 .open-finance-v13,.student-actions-v13 .pay-student-v13,.student-actions-v13 .prepay-next-v14{background:#0b705a!important;color:#fff!important}.student-delete-v20{background:#b63b3b!important;color:#fff!important;border-color:#17211e!important}.student-delete-v20:hover{background:#963030!important}.student-edit-info-v20{margin-inline-start:auto;background:#dbeeff!important;color:#174a71!important;border-color:#17211e!important}.registration-reg-fixed-v17.is-auto-target-v20{border-color:#17856b!important;background:#eefaf6!important;color:#075844!important}.registration-scope-warning-v20{margin:10px 0;padding:9px 11px;border:1px solid #e5c97a;border-radius:9px;background:#fff9e9;color:#70551f;font-size:9px;line-height:1.8}.registration-scope-warning-v20[hidden]{display:none!important}
 `;document.head.appendChild(style);
-window.EFC_STUDENT_LIFECYCLE_UI_V20=Object.freeze({ready:true,monthlyEndShownInStudentFile:true,monthlyEndTracksLatestPaidCycle:true,studentInfoEditAction:true,studentPermanentDeleteAction:true,registrationNumberPreviewOnScopeChange:true,scopeChangeExplainedAsCorrection:true});
+window.EFC_STUDENT_LIFECYCLE_UI_V20=Object.freeze({ready:true,enhanceRegistration:enhanceRegistrationLifecycleV20,canonicalRegistrationEnhancer:true,monthlyEndShownInStudentFile:true,monthlyEndTracksLatestPaidCycle:true,studentInfoEditAction:true,studentPermanentDeleteAction:true,registrationNumberPreviewOnScopeChange:true,registrationNumberHintRemoved:true,scopeChangeExplainedAsCorrection:true,studentActionButtonsColored:true,studentActionButtonsDarkBorder:true});
 })();

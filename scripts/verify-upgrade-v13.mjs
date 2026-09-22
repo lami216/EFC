@@ -4,6 +4,7 @@ import {webcrypto} from 'node:crypto';
 
 const read=path=>readFileSync(path,'utf8');
 const domain=read('assets/production-domain-v13.js');
+const auth=read('assets/production-auth-bootstrap-v13.js');
 const security=read('assets/production-security-ui-v13.js');
 const certificate=read('assets/production-certificates-v13.js');
 const receipt=read('assets/production-receipts-v13.js');
@@ -22,13 +23,14 @@ for(const token of [
   "crypto.subtle.verify({name:'RSA-PSS',saltLength:32}",
   "value.n!==pending.n",
   "value.d!==pending.d",
-  "localStorage.removeItem(STORAGE.recovery)",
+  "localStorage.removeItem(RECOVERY_KEY)",
   'adminRecoverySigned:true',
   'recoveryDeviceBound:true',
   'recoveryOneTime:true'
-])requireText(security,token,`recovery ${token}`);
-forbidText(security,'s:secret','raw recovery secret persisted');
-forbidText(security,'value.s!==pending.s','unsigned secret-only reset');
+])requireText(auth,token,`recovery ${token}`);
+forbidText(auth,'s:secret','raw recovery secret persisted');
+forbidText(auth,'value.s!==pending.s','unsigned secret-only reset');
+forbidText(security,"RECOVERY_PREFIX='EFC-ADMIN-RECOVERY-2.'",'recovery implementation must not be duplicated in late security UI');
 
 for(const token of [
   "canView('students')",
@@ -44,7 +46,8 @@ for(const token of [
 
 requireText(security,"else if(page==='settings')renderSettings()",'settings owned by final router');
 requireText(security,"else if(page==='certificates')window.EFC_RENDER_CERTIFICATES_V13?.()",'certificates owned by final router');
-requireText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0))",'final v13 hash router');
+requireText(security,"window.addEventListener('hashchange',()=>window.renderCurrentV13?.())",'final v13 hash router');
+forbidText(security,"window.addEventListener('hashchange',()=>setTimeout(()=>window.renderCurrentV13?.(),0))",'delayed duplicate route scheduling');
 forbidText(security,"else if(typeof renderCurrent==='function')renderCurrent()",'legacy router fallback');
 forbidText(certificate,"addEventListener('hashchange'",'certificate-specific router hook');
 

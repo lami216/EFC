@@ -2,7 +2,7 @@
 'use strict';
 if(window.EFC_SIDEBAR_LOCK_V30?.ready)return;
 const waitUntil=async(check,timeout=15000)=>{const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw new Error('Sidebar lock v30 timed out.');await new Promise(resolve=>setTimeout(resolve,20));}};
-await waitUntil(()=>window.EFC_COURSES_CENTERS_DETAIL_FIX_V27?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&typeof window.shell==='function');
+await waitUntil(()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready&&window.EFC_COURSES_CENTERS_REDESIGN_V23?.detailFixConsolidated&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready&&window.EFC_PERIOD_SEARCH_REDESIGN_V28?.countGridConsolidated&&typeof window.shell==='function');
 
 const style=document.createElement('style');
 style.id='efc-sidebar-lock-style-v30';
@@ -20,8 +20,10 @@ html body .shell.shell-v13 aside{
 }
 html body .shell.shell-v13 main{
   margin-right:clamp(230px,18vw,268px)!important;width:calc(100% - clamp(230px,18vw,268px))!important;
-  min-width:0!important;overflow-x:hidden!important;
+  height:100dvh!important;max-height:100dvh!important;min-height:0!important;min-width:0!important;
+  overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:auto!important;
 }
+html body .shell.shell-v13 main>.efc-taskbar-safe-space-v30{display:none!important}
 html body .shell.shell-v13 aside .brand{
   display:flex!important;align-items:center!important;gap:11px!important;
   padding:0 3px 18px!important;border-bottom:1px solid rgba(255,255,255,.18)!important;box-sizing:border-box!important;
@@ -114,6 +116,8 @@ html body.efc-period-redesign-v28 .efc-period-hero-v28::after{content:''!importa
   html body .content:has(.settings-grid-prod){width:calc(100% - 20px)!important}
 }
 @media(max-height:760px){
+  html body .shell.shell-v13 main{scroll-padding-bottom:56px!important}
+  html body .shell.shell-v13 main>.efc-taskbar-safe-space-v30{display:block!important;width:100%!important;height:56px!important;min-height:56px!important;pointer-events:none!important}
   html body .shell.shell-v13 aside{padding-top:12px!important;padding-bottom:10px!important;overflow-y:auto!important;scrollbar-width:thin!important}
   html body .shell.shell-v13 aside .brand{padding-bottom:10px!important;gap:8px!important}
   html body .shell.shell-v13 aside .brand .logo{width:44px!important;height:44px!important;min-width:44px!important;max-width:44px!important;flex-basis:44px!important}
@@ -142,7 +146,7 @@ document.head.appendChild(style);
 window.EFC_SIDEBAR_LOCK_V30=Object.freeze({
   ready:true,singleSidebarDesignSource:true,registrationSidebarLockedGlobally:true,unfinishedPagesSidebarOnly:true,
   redesignedPagesUseRegistrationGap:true,redesignedTitlesMatchRegistrationHero:true,
-  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,
-  centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,mainUntouched:true
+  responsiveSmallViewport:true,settingsFitAvailableWidth:true,shortScreenSidebarScrollFallback:true,mainViewportScroll:true,taskbarSafeBottomClearance:true,singleMainScrollOwner:true,
+  centeredBrandLogo:true,noStyleReordering:true,noMutationObserverLoop:true,canonicalTaskbarSpacer:true
 });
 })();

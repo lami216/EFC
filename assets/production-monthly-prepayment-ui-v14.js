@@ -2,14 +2,12 @@
 'use strict';
 if(window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready)return;
 const D=window.EFC_DOMAIN_V13;
-if(!D?.ready||!D.monthlyPrepayment||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_REGISTRATION_SCHEDULE_V13?.ready||!window.EFC_FINANCE_UI_V13?.ready)throw new Error('Monthly prepayment UI v14 loaded before required v13 modules.');
+if(!D?.ready||!D.monthlyPrepayment||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_REGISTRATION_SCHEDULE_V13?.ready||!window.EFC_FINANCE_UI_V13?.ready||typeof window.EFC_RENDER_LEDGER_BASE_V13!=='function')throw new Error('Monthly prepayment UI v14 loaded before required v13 modules.');
 
 const {esc,today,nowTime,cash,courseTypeOf,isDynamicMonthly,isInactive,paymentTotal,reconcileStudent,installmentPlan,targetRemaining,appendPayment,allocationSummary,paymentAllocations}=D;
 const DAYS=['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
-const baseRenderRegister=window.renderRegister;
 const baseOpenPayment=window.openPayment;
 const baseOpenStudent=window.openStudent;
-const baseRenderLedger=window.renderLedger;
 const baseBadge=window.badge;
 
 window.badge=function(text){
@@ -41,8 +39,7 @@ function readSchedule(root,item){
   return{version:2,specialtyId,specialtyName:String(item?.name||''),days};
 }
 
-window.renderRegister=function(){
-  baseRenderRegister();
+function enhanceRegistrationV14(){
   const form=document.getElementById('regFormV13'),scheduleRoot=document.querySelector('.registration-schedule-card-v13');if(!form||!scheduleRoot)return;
   const spEl=form.elements.specialty,priceEl=form.elements.price,paidEl=form.elements.paid,summary=document.getElementById('regSummaryV13');
   const refreshSummary=()=>{const item=spec(spEl.value),type=courseTypeOf(item||{}),fee=Math.max(0,Number(priceEl.value||0)),paid=Math.max(0,Number(paidEl.value||0));if(!summary||!item||fee<=0)return;summary.hidden=false;summary.innerHTML=`<div><span>نوع الدورة</span><b>${type==='normal'?'عادية شهرية':'سريعة'}</b></div><div><span>${type==='normal'?'سعر الشهر':'سعر الدورة'}</span><b>${cash(fee)}</b></div><div><span>المدفوع الآن</span><b>${cash(type==='normal'?paid:Math.min(paid,fee))}</b></div><div><span>${type==='normal'?'تغطية الدفعة':'المتبقي'}</span><b>${type==='normal'?esc(coverageText(paid,fee)):cash(Math.max(0,fee-paid))}</b></div>`;};
@@ -58,7 +55,7 @@ window.renderRegister=function(){
     catch(error){students=students.filter(value=>value!==student);return alert(String(error?.message||error));}
     form.reset();form.elements.start.value=today();form.elements.paid.value=0;scheduleRoot.querySelectorAll('[data-day-check]').forEach(input=>input.checked=false);scheduleRoot.querySelectorAll('[data-day-time]').forEach(input=>input.value='');if(summary){summary.hidden=true;summary.innerHTML='';}setTimeout(()=>window.EFC_SHOW_RECEIPT_V13?.(student,paymentIndex,'reg'),30);
   };
-};
+}
 
 window.openPayment=function(id,targetMonth=null){
   const student=students.find(value=>String(value.id)===String(id));if(!student)return;
@@ -84,7 +81,7 @@ window.openStudent=function(id,mode='finance'){
   rows.forEach((row,index)=>{const month=plan[index];if(!month)return;const status=row.children?.[5];if(status&&month.prepaid)status.innerHTML=month.remaining>0?'<span class="badge warn">دفع جزئي مقدمًا</span>':'<span class="badge good">مدفوع مقدمًا</span>';});
   modal.querySelectorAll('.payment-receipt-v13').forEach(button=>{const index=Number(button.dataset.index),row=button.closest('tr'),statement=row?.children?.[3];if(statement)statement.textContent=allocationSummary(student,index);});
   modal.querySelectorAll('.month-receipt-v13').forEach(button=>{const clone=button.cloneNode(true);button.replaceWith(clone);clone.onclick=()=>{const model=monthReceiptModel(student,Number(clone.dataset.month));if(model)receiptWindowV4(model);};});
-  const actions=modal.querySelector('.student-actions-v13');if(actions&&!isInactive(student)&&canEditStudents()&&!actions.querySelector('.prepay-next-v14')){const button=document.createElement('button');button.className='button prepay-next-v14';button.type='button';button.textContent='تسجيل دفعة شهرية';button.onclick=()=>{modal.remove();window.openPayment(id);};actions.appendChild(button);}
+  const actions=modal.querySelector('.student-actions-v13');if(actions&&!isInactive(student)&&canEditStudents()&&!actions.querySelector('.prepay-next-v14')){const button=document.createElement('button');button.className='button prepay-next-v14';button.type='button';button.textContent='تسجيل دفعة جديدة';button.onclick=()=>{modal.remove();window.openPayment(id);};actions.appendChild(button);}
 };
 
 function enhanceLedger(){
@@ -93,8 +90,8 @@ function enhanceLedger(){
   const income=allPayments().filter(row=>row.date===date&&(!branch||row.student.branch===branch)&&(!specialty||(specialty!==D.GENERAL_EXPENSE&&row.student.specialty===specialty))&&(!method||row.method===method)),costs=expenses.filter(row=>D.expenseMatches(row,{from:date,to:date,branch,specialty,method})),items=[...income.map(row=>({kind:'income',time:row.time||'00:00',order:Number(row.order||row.student?.payments?.[row.paymentIndex]?.[4]||0),row})),...costs.map(row=>({kind:'expense',time:row.time||'00:00',order:Number(row.createdAt||0),row}))].sort((a,b)=>String(b.time).localeCompare(String(a.time))||b.order-a.order),tableRows=[...body.querySelectorAll('tbody tr')];
   items.forEach((item,index)=>{if(item.kind!=='income'||item.row?.sourceType==='certificate'||!isDynamicMonthly(item.row.student))return;const tr=tableRows[index],cell=tr?.children?.[3];if(cell)cell.textContent=allocationSummary(item.row.student,item.row.paymentIndex);});
 }
-window.renderLedger=function(){baseRenderLedger();enhanceLedger();['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>setTimeout(enhanceLedger,0)));};
+window.renderLedger=function(){const result=window.EFC_RENDER_LEDGER_BASE_V13();enhanceLedger();['ledgerDateV13','ledgerBranchV13','ledgerSpecV13','ledgerMethodV13'].forEach(id=>document.getElementById(id)?.addEventListener('change',enhanceLedger));return result;};
 
 const style=document.createElement('style');style.textContent=`.prepay-note-v14{margin:-4px 0 12px;padding:9px 11px;border:1px solid #cfe0d9;border-radius:9px;background:#f4faf7;color:var(--muted);font-size:9px;line-height:1.7}.prepay-preview-v14{min-height:38px;padding:9px 11px;border:1px dashed var(--border);border-radius:8px;background:var(--surface2);font-size:9px;line-height:1.7;color:var(--primary);font-weight:700}`;document.head.appendChild(style);
-window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,nextMonthPrepaymentButton:true,scheduleDirectFromMatrix:true});
+window.EFC_MONTHLY_PREPAYMENT_UI_V14=Object.freeze({ready:true,enhanceRegistration:enhanceRegistrationV14,canonicalRegistrationEnhancer:true,registrationOverpayment:true,paymentOverMonthValue:true,studentPrepaidMonthBadges:true,monthReceiptUsesAllocations:true,ledgerUsesAllocationSummary:true,canonicalLedgerRenderer:true,singleLedgerRenderOwner:true,noLedgerWrapperChain:true,synchronousLedgerEnhancement:true,nextMonthPrepaymentButton:true,newPaymentButtonLabel:true,scheduleDirectFromMatrix:true});
 })();

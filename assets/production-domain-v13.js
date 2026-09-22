@@ -10,7 +10,8 @@ const STORAGE={
   methods:'efc-payment-method-records-v11',
   security:'efc-security-v11',
   recovery:'efc-admin-recovery-pending-v11',
-  meta:'efc-center-ops-meta-v13'
+  meta:'efc-center-ops-meta-v13',
+  expenseSequence:'efc-expense-receipt-sequence-v28'
 };
 const invoke=window.__TAURI__?.core?.invoke;
 const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -30,6 +31,7 @@ function isInactive(student){return student?.active===false||student?.status==='
 function paymentTotal(student){return (student?.payments||[]).reduce((sum,payment)=>sum+Math.max(0,Number(payment?.[1]||0)),0);}
 
 let expenses=Array.isArray(readJson(STORAGE.expenses,[]))?readJson(STORAGE.expenses,[]):[];
+let expenseReceiptNext=Math.max(1,Number(readJson(STORAGE.expenseSequence,{next:1})?.next||1));
 let methodRecords=Array.isArray(readJson(STORAGE.methods,[]))?readJson(STORAGE.methods,[]):[];
 let securityState=readJson(STORAGE.security,{users:[]});
 if(!securityState||typeof securityState!=='object')securityState={users:[]};
@@ -46,9 +48,18 @@ function normalizeExpenses(){
     specialty:String(item.specialty),
     date:String(item.date||today()),
     time:String(item.time||'00:00'),
-    createdAt:Number(item.createdAt||Date.now())
+    createdAt:Number(item.createdAt||Date.now()),
+    receiptNo:Number.isInteger(Number(item.receiptNo))&&Number(item.receiptNo)>0?Number(item.receiptNo):null
   })).filter(item=>{if(seen.has(item.id))return false;seen.add(item.id);return true;});
   writeJson(STORAGE.expenses,expenses);
+}
+function repairExpenseReceiptSequence(){
+  const ordered=[...expenses].sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.time||'').localeCompare(String(b.time||''))||Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id||'').localeCompare(String(b.id||''))),used=new Set(),missing=[];let max=0;
+  ordered.forEach(item=>{const number=Number(item.receiptNo);if(Number.isInteger(number)&&number>0){used.add(number);max=Math.max(max,number);}else missing.push(item);});
+  let next=Math.max(1,Number(expenseReceiptNext||1),max+1);
+  missing.forEach(item=>{while(used.has(next))next+=1;item.receiptNo=next;used.add(next);max=Math.max(max,next);next+=1;});
+  expenseReceiptNext=Math.max(Number(expenseReceiptNext||1),max+1,next);
+  writeJson(STORAGE.expenses,expenses);writeJson(STORAGE.expenseSequence,{version:28,next:expenseReceiptNext});
 }
 function normalizeMethodRecords(){
   const activeNames=[...(Array.isArray(methods)?methods:[])].map(String).map(v=>v.trim()).filter(Boolean),seen=new Set();
@@ -65,6 +76,7 @@ function syncActiveMethods(){
   writeJson(STORAGE.methods,methodRecords);
 }
 normalizeExpenses();
+repairExpenseReceiptSequence();
 syncActiveMethods();
 
 const baseApplyRestored=window.EFC_APPLY_RESTORED_STATE;
@@ -77,6 +89,7 @@ async function persistExtrasNow(){
 }
 function contributeExtras(state){
   state.expenses=expenses;
+  state.expenseReceiptSequenceV28={version:28,next:expenseReceiptNext};
   state.paymentMethodRecords=methodRecords;
   state.security=securityState;
   state.centerOpsMeta={updatedAt:localExtraUpdatedAt()||Date.now(),version:13};
@@ -98,12 +111,13 @@ async function hydrateExtrasFromDesktop(){
     const shouldUseNative=nativeUpdated>localUpdated;
     if(shouldUseNative&&Array.isArray(state.expenses))expenses=state.expenses;
     else if(!expenses.length&&Array.isArray(state.expenses))expenses=state.expenses;
+    expenseReceiptNext=Math.max(expenseReceiptNext,Number(state.expenseReceiptSequenceV28?.next||1));
     if(shouldUseNative&&Array.isArray(state.paymentMethodRecords))methodRecords=state.paymentMethodRecords;
     else if(!methodRecords.length&&Array.isArray(state.paymentMethodRecords))methodRecords=state.paymentMethodRecords;
     if(shouldUseNative&&state.security&&typeof state.security==='object')securityState=state.security;
     else if(!securityState.users.length&&state.security&&typeof state.security==='object')securityState=state.security;
     if(!Array.isArray(securityState.users))securityState.users=[];
-    normalizeExpenses();syncActiveMethods();writeJson(STORAGE.security,securityState);
+    normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);
     if(nativeUpdated>localUpdated)writeJson(STORAGE.meta,{updatedAt:nativeUpdated});
   }catch(error){console.error('EFC v13 extra-state hydration failed; local state kept.',error);}
 }
@@ -111,10 +125,11 @@ window.EFC_REGISTER_STATE_CONTRIBUTOR?.('center-operations',contributeExtras);
 if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
   const result=await baseApplyRestored(incoming);
   if(Array.isArray(incoming?.expenses))expenses=incoming.expenses;
+  expenseReceiptNext=Math.max(expenseReceiptNext,Number(incoming?.expenseReceiptSequenceV28?.next||1));
   if(Array.isArray(incoming?.paymentMethodRecords))methodRecords=incoming.paymentMethodRecords;
   if(incoming?.security&&typeof incoming.security==='object')securityState=incoming.security;
   if(!Array.isArray(securityState.users))securityState.users=[];
-  normalizeExpenses();syncActiveMethods();writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();
+  normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();
   return result;
 };
 
@@ -194,7 +209,7 @@ monthlyFocusV3=function(student,asOf=today(),paidOverride=null){
   const plan=installmentPlan(student,asOf,paidOverride),first=plan.find(month=>month.remaining>0);
   if(!plan.length)return null;
   if(!first){const last=plan.at(-1);return{state:'complete',number:last.number,label:`الشهر ${last.number} مدفوع كامل`,dueAmount:0,dueDate:last.dueDate,plan};}
-  const labels={partial:'دفع جزئي',overdue:'متأخر',due:'مستحق الآن',upcoming:'لم يحن'};
+  const labels={partial:'دفع جزئي',overdue:'دين',due:'مستحق',upcoming:'لم يحن'};
   return{state:first.state,number:first.number,label:`الشهر ${first.number} ${labels[first.state]||'مستحق'}`,dueAmount:['partial','overdue','due'].includes(first.state)?first.remaining:0,dueDate:first.dueDate,plan};
 };
 financialStatus=function(student){
@@ -204,14 +219,14 @@ financialStatus=function(student){
     if(!focus)return remainingAmount(student)>0?'لم يدفع':'مدفوع كامل';
     if(focus.state==='complete')return'مدفوع كامل';
     if(focus.state==='partial')return'دفع جزئي';
-    if(focus.state==='overdue')return'متأخر';
-    if(focus.state==='due')return'مستحق الآن';
+    if(focus.state==='overdue')return'دين';
+    if(focus.state==='due')return'مستحق';
     return paymentTotal(student)>0?'مدفوع كامل':'لم يدفع';
   }
   const remaining=remainingAmount(student);
   if(remaining===0)return'مدفوع كامل';
+  if(student.end&&student.end<today())return'دين';
   if(paymentTotal(student)===0)return'لم يدفع';
-  if(student.end&&student.end<today())return'متأخر';
   return'دفع جزئي';
 };
 courseStatus=function(student){if(isInactive(student))return'موقوف';if(isDynamicMonthly(student))return'نشطة';return legacyCourseStatus(student);};
@@ -273,7 +288,7 @@ function reminderNote(student,{kind,title,message,amount=0,dueDate='',monthNumbe
   return{
     studentId:String(student.id),studentName:String(student.name||''),phone:String(student.phone||''),reg:String(student.reg??''),
     branchName:String(typeof branchName==='function'?branchName(student.branch):student.branch||''),specialtyName,
-    kind:String(kind||'reminder'),title:String(title||'تذكير مستحقات'),message:String(message||''),
+    kind:String(kind||'reminder'),title:String(title||'تذكير بالدين'),message:String(message||''),
     amount:Math.max(0,Number(amount||0)),fee:Math.max(0,Number(fee||0)),dueDate:String(dueDate||''),
     monthNumber:monthNumber===null||monthNumber===undefined?null:Number(monthNumber),state:String(state||''),date:today(),
     contextType:resolvedContextType,contextLabel:resolvedContextLabel,contextValue:String(resolvedContextValue||'')
@@ -284,7 +299,7 @@ function debtMessage(student,amount,due,overdue=false,{monthNumber=null,fee=0}={
   const scope=monthNumber?`الشهر ${monthNumber} من دورة ${course}`:`دورة ${course}`;
   const total=fee>0&&Number(fee)!==Number(amount)?` من أصل ${cash(fee)}`:'';
   const timing=overdue?`وقد تجاوز موعد الاستحقاق المحدد بتاريخ ${showDate(due)}`:`وموعد الاستحقاق هو ${due===addDays(today(),1)?'غدًا، الموافق ':''}${showDate(due)}`;
-  return `عزيزي الطالب ${student.name}، نحيطكم علمًا بأن المبلغ المتبقي على ${scope} هو ${cash(amount)}${total}، ${timing}. نرجو تسوية المبلغ في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق لكم السداد، يرجى تجاهل هذا التذكير أو التواصل مع إدارة المركز لتأكيد العملية.`;
+  return `عزيزي الطالب/ة ${student.name}، نحيطكم علمًا بأن المبلغ المتبقي على ${scope} هو ${cash(amount)}${total}، ${timing}. نرجو تسوية المبلغ في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق لكم السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
 }
 function notificationsForStudent(student){
   if(!student||isInactive(student))return[];
@@ -295,27 +310,27 @@ function notificationsForStudent(student){
       const custom=student.debtDueDates?.[String(month.number)],course=spec(student.specialty)?.name||'الدورة';
       if(custom&&asOf>=addDays(custom,-1)){
         const overdue=asOf>custom,message=debtMessage(student,month.remaining,custom,overdue,{monthNumber:month.number,fee:month.fee});
-        out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?`متبقي متأخر — الشهر ${month.number}`:`موعد سداد المتبقي — الشهر ${month.number}`,message,amount:month.remaining,dueDate:custom,monthNumber:month.number,fee:month.fee,state:overdue?'overdue':'due',contextType:'month'}));
+        out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?`دين قائم — الشهر ${month.number}`:`موعد سداد المتبقي — الشهر ${month.number}`,message,amount:month.remaining,dueDate:custom,monthNumber:month.number,fee:month.fee,state:overdue?'overdue':'due',contextType:'month'}));
         return;
       }
       const opens=addDays(month.dueDate,-3);
       if(month.number>1&&asOf>=opens&&asOf<month.dueDate){
-        const message=`عزيزي الطالب ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون مستحقات متأخرة. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع إدارة المركز لتحديث الحالة.`;
+        const message=`عزيزي الطالب/ة ${student.name}، هذا تذكير بتجديد الشهر القادم: الشهر ${month.number} من دورة ${course}. قيمة الرسوم ${cash(month.fee)}، وموعد الاستحقاق ${showDate(month.dueDate)}. يمكنكم السداد من الآن، ونرجو إتمامه في الموعد المحدد حتى يبقى ملفكم المالي منتظمًا دون ديون قائمة. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
         out.push(reminderNote(student,{kind:'monthly-upcoming',title:`تذكير بتجديد الشهر ${month.number}`,message,amount:month.fee,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:'upcoming',contextType:'month'}));
       }else if(asOf>=month.dueDate){
         const partial=month.remaining<month.fee,overdue=asOf>month.dueDate;
         let message='';
-        if(partial)message=`عزيزي الطالب ${student.name}، تم تسجيل دفعة جزئية للشهر ${month.number} من دورة ${course}، وما زال المبلغ المطلوب ${cash(month.remaining)} من أصل ${cash(month.fee)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو استكمال المتبقي في أقرب وقت حتى يصبح الشهر مسددًا بالكامل. إذا سبق لكم استكمال السداد، يرجى التواصل مع إدارة المركز لتحديث الملف.`;
-        else if(overdue)message=`عزيزي الطالب ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم المستحقات والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى تجاهل هذا التذكير أو تأكيد العملية مع الإدارة.`;
-        else message=`عزيزي الطالب ${student.name}، أصبحت رسوم الشهر ${month.number} من دورة ${course} مستحقة اليوم بقيمة ${cash(month.remaining)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو إتمام السداد في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا تم السداد بالفعل، يرجى تجاهل التذكير أو التواصل مع الإدارة لتأكيد العملية.`;
-        out.push(reminderNote(student,{kind:partial?'monthly-partial':overdue?'monthly-overdue':'monthly-due',title:partial?`متبقي الشهر ${month.number}`:overdue?`استحقاق متأخر — الشهر ${month.number}`:`استحقاق الشهر ${month.number}`,message,amount:month.remaining,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:partial?'partial':overdue?'overdue':'due',contextType:'month'}));
+        if(partial)message=`عزيزي الطالب/ة ${student.name}، تم تسجيل دفعة جزئية للشهر ${month.number} من دورة ${course}، وما زال المبلغ المطلوب ${cash(month.remaining)} من أصل ${cash(month.fee)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو استكمال المتبقي في أقرب وقت حتى يصبح الشهر مسددًا بالكامل. إذا سبق لكم استكمال السداد، يرجى التواصل مع إدارة المركز لتحديث الملف.`;
+        else if(overdue)message=`عزيزي الطالب/ة ${student.name}، نذكركم بأن رسوم الشهر ${month.number} من دورة ${course} ما زالت مستحقة بقيمة ${cash(month.remaining)}، وقد تجاوز موعد الاستحقاق بتاريخ ${showDate(month.dueDate)}. نرجو تسوية المبلغ في أقرب فرصة لتفادي تراكم الديون والمحافظة على انتظام الملف المالي. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
+        else message=`عزيزي الطالب/ة ${student.name}، أصبحت رسوم الشهر ${month.number} من دورة ${course} مستحقة اليوم بقيمة ${cash(month.remaining)}. موعد الاستحقاق ${showDate(month.dueDate)}. نرجو إتمام السداد في الموعد المحدد لتحديث ملفكم المالي والمحافظة على انتظامه. إذا سبق السداد، يرجى التواصل مع إدارة المركز لتسوية الحساب وتحديث الحالة المالية.`;
+        out.push(reminderNote(student,{kind:partial?'monthly-partial':overdue?'monthly-overdue':'monthly-due',title:partial?`متبقي الشهر ${month.number}`:overdue?`دين قائم — الشهر ${month.number}`:`استحقاق الشهر ${month.number}`,message,amount:month.remaining,dueDate:month.dueDate,monthNumber:month.number,fee:month.fee,state:partial?'partial':overdue?'overdue':'due',contextType:'month'}));
       }
     });
   }else if(isNewModel(student)&&remainingAmount(student)>0){
     const due=student.debtDueDates?.course;
     if(due&&asOf>=addDays(due,-1)){
       const amount=remainingAmount(student),overdue=asOf>due,message=debtMessage(student,amount,due,overdue);
-      out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?'تذكير بمبلغ متبقٍ متأخر':'تذكير بموعد سداد المتبقي',message,amount,dueDate:due,state:overdue?'overdue':'due',contextType:'course',contextLabel:'الدورة',contextValue:spec(student.specialty)?.name||student.specialty||'الدورة'}));
+      out.push(reminderNote(student,{kind:overdue?'debt-overdue':'debt-due',title:overdue?'تذكير بدين قائم':'تذكير بموعد سداد المتبقي',message,amount,dueDate:due,state:overdue?'overdue':'due',contextType:'course',contextLabel:'الدورة',contextValue:spec(student.specialty)?.name||student.specialty||'الدورة'}));
     }
   }
   return out;
@@ -324,7 +339,9 @@ function currentNotifications(){return students.flatMap(notificationsForStudent)
 
 function expenseSpecialtyName(value){return value===GENERAL_EXPENSE?'مصروف عام':spec(value)?.name||value||'—';}
 function expenseMatches(item,{from,to,branch,specialty,method}={}){return(!from||item.date>=from)&&(!to||item.date<=to)&&(!branch||item.branch===branch)&&(!specialty||item.specialty===specialty)&&(!method||item.method===method);}
-function saveExpenses(next){expenses=Array.isArray(next)?next:expenses;normalizeExpenses();markExtrasChanged();persistExtrasSoon();}
+function allocateExpenseReceiptNumber(){repairExpenseReceiptSequence();const number=Math.max(1,Number(expenseReceiptNext||1));expenseReceiptNext=number+1;writeJson(STORAGE.expenseSequence,{version:28,next:expenseReceiptNext});markExtrasChanged();persistExtrasSoon();return number;}
+function expenseReceiptNumberOf(item){const value=Number(item?.receiptNo);return Number.isInteger(value)&&value>0?value:null;}
+function saveExpenses(next){expenses=Array.isArray(next)?next:expenses;normalizeExpenses();repairExpenseReceiptSequence();markExtrasChanged();persistExtrasSoon();}
 function saveMethodRecords(next){methodRecords=Array.isArray(next)?next:methodRecords;syncActiveMethods();markExtrasChanged();persistExtrasSoon();}
 function saveSecurity(next){securityState=next&&typeof next==='object'?next:securityState;if(!Array.isArray(securityState.users))securityState.users=[];writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();}
 
@@ -351,7 +368,8 @@ const ready=hydrateExtrasFromDesktop().then(()=>{
     paymentTotal,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,setDebtDate,stopStudent,
     notificationsForStudent,currentNotifications,expenseSpecialtyName,expenseMatches,
     getExpenses:()=>expenses,getMethodRecords:()=>methodRecords,getSecurity:()=>securityState,
-    saveExpenses,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon
+    saveExpenses,allocateExpenseReceiptNumber,expenseReceiptNumberOf,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon,
+    expenseReceiptsNumericOnly:true,expenseReceiptsStartAtOne:true,expenseReceiptNumbersNeverReused:true,expenseReceiptSequencePersisted:true,reminderInclusiveSalutation:true,reminderRequiresAdminReconciliation:true
   });
   return window.EFC_DOMAIN_V13;
 });

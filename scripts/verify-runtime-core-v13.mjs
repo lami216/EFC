@@ -6,12 +6,14 @@ import {webcrypto} from 'node:crypto';
 const files={
   gate:'assets/production-license-gate-v8.js',
   loader:'production-loader.js',
+  auth:'assets/production-auth-bootstrap-v13.js',
   foundation:'assets/production-foundation-v13.js',
   receipts:'assets/production-receipts-v13.js',
   certificate:'assets/production-certificates-v13.js',
   sequence:'assets/production-receipt-sequences-v10.js',
   domain:'assets/production-domain-v13.js',
   student:'assets/production-student-ui-v13.js',
+  registration:'assets/production-registration-schedule-v13.js',
   finance:'assets/production-finance-ui-v13.js',
   security:'assets/production-security-ui-v13.js',
   index:'index.html',
@@ -21,11 +23,12 @@ const source=Object.fromEntries(Object.entries(files).map(([key,path])=>[key,rea
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Missing v13 invariant: ${label}`);};
 const forbidText=(text,needle,label=needle)=>{if(text.includes(needle))throw new Error(`Forbidden v13 pattern: ${label}`);};
 
-const activeKeys=['gate','loader','foundation','receipts','certificate','domain','sequence','student','finance','security'];
+const activeKeys=['gate','loader','auth','foundation','receipts','certificate','domain','sequence','student','registration','finance','security'];
 for(const key of activeKeys)execFileSync(process.execPath,['--check',files[key]],{stdio:'inherit'});
 
 for(const marker of [
   "'./production-loader.js'",
+  "'./assets/production-auth-bootstrap-v13.js'",
   "'./assets/production-foundation-v13.js'",
   "'./assets/production-receipts-v13.js'",
   "'./assets/production-certificates-v13.js'",
@@ -40,7 +43,10 @@ for(const marker of [
   'noStartupSplash:true',
   'noLegacyDemoRuntime:true',
   'domainBeforeReceiptSequence:true',
-  'singleStartupRender:true'
+  'singleStartupRender:true',
+  'parallelRuntimePreload:true',
+  'gateOwnsBootReveal:true',
+  'finalUiBeforeReveal:true'
 ])requireText(source.gate,marker);
 for(const obsolete of ['demo-app.js','demo-monthly-finance-v3.js','production-runtime.js','production-monthly-merge-v2.js','production-center-ops-v11.js','production-center-ops-v12.js','production-ledger-pdf-v6.js'])forbidText(source.gate,obsolete,`obsolete runtime ${obsolete}`);
 forbidText(source.gate,'mountStartupShield','visible startup shield');
@@ -64,21 +70,30 @@ requireText(source.foundation,'noRouter:true','foundation has no router');
 requireText(source.foundation,'noMutationObserver:true','foundation has no observer');
 requireText(source.receipts,'noWindowOpenPatch:true','receipt service does not intercept window.open');
 requireText(source.certificate,'noRouterHook:true','certificates do not own routing');
+requireText(source.auth,'canonicalLoginRenderer:true','auth bootstrap owns one canonical login renderer');
+requireText(source.auth,'loginBeforeAppRuntime:true','login is completed before heavy app runtime');
+forbidText(source.auth,'new MutationObserver(','auth/login observer');
 requireText(source.security,'settingsOwnedByFinalRouter:true','settings routed by v13 router');
+for(const token of ['canonicalSettingsRenderer:true','singleSettingsRenderOwner:true','noSettingsPostRenderEnhancement:true'])requireText(source.security,token,`canonical settings ${token}`);
 requireText(source.security,'certificatesOwnedByFinalRouter:true','certificates routed by v13 router');
+requireText(source.security,'bootRevealDeferredToGate:true','security does not reveal before canonical login/app readiness');
+forbidText(source.security,"classList.remove('efc-booting')",'intermediate security UI reveal');
+requireText(source.gate,"link.rel='preload'",'runtime scripts are prefetched in parallel');
+requireText(source.gate,'await new Promise(resolve=>requestAnimationFrame(()=>resolve()))','final UI settles before reveal');
 
-const hashOwners=['foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
+const hashOwners=['auth','foundation','receipts','certificate','sequence','domain','student','finance','security'].filter(key=>source[key].includes("addEventListener('hashchange'")||source[key].includes('addEventListener("hashchange"'));
 if(hashOwners.length!==1||hashOwners[0]!=='security')throw new Error(`Expected one v13 hashchange owner (security), found: ${hashOwners.join(', ')||'none'}.`);
 
 requireText(source.domain,'EFC_RECEIPTS_V13?.ready','domain waits for clean receipt service');
 requireText(source.domain,'function paymentTotal(student)','canonical payment sum');
 requireText(source.domain,'function appendPayment(student','single transaction writer');
 requireText(source.domain,'student.paid=paymentTotal(student)','paid amount reconciled from transactions');
-requireText(source.student,'appendPayment(student,{amount:paidNow','registration uses transaction writer');
+requireText(source.registration,'appendPayment(student,{amount:paidNow','registration uses transaction writer');
+forbidText(source.student,'renderRegister=function(){','student UI no longer owns a legacy registration renderer');
 requireText(source.student,'appendPayment(student,{amount,method:','profile/payment modal uses transaction writer');
 forbidText(source.student,'student.paid=Number(student.paid||0)+','manual paid accumulator');
 requireText(source.student,'DEBT_IDLE_MS=450','debt-date typing debounce');
-requireText(source.student,'paidTouched&&paid>0&&price>0&&paid<price','registration debt date only for real partial payment');
+requireText(source.registration,'paidTouched&&paid>0&&price>0&&paid<price','registration debt date only for real partial payment');
 requireText(source.student,'.quick-days-v13[hidden]','quick duration hidden rule');
 requireText(source.student,"typeEl.value==='quick'",'quick duration conditional');
 requireText(source.student,"form.setAttribute('autocomplete','off')",'global form autocomplete disable');
