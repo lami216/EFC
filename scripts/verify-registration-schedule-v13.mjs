@@ -23,6 +23,8 @@ for(const [token,label] of [
   ['schedule-hour-select-v13','hour-only schedule selector'],
   ['hourOnlyScheduleTime:true','hour-only timetable marker'],
   ['fixedMinuteZero:true','fixed 00-minute timetable marker'],
+  ['extraEveningHours:true','additional evening timetable marker'],
+  ['const ALLOWED_HOURS=[8,10,12,14,16,17,18,19,20];','17:00 and 19:00 timetable choices'],
   ['singleScheduleBottomNote:true','single lower timetable note marker'],
   ['value=`${hh}:00`','hour choices stored as HH:00'],
   ['data-day-check','day selection boxes'],
