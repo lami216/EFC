@@ -230,6 +230,8 @@ for(const [token,label] of [
   ['responsiveSmallViewport:true','small viewport sidebar marker'],
   ['settingsFitAvailableWidth:true','responsive settings marker'],
   ['shortScreenSidebarScrollFallback:true','short-screen sidebar fallback'],
+  ['mainViewportScroll:true','main workspace scroll fallback'],
+  ['taskbarSafeBottomClearance:true','taskbar-safe bottom action clearance'],
   ['@media(max-height:760px)','short display layout rules'],
   ['width:min(900px,calc(100% - 32px))','settings no longer force 900px width']
 ])requireText(sidebar,token,label);
@@ -249,6 +251,7 @@ requireText(rustMain,'tauri::WindowEvent::CloseRequested','native close intercep
 requireText(rustMain,"window.EFC_REQUEST_CLOSE_BACKUP",'native close invokes frontend backup prompt');
 requireText(rustMain,'fn exit_app(app: tauri::AppHandle)','explicit close command after user decision');
 if(Number(tauriConfig?.app?.windows?.[0]?.minWidth)!==840||Number(tauriConfig?.app?.windows?.[0]?.minHeight)!==560)throw new Error('Registration redesign missing: compact Tauri minimum window size.');
+if(tauriConfig?.app?.windows?.[0]?.maximized!==true)throw new Error('Registration redesign missing: Tauri window must start maximized inside the Windows work area.');
 
 const order=[
   'production-auth-bootstrap-v13.js',
