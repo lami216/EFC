@@ -30,6 +30,7 @@ const tauriConfig=JSON.parse(read('src-tauri/tauri.conf.json'));
 const rustMain=read('src-tauri/src/main.rs');
 const receiptPdfRust=read('src-tauri/src/receipt_pdf.rs');
 const packageJson=JSON.parse(read('package.json'));
+const foundation=read('assets/production-foundation-v13.js');
 
 for(const token of [
   'screenshotRegistrationReference:true',
@@ -239,9 +240,12 @@ for(const [token,label] of [
   ['shortScreenSidebarScrollFallback:true','short-screen sidebar fallback'],
   ['mainViewportScroll:true','main workspace scroll fallback'],
   ['taskbarSafeBottomClearance:true','taskbar-safe bottom action clearance'],
+  ['canonicalTaskbarSpacer:true','taskbar clearance uses the canonical shell spacer rather than the page background pseudo-element'],
   ['@media(max-height:760px)','short display layout rules'],
   ['width:min(900px,calc(100% - 32px))','settings no longer force 900px width']
 ])requireText(sidebar,token,label);
+requireText(foundation,'efc-taskbar-safe-space-v30','canonical shell contains the taskbar-safe bottom spacer');
+forbidText(sidebar,'main::after{content:"";display:block;width:100%;height:56px','taskbar fix must not overwrite the decorative main pseudo-element');
 
 requireText(index,'body{min-width:840px}','compact browser viewport minimum');
 requireText(index,'EFC_REQUEST_CLOSE_BACKUP','desktop close backup prompt bridge');
