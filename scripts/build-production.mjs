@@ -23,6 +23,7 @@ const runtimeFiles = [
   'assets/production-student-ui-v13.js',
   'assets/production-registration-schedule-v13.js',
   'assets/production-finance-ui-v13.js',
+  'assets/production-bank-v22.js',
   'assets/production-monthly-prepayment-ui-v14.js',
   'assets/production-registration-redesign-v15.js',
   'assets/production-registration-schedule-matrix-v17.js',
