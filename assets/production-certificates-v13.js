@@ -608,7 +608,7 @@ document.addEventListener('click',event=>{
 async function boot(){
   await loadState();ensureSidebar();
   window.EFC_REGISTER_STATE_CONTRIBUTOR?.('certificates',snapshot=>Object.assign(snapshot,{certificateBranches:state.certificateBranches,certificateReceipts:state.certificateReceipts,certificateNextReceiptNo:state.nextReceiptNo}));
-  const baseApply=window.EFC_APPLY_RESTORED_STATE;if(typeof baseApply==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{const result=await baseApply(incoming);if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)||incoming?.certificateNextReceiptNo){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[],certificateNextReceiptNo:incoming.certificateNextReceiptNo});await persist();}return result;};
+  window.EFC_REGISTER_RESTORE_CONTRIBUTOR?.('certificates',async incoming=>{if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)||incoming?.certificateNextReceiptNo){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[],certificateNextReceiptNo:incoming.certificateNextReceiptNo});await persist();}});
 
   window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;
   window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;
