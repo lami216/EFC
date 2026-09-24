@@ -1,9 +1,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod bank_state;
 mod certificate_state;
 mod license;
 mod receipt_pdf;
 
+use bank_state::{load_bank_state, save_bank_state};
 use certificate_state::{load_certificate_state, save_certificate_state};
 use license::{get_license_device_id, get_license_status, install_license_file};
 use receipt_pdf::save_receipt_pdf;
@@ -90,6 +92,18 @@ fn validate_state_json(raw: &str) -> Result<(), String> {
             }
         }
     }
+    for key in ["bankEntries", "bankTombstones"] {
+        if let Some(value) = object.get(key) {
+            if !value.is_array() {
+                return Err(format!("ملف النسخة يحتوي بيانات بنك غير صالحة: {key}"));
+            }
+        }
+    }
+    if let Some(value) = object.get("bankNextReceiptNo") {
+        if !value.as_u64().is_some_and(|number| number > 0) {
+            return Err("ملف النسخة يحتوي عداد روسيات بنك غير صالح.".to_string());
+        }
+    }
     Ok(())
 }
 
@@ -99,6 +113,7 @@ fn write_safety_backup(app: &tauri::AppHandle) -> Result<(), String> {
     };
     validate_state_json(&current)?;
     let combined = certificate_state::merge_into_main_state(app, &current)?;
+    let combined = bank_state::merge_into_main_state(app, &combined)?;
     let backups = app_data_dir(app)?.join("backups");
     fs::create_dir_all(&backups)
         .map_err(|e| format!("تعذر إنشاء مجلد نسخ الأمان: {e}"))?;
@@ -132,6 +147,7 @@ fn export_backup(app: tauri::AppHandle, suggested_name: String) -> Result<Option
     });
     validate_state_json(&state)?;
     let combined = certificate_state::merge_into_main_state(&app, &state)?;
+    let combined = bank_state::merge_into_main_state(&app, &combined)?;
 
     let Some(path) = rfd::FileDialog::new()
         .add_filter("EFC data backup", &["json"])
@@ -183,6 +199,8 @@ fn main() {
             import_backup,
             load_certificate_state,
             save_certificate_state,
+            load_bank_state,
+            save_bank_state,
             save_receipt_pdf,
             exit_app
         ])
