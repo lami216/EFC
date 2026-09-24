@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/accounting-integrity-v21
+      - feature/certificate-manager-receipt-bank-v22
   workflow_dispatch:
 
 permissions:
