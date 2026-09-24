@@ -14,6 +14,7 @@ const invoke=window.__TAURI__?.core?.invoke;
 let writeChain=Promise.resolve();
 let persistTimer=null;
 const stateContributors=new Map();
+const restoreContributors=new Map();
 
 const parseArray=(raw,fallback=[])=>{try{const value=JSON.parse(raw??'null');return Array.isArray(value)?value:fallback;}catch{return fallback;}};
 const safeClone=value=>JSON.parse(JSON.stringify(value??null));
@@ -65,11 +66,15 @@ const ready=(async()=>{
     if(typeof contribute!=='function')throw new TypeError('EFC state contributor must be a function.');
     stateContributors.set(String(name||`contributor-${stateContributors.size+1}`),contribute);
   };
+  window.EFC_REGISTER_RESTORE_CONTRIBUTOR=(name,restore)=>{
+    if(typeof restore!=='function')throw new TypeError('EFC restore contributor must be a function.');
+    restoreContributors.set(String(name||`restore-${restoreContributors.size+1}`),restore);
+  };
   window.EFC_FORCE_PERSIST=()=>{clearTimeout(persistTimer);persistTimer=null;return enqueueCurrentPersist();};
   window.EFC_CORE_CHANGED=()=>{markLocalChange();scheduleCurrentPersist();};
-  window.EFC_MERGE_IMPORTED_STATE=async incoming=>{const current=stateFromLocalStorage(),{state:merged,stats}=mergeStates(current,incoming),applied=applyState(merged,{freshTimestamp:true});await persistCoreNow(applied);return{state:applied,stats};};
+  window.EFC_MERGE_IMPORTED_STATE=async incoming=>{const current=stateFromLocalStorage(),{state:merged,stats}=mergeStates(current,incoming),applied=applyState(merged,{freshTimestamp:true});await persistCoreNow(applied);for(const restore of restoreContributors.values())await restore(incoming);return{state:applied,stats};};
   window.EFC_APPLY_RESTORED_STATE=window.EFC_MERGE_IMPORTED_STATE;
-  window.EFC_CORE_STORAGE_V13=Object.freeze({ready:true,explicitPersistence:true,serializedNativeWrites:true,stateContributors:true,noStoragePrototypePatch:true,noRuntimeScriptChain:true,revisionAwareStudentMerge:true,revisionAwarePaymentMerge:true,installationId:activeState.installationId,sourceCenters:activeState.sourceCenters?.length||1});
+  window.EFC_CORE_STORAGE_V13=Object.freeze({ready:true,explicitPersistence:true,serializedNativeWrites:true,stateContributors:true,restoreContributors:true,noStoragePrototypePatch:true,noRuntimeScriptChain:true,revisionAwareStudentMerge:true,revisionAwarePaymentMerge:true,installationId:activeState.installationId,sourceCenters:activeState.sourceCenters?.length||1});
   return window.EFC_CORE_STORAGE_V13;
 })().catch(error=>{console.error('EFC core storage bootstrap failed.',error);throw error;});
 window.EFC_CORE_STORAGE_READY=ready;
