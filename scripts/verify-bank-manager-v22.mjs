@@ -5,10 +5,10 @@ const need=(text,token,label=token)=>{if(!text.includes(token))throw new Error('
 const forbid=(text,token,label=token)=>{if(text.includes(token))throw new Error('Forbidden '+label+': '+token);};
 const bank=read('assets/production-bank-v22.js'),cert=read('assets/production-certificates-v13.js'),security=read('assets/production-security-ui-v13.js'),auth=read('assets/production-auth-bootstrap-v13.js'),foundation=read('assets/production-foundation-v13.js'),gate=read('assets/production-license-gate-v8.js'),build=read('scripts/build-production.mjs'),main=read('src-tauri/src/main.rs'),rust=read('src-tauri/src/bank_state.rs'),index=read('index.html');
 execFileSync(process.execPath,['--check','assets/production-bank-v22.js'],{stdio:'inherit'});
-for(const token of ['bankIndependentFromFinance:true','bankEntriesEditableAndDeletable:true','bankStatementFixedHeight:true','bankUsesIncomeAndExpenseLabels:true','bankReceiptSharedEmbeddedLogo:true','bankBackupRestore:true','bankOwnReceiptSequence:true','noFinanceStreamIntegration:true','window.EFC_RENDER_BANK_V22','window.EFC_SAVE_BANK_RECEIPT_PDF_V22','load_bank_state','save_bank_state','resize:none','إجمالي الصرف'])need(bank,token,'bank '+token);
+for(const token of ['bankIndependentFromFinance:true','bankEntriesEditableAndDeletable:true','bankStatementFixedHeight:true','bankUsesIncomeAndExpenseLabels:true','bankPeriodFiltersDailyWeeklyMonthlyYearly:true','bankPeriodReport:true','bankPeriodSummaryColors:true','bankReceiptSharedEmbeddedLogo:true','bankBackupRestore:true','bankOwnReceiptSequence:true','noFinanceStreamIntegration:true','window.EFC_RENDER_BANK_V22','window.EFC_SAVE_BANK_RECEIPT_PDF_V22','window.EFC_OPEN_BANK_PERIOD_REPORT_V23','window.EFC_SAVE_BANK_PERIOD_REPORT_PDF_V23','load_bank_state','save_bank_state','resize:none','إجمالي الصرف','المتبقي','روسي الفترة','bankFilterRange','bankPeriodReportBody','bank-report-kpi-v23 income','bank-report-kpi-v23 expense','bank-report-kpi-v23 balance'])need(bank,token,'bank '+token);
 forbid(bank,'allPayments(','bank must not enter student finance stream');
 forbid(bank,'EFC_CERTIFICATE_PAYMENTS_V13','bank must not enter certificate finance stream');
-forbid(bank,"?'مخرج':'دخل'",'bank UI must use the clearer outgoing label صرف');
+forbid(bank,'مخرج','bank UI must consistently use صرف instead of مخرج');
 need(foundation,"['bank'",'bank navigation');
 need(auth,"'bank'",'bank permission section');
 need(security,"else if(page==='bank')window.EFC_RENDER_BANK_V22?.()",'bank route');
@@ -23,4 +23,4 @@ need(cert,"certificateManagerRows(from,to,{branch='',specialty=''}={})",'certifi
 forbid(cert,'managerPaymentBreakdownV22','manager receipt must not include payment breakdown');
 forbid(cert,'روسي سحب مالية الشهادات','manager receipt must not use withdrawal wording');
 const indexVersions=[...index.matchAll(/[?&]v=([^"&]+)/g)].map(m=>m[1]),gateVersion=gate.match(/RUNTIME_VERSION='([^']+)'/)?.[1];if(!gateVersion||!indexVersions.length||indexVersions.some(v=>v!==gateVersion))throw new Error('Cache version mismatch after bank/manager receipt changes.');
-console.log('Bank v22, certificate manager receipt, reminder logo and backup integration verified.');
+console.log('Bank v22 period filters, colored summaries/reports, certificate manager receipt, reminder logo and backup integration verified.');
