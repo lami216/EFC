@@ -11,6 +11,8 @@ const ICONS={
   center:icon('<path d="M6 20V8h12v12M9 8V5h6v3M4 20h16M9 12h2M13 12h2M9 16h2M13 16h2"/>'),
   course:icon('<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
   money:icon('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v5c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 11v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>'),
+  phone:icon('<path d="M7.2 3.8 5 5.1c-.8.5-1.1 1.5-.7 2.4 2.7 5.8 6.4 9.5 12.2 12.2.9.4 1.9.1 2.4-.7l1.3-2.2-4.1-2-1.2 1.5c-2.9-1.4-5.8-4.3-7.2-7.2l1.5-1.2Z"/>'),
+  register:icon('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
   users:icon('<circle cx="9" cy="9" r="3"/><circle cx="16" cy="10" r="2.5"/><path d="M3.5 20c.7-4 2.7-6 5.5-6s4.8 2 5.5 6M14.5 15c2.8 0 4.7 1.7 5.3 5"/>'),
   clock:icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   calendar:icon('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 9h18"/>'),
@@ -25,7 +27,7 @@ function wrapControl(control,kind){
   if(!control||control.parentElement?.classList.contains('efc-period-control-v28'))return;
   const wrap=document.createElement('div');wrap.className=`efc-period-control-v28 ${kind||''}`;
   const marker=document.createElement('span');marker.className='efc-period-control-icon-v28';
-  marker.innerHTML=kind==='branch'?ICONS.center:kind==='course'?ICONS.course:kind==='state'?ICONS.money:ICONS.search;
+  marker.innerHTML=kind==='branch'?ICONS.center:kind==='course'?ICONS.course:kind==='state'?ICONS.money:kind==='phone'?ICONS.phone:kind==='register'?ICONS.register:ICONS.search;
   control.parentNode.insertBefore(wrap,control);wrap.appendChild(control);wrap.appendChild(marker);
 }
 function enhancePeriod(){
@@ -49,6 +51,8 @@ function enhancePeriod(){
   }
 
   const search=document.getElementById('periodSearchV13');
+  const phone=document.getElementById('periodPhoneV13');
+  const register=document.getElementById('periodRegV13');
   const branch=document.getElementById('periodBranchV13');
   const course=document.getElementById('periodSpecV13');
   const state=document.getElementById('periodStateV13');
@@ -58,8 +62,8 @@ function enhancePeriod(){
   if(!card.querySelector('.efc-period-filter-row-v28')){
     const row=document.createElement('div');row.className='efc-period-filter-row-v28';
     card.querySelector('.efc-period-card-title-v28')?.after(row);
-    [search,branch,course,state].forEach(node=>node&&row.appendChild(node));
-    wrapControl(search,'search');wrapControl(branch,'branch');wrapControl(course,'course');wrapControl(state,'state');
+    [search,phone,register,branch,course,state].forEach(node=>node&&row.appendChild(node));
+    wrapControl(search,'search');wrapControl(phone,'phone');wrapControl(register,'register');wrapControl(branch,'branch');wrapControl(course,'course');wrapControl(state,'state');
   }
   if(toolbar)toolbar.classList.add('efc-period-toolbar-v28');
   card.classList.add('efc-period-card-v28');
@@ -68,7 +72,7 @@ function enhancePeriod(){
 }
 
 // Consolidated result-count behavior formerly loaded as v33.
-const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodFromV13','periodToV13','periodEndingFromV13','periodEndingToV13','periodBranchV13','periodSpecV13','periodStateV13']);
+const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodPhoneV13','periodRegV13','periodFromV13','periodToV13','periodEndingFromV13','periodEndingToV13','periodBranchV13','periodSpecV13','periodStateV13']);
 const tabUnit={registrations:'طلاب',payments:'عمليات',debts:'طلاب',ending:'دورات'};
 let syncTimer=0;
 
@@ -131,12 +135,12 @@ body.efc-period-redesign-v28 .production-side-note{display:none!important}
 body.efc-period-redesign-v28 .period-search-card-prod.efc-period-card-v28{display:block!important;width:900px!important;max-width:900px!important;min-width:900px!important;margin:0 0 14px!important;padding:12px 13px 14px!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(135deg,rgba(239,251,247,.96),rgba(251,255,253,.99))!important;box-shadow:0 10px 28px rgba(22,83,64,.045)!important}
 .efc-period-card-title-v28{width:180px;height:42px;margin:0 0 10px auto;border:1px solid #62ad99;border-radius:10px;background:linear-gradient(135deg,#e8f9f3,#dff4ed);display:flex;align-items:center;justify-content:center;gap:10px;color:#124b40;font-size:16px;font-weight:800}
 .efc-period-card-title-v28 svg{width:23px;height:23px}
-.efc-period-filter-row-v28{display:grid;grid-template-columns:minmax(280px,1.65fr) repeat(3,minmax(150px,1fr));gap:9px;direction:rtl;align-items:center}
+.efc-period-filter-row-v28{display:grid;grid-template-columns:minmax(175px,1.35fr) minmax(128px,.9fr) minmax(98px,.65fr) repeat(3,minmax(118px,.9fr));gap:8px;direction:rtl;align-items:center}
 .efc-period-control-v28{position:relative;min-width:0}.efc-period-control-v28>input,.efc-period-control-v28>select{width:100%!important;height:43px!important;min-width:0!important;border:1px solid #d2ded9!important;border-radius:8px!important;background:#fff!important;color:#172622!important;font-size:11.5px!important;box-shadow:none!important;outline:none!important}
-.efc-period-control-v28>input{padding:8px 13px 8px 38px!important}.efc-period-control-v28>select{padding:8px 38px 8px 12px!important;appearance:auto!important}
+.efc-period-control-v28>input{padding:8px 13px 8px 38px!important}.efc-period-control-v28.phone>input,.efc-period-control-v28.register>input{direction:ltr!important;text-align:left!important}.efc-period-control-v28>select{padding:8px 38px 8px 12px!important;appearance:auto!important}
 .efc-period-control-v28>input:focus,.efc-period-control-v28>select:focus{border-color:#1b8c70!important;box-shadow:0 0 0 3px rgba(27,140,112,.10)!important}
 .efc-period-control-icon-v28{position:absolute;top:50%;transform:translateY(-50%);width:20px;height:20px;color:#0b5f4c;display:grid;place-items:center;pointer-events:none}
-.efc-period-control-v28.search .efc-period-control-icon-v28{left:11px}.efc-period-control-v28.branch .efc-period-control-icon-v28,.efc-period-control-v28.course .efc-period-control-icon-v28,.efc-period-control-v28.state .efc-period-control-icon-v28{right:11px}.efc-period-control-icon-v28 svg{width:19px;height:19px}
+.efc-period-control-v28.search .efc-period-control-icon-v28,.efc-period-control-v28.phone .efc-period-control-icon-v28,.efc-period-control-v28.register .efc-period-control-icon-v28{left:11px}.efc-period-control-v28.branch .efc-period-control-icon-v28,.efc-period-control-v28.course .efc-period-control-icon-v28,.efc-period-control-v28.state .efc-period-control-icon-v28{right:11px}.efc-period-control-icon-v28 svg{width:19px;height:19px}
 
 body.efc-period-redesign-v28 .period-toolbar-prod.efc-period-toolbar-v28{margin-top:10px!important;padding-top:0!important;display:flex!important;align-items:flex-end!important;justify-content:space-between!important;gap:14px!important;direction:rtl!important}
 body.efc-period-redesign-v28 .period-tabs-prod{display:flex!important;align-items:center!important;gap:6px!important;flex-wrap:nowrap!important}
@@ -251,5 +255,5 @@ html body.efc-student-search-redesign-v31 .page-title::after{
 
 `;
 document.head.appendChild(style);
-window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,endingFutureRangeVisuals:true,endingFutureRangeCountSync:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,canonicalPeriodRenderer:true,singlePeriodRenderOwner:true,noPeriodWrapperChain:true,mainUntouched:true});
+window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,endingFutureRangeVisuals:true,endingFutureRangeCountSync:true,separatePhoneRegisterControls:true,leadingZeroRegisterFilterVisual:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,canonicalPeriodRenderer:true,singlePeriodRenderOwner:true,noPeriodWrapperChain:true,mainUntouched:true});
 })();
