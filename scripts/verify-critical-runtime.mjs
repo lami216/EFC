@@ -67,6 +67,8 @@ forbidText(registrationReceipt,'pendingSchedule','registration receipt global st
 requireText(registrationReceipt,'noCrossRegistrationPendingState:true','registration receipts use the saved student schedule without cross-operation pending state');
 
 const certificates=read('assets/production-certificates-v13.js');
+requireText(certificates,'certificateReceiptPaidAmountLabel:true','certificate receipt labels the paid amount explicitly');
+requireText(certificates,"half('Montant',cash(receipt.amount),'المبلغ المدفوع')",'certificate receipt paid amount wording');
 for(const token of ['selectStudent(id)','clearStudentSelection()','renderStudentPicker()','renderHistoryRows(receipts=state.certificateReceipts)','drawCertificateHistory()','resetTransientIssueState()','issueInFlight','addBranchOption(branch)'])requireText(certificates,token,`certificate controller ${token}`);
 requireText(certificates,'state.certificateReceipts=state.certificateReceipts.filter','certificate issue rollback after persistence failure');
 requireText(certificates,"'\"':'&quot;'",'certificate HTML quote escaping');
@@ -79,6 +81,15 @@ const domain=read('assets/production-domain-v13.js');
 for(const token of ['function reminderNote(','kind:\'monthly-upcoming\'','kind:overdue?\'debt-overdue\':\'debt-due\'','contextLabel','contextValue','هذا تذكير بتجديد الشهر القادم','موعد الاستحقاق','تحديث ملفكم المالي'])requireText(domain,token,`structured reminder domain ${token}`);
 
 const studentUi=read('assets/production-student-ui-v13.js');
+for(const [token,label] of [
+  ['endingFutureRangeFilter:true','ending tab exposes a future-capable date range'],
+  ['endingRangeIndependentFromOtherTabs:true','ending date range is independent from the other period tabs'],
+  ['periodEndingFromV13','ending range start control'],
+  ['periodEndingToV13','ending range end control'],
+  ['separateStudentPhoneAndRegisterSearch:true','student search separates phone and register fields'],
+  ['exactNormalizedRegisterSearch:true','student register matching normalizes leading zeroes'],
+  ['recordSearchKeyV13(student.reg)===recordQuery','student register search is exact and cannot collide with phone digits']
+])requireText(studentUi,token,label);
 for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminder-actions-v13','حفظ PDF'])requireText(studentUi,token,`student reminder action ${token}`);
 
 const financeUi=read('assets/production-finance-ui-v13.js');
@@ -145,12 +156,17 @@ forbidText(coursesRedesign,'padding:18px 22px 34px!important;overflow-x:hidden',
 forbidText(registration,'body.efc-registration-editing-v17{overflow-y:auto!important}','registration edit mode must not move page scrolling back to body');
 forbidText(registration,'max-height:calc(100dvh - 118px)!important;overflow-y:auto!important','registration edit form must not create a second page-height scrollbar');
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
+requireText(periodUi,'endingFutureRangeVisuals:true','period redesign styles the dedicated ending range');
+requireText(periodUi,"'periodEndingFromV13','periodEndingToV13'",'period result count tracks ending-range changes');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
+requireText(studentSearchUi,'separatePhoneAndRegisterControls:true','student search redesign lays out separate phone/register controls');
 requireText(baseUi,'.content .table-wrap{max-height:min(520px,calc(100dvh - 250px))','long app tables have a global internal-scroll safety cap');
 requireText(baseUi,'scrollbar-gutter:auto','table lists do not reserve an empty scrollbar gutter');
 requireText(financeUi,'function axisStep','finance charts use stable human-friendly Y-axis steps');
 requireText(financeUi,'viewProfitabilityDetailsV13','profitability dashboard exposes a dedicated details action');
+requireText(financeUi,'profitabilityDetailsTotalProfit:true','profitability details show total profit');
+requireText(financeUi,'financeResponsiveAt900LikeLedger:true','finance compact layout matches ledger behavior');
 requireText(financeUi,'function renderProfitabilityDetails','profitability detail table lives on its own page');
 requireText(financeUi,'compactFinanceKpis:true','finance KPI titles stay compact');
 forbidText(financeUi,'expense-list-v13','expense history is no longer embedded under the expense dashboard');
@@ -183,6 +199,8 @@ requireText(authUi,"if(section==='ledger')return user.permissions?.ledger?.view=
 requireText(authUi,"if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true",'registration edit access can record daily expenses');
 requireText(securityUi,"finance:'.edit-expense-v13',ledger:'#addLedgerExpenseV13'",'finance view actions stay usable while daily expense creation has its own guard');
 const receiptsUi=read('assets/production-receipts-v13.js');
+requireText(receiptsUi,'registrationReceiptPaidAmountLabel:true','registration receipt labels the paid amount explicitly');
+requireText(receiptsUi,"half('Montant',moneyV3(model.amount),'المبلغ المدفوع')",'registration receipt paid amount wording');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
 
 const indexHtml=read('index.html');
