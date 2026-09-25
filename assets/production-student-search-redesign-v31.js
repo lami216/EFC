@@ -78,7 +78,7 @@ html body.efc-student-search-redesign-v31 .page-title>.button{display:none!impor
 html body.efc-student-search-redesign-v31 .student-search-filters-v13.efc-student-search-filters-v31{
   width:900px!important;max-width:900px!important;min-width:900px!important;
   margin:0 0 14px!important;padding:12px 13px 14px!important;
-  display:grid!important;grid-template-columns:minmax(280px,1.65fr) repeat(2,minmax(180px,1fr))!important;
+  display:grid!important;grid-template-columns:minmax(190px,1.45fr) minmax(140px,1fr) 110px minmax(150px,1fr) minmax(160px,1.15fr)!important;
   gap:9px!important;align-items:center!important;direction:rtl!important;
   border:1.4px solid #4aa68c!important;border-radius:13px!important;
   background:linear-gradient(135deg,rgba(239,251,247,.96),rgba(251,255,253,.99))!important;
@@ -91,6 +91,7 @@ html body.efc-student-search-redesign-v31 .student-search-filters-v13 select{
   color:#172622!important;font-size:11.5px!important;box-shadow:none!important;outline:none!important;box-sizing:border-box!important;
 }
 html body.efc-student-search-redesign-v31 .student-search-filters-v13 input{padding:8px 13px!important}
+html body.efc-student-search-redesign-v31 #studentPhoneV13,html body.efc-student-search-redesign-v31 #studentRegV13{direction:ltr!important;text-align:left!important}
 html body.efc-student-search-redesign-v31 .student-search-filters-v13 select{padding:8px 12px!important}
 html body.efc-student-search-redesign-v31 .student-search-filters-v13 input:focus,
 html body.efc-student-search-redesign-v31 .student-search-filters-v13 select:focus{border-color:#1b8c70!important;box-shadow:0 0 0 3px rgba(27,140,112,.10)!important}
@@ -163,6 +164,6 @@ document.head.appendChild(style);
 
 window.EFC_STUDENT_SEARCH_REDESIGN_V31=Object.freeze({
   ready:true,periodVisualLanguage:true,preservedStudentSearchContent:true,preservedStudentSearchBehavior:true,
-  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
+  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,separatePhoneAndRegisterControls:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
 });
 })();
