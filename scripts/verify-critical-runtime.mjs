@@ -87,8 +87,12 @@ for(const [token,label] of [
   ['periodEndingFromV13','ending range start control'],
   ['periodEndingToV13','ending range end control'],
   ['separateStudentPhoneAndRegisterSearch:true','student search separates phone and register fields'],
-  ['exactNormalizedRegisterSearch:true','student register matching normalizes leading zeroes'],
-  ['recordSearchKeyV13(student.reg)===recordQuery','student register search is exact and cannot collide with phone digits']
+  ['exactNormalizedRegisterSearch:true','student register matching normalizes non-padded register input'],
+  ['registerLeadingZeroPrefixSearch:true','register search respects the displayed leading-zero prefix while typing'],
+  ['separatePeriodPhoneAndRegisterSearch:true','period search separates phone and register fields'],
+  ['function recordSearchMatchesV13(value,query)','shared register search matcher'],
+  ["if(/^0/.test(raw))return displayRecordV13(value).startsWith(raw)",'leading-zero register input matches the padded register shown in tables'],
+  ['recordSearchMatchesV13(student.reg,recordQuery)','student register search uses the shared register matcher']
 ])requireText(studentUi,token,label);
 for(const token of ['reminder-view-v13','EFC_OPEN_REMINDER_V13','student-reminder-actions-v13','حفظ PDF'])requireText(studentUi,token,`student reminder action ${token}`);
 
@@ -157,6 +161,8 @@ forbidText(registration,'body.efc-registration-editing-v17{overflow-y:auto!impor
 forbidText(registration,'max-height:calc(100dvh - 118px)!important;overflow-y:auto!important','registration edit form must not create a second page-height scrollbar');
 requireText(periodUi,'height:calc(100vh - 392px)!important','period search results scroll internally');
 requireText(periodUi,'endingFutureRangeVisuals:true','period redesign styles the dedicated ending range');
+requireText(periodUi,'separatePhoneRegisterControls:true','period search redesign exposes separate phone/register controls');
+requireText(periodUi,"'periodPhoneV13','periodRegV13'",'period result count tracks phone/register search fields');
 requireText(periodUi,"'periodEndingFromV13','periodEndingToV13'",'period result count tracks ending-range changes');
 requireText(periodUi,'position:sticky!important;top:0!important;z-index:3!important','period search keeps its table header visible');
 requireText(studentSearchUi,'height:calc(100vh - 205px)!important','student search results scroll internally');
