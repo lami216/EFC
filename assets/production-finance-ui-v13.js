@@ -142,9 +142,9 @@ renderFinance=function(initialSection='income'){
 
 function renderProfitabilityDetails(context={}){
   currentPage='finance';expenses=D.getExpenses();
-  const current=today(),currentYear=Number(current.slice(0,4)),currentMonth=Number(current.slice(5,7)),mode=['daily','monthly','yearly'].includes(context.mode)?context.mode:'monthly',year=Number(context.year||currentYear),month=Number(context.month||currentMonth),day=String(context.day||current),branch=String(context.branch||''),specialty=String(context.specialty||''),range=mode==='daily'?dayBounds(day):mode==='monthly'?monthBounds(year,month):yearBounds(year),effectiveTo=range.to<current?range.to:current,period=mode==='daily'?showDate(day):mode==='monthly'?`${monthNames[month-1]} ${year}`:`سنة ${year}`,income=allPayments().filter(row=>row.date>=range.from&&row.date<=effectiveTo&&(!branch||row.student.branch===branch)&&(!specialty||(specialty!==GENERAL_EXPENSE&&row.student.specialty===specialty))),costs=expenses.filter(row=>expenseMatches(row,{from:range.from,to:effectiveTo,branch,specialty}));
+  const current=today(),currentYear=Number(current.slice(0,4)),currentMonth=Number(current.slice(5,7)),mode=['daily','monthly','yearly'].includes(context.mode)?context.mode:'monthly',year=Number(context.year||currentYear),month=Number(context.month||currentMonth),day=String(context.day||current),branch=String(context.branch||''),specialty=String(context.specialty||''),range=mode==='daily'?dayBounds(day):mode==='monthly'?monthBounds(year,month):yearBounds(year),effectiveTo=range.to<current?range.to:current,period=mode==='daily'?showDate(day):mode==='monthly'?`${monthNames[month-1]} ${year}`:`سنة ${year}`,income=allPayments().filter(row=>row.date>=range.from&&row.date<=effectiveTo&&(!branch||row.student.branch===branch)&&(!specialty||(specialty!==GENERAL_EXPENSE&&row.student.specialty===specialty))),costs=expenses.filter(row=>expenseMatches(row,{from:range.from,to:effectiveTo,branch,specialty})),incomeTotal=income.reduce((sum,row)=>sum+Number(row.amount||0),0),expenseTotal=costs.reduce((sum,row)=>sum+Number(row.amount||0),0),netProfit=incomeTotal-expenseTotal;
   let view='branch';
-  shell(`<section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>تفاصيل الربحية</h1></section><div class="profitability-details-toolbar-v13"><button class="button secondary" id="backToProfitV13">العودة للربحية</button><span>${esc(period)}</span></div><div class="card profitability-explorer-v13 profitability-details-v13"><div class="segmented profitability-mode-v13" id="profitDimensionV13"><button class="active" data-profit-view="branch">الفرع</button><button data-profit-view="specialty">الدورة</button><button data-profit-view="method">وسيلة الدفع</button></div><div id="profitabilityListV13">${profitabilityTable(view,income,costs)}</div></div>`);
+  shell(`<section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>تفاصيل الربحية</h1></section><div class="profitability-details-toolbar-v13"><button class="button secondary" id="backToProfitV13">العودة للربحية</button><span>${esc(period)}</span></div><div class="profitability-total-v13"><small>مجموع الربح</small><b class="${netProfit<0?'negative-v13':''}">${cash(netProfit)}</b></div><div class="card profitability-explorer-v13 profitability-details-v13"><div class="segmented profitability-mode-v13" id="profitDimensionV13"><button class="active" data-profit-view="branch">الفرع</button><button data-profit-view="specialty">الدورة</button><button data-profit-view="method">وسيلة الدفع</button></div><div id="profitabilityListV13">${profitabilityTable(view,income,costs)}</div></div>`);
   document.getElementById('backToProfitV13')?.addEventListener('click',()=>renderFinance('profit'));
   const list=document.getElementById('profitabilityListV13');
   document.querySelectorAll('#profitDimensionV13 [data-profit-view]').forEach(button=>button.onclick=()=>{view=button.dataset.profitView;document.querySelectorAll('#profitDimensionV13 [data-profit-view]').forEach(item=>item.classList.toggle('active',item===button));list.innerHTML=profitabilityTable(view,income,costs);});
@@ -214,7 +214,7 @@ const style=document.createElement('style');style.textContent=`
 .content:has(.finance-switch-v13) .finance-kpi-line-v13 b{font-size:16px!important;line-height:1!important;white-space:nowrap!important;flex:0 0 auto!important}
 .content:has(.finance-switch-v13) #financeBodyV13>.kpis span{margin-top:4px!important;font-size:9px!important;color:#657a73!important}
 .profitability-details-toolbar-v13{width:900px;margin:0 0 9px;display:flex;align-items:center;justify-content:space-between;gap:10px;direction:ltr}
-.profitability-details-toolbar-v13 .button{height:38px;border-radius:9px;padding:0 16px}.profitability-details-toolbar-v13 span{direction:rtl;font-size:10px;font-weight:760;color:#4d6c63;background:#eef8f4;border:1px solid #cce3db;border-radius:999px;padding:7px 12px}
+.profitability-details-toolbar-v13 .button{height:38px;border-radius:9px;padding:0 16px}.profitability-details-toolbar-v13 span{direction:rtl;font-size:10px;font-weight:760;color:#4d6c63;background:#eef8f4;border:1px solid #cce3db;border-radius:999px;padding:7px 12px}.profitability-total-v13{width:900px!important;margin:0 0 10px!important;padding:12px 16px!important;border:1.4px solid #9ed8bd!important;border-radius:12px!important;background:linear-gradient(135deg,#e7f8ef,#d8f2e4)!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;direction:rtl!important;box-sizing:border-box!important}.profitability-total-v13 small{font-size:11px!important;font-weight:850!important;color:#245344!important}.profitability-total-v13 b{font-size:22px!important;color:#075844!important;white-space:nowrap!important}
 .profitability-details-v13{width:900px!important;margin:0!important;padding:14px!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:linear-gradient(145deg,#fbfffd,#f4fbf8)!important;box-shadow:0 9px 25px rgba(22,83,64,.04)!important}
 .profitability-details-v13 .profitability-mode-v13{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:6px!important;width:360px!important;margin:0 0 12px auto!important;padding:4px!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important}
 .profitability-details-v13 .profitability-mode-v13 button{height:34px!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#567269!important;font-family:inherit!important;font-size:10.5px!important;font-weight:780!important;cursor:pointer!important}
@@ -226,7 +226,8 @@ const style=document.createElement('style');style.textContent=`
 
 @media(max-width:1180px){
   .content:has(.finance-switch-v13),
-  .content:has(.expense-history-v13){
+  .content:has(.expense-history-v13),
+  .content:has(.profitability-details-v13){
     width:calc(100% - 24px)!important;max-width:900px!important;min-width:0!important;
     margin:0 auto!important;margin-right:auto!important;padding-left:0!important;padding-right:0!important;overflow:visible!important
   }
@@ -245,7 +246,7 @@ const style=document.createElement('style');style.textContent=`
   .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23>.card:last-child{grid-column:1/-1!important}
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card:last-child{grid-column:1/-1!important}
-  .expense-history-v13,.profitability-details-v13{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+  .expense-history-v13,.profitability-details-v13,.profitability-total-v13{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
   .expense-history-v13 table{min-width:760px!important}
   .profitability-details-v13 table{min-width:620px!important}
 }
@@ -262,6 +263,17 @@ const style=document.createElement('style');style.textContent=`
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card:last-child{grid-column:auto!important}
   .profitability-details-v13 .profitability-mode-v13{width:100%!important;margin-left:0!important;margin-right:0!important}
   .profitability-details-toolbar-v13,.expense-history-toolbar-v13{flex-wrap:wrap!important}
+}
+@media(max-width:900px){
+  .content:has(.finance-switch-v13) .finance-controls-v13{grid-template-columns:1fr!important}
+  .content:has(.finance-switch-v13) #financeModeV13{grid-column:auto!important;width:100%!important}
+  .content:has(.finance-switch-v13) #financePrimaryActionV13{justify-content:stretch!important}
+  .content:has(.finance-switch-v13) #financePrimaryActionV13 .button{width:100%!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis,
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23>.card:last-child{grid-column:1/-1!important}
+  .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns{grid-template-columns:1fr!important}
+  .profitability-total-v13{padding:10px 12px!important}
 }
 @media(max-height:650px) and (max-width:1180px){
   .content:has(.finance-switch-v13){padding-top:8px!important;padding-bottom:8px!important}
@@ -314,5 +326,5 @@ ledgerRedesignStyle.textContent=`
 `;
 document.head.appendChild(ledgerRedesignStyle);
 window.EFC_RENDER_LEDGER_BASE_V13=renderLedgerBaseV13;
-window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,expenseHistoryActionRed:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,expenseReceiptsNumericSequence:true,financeResponsiveLikeLedger:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
+window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,expenseHistoryActionRed:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,profitabilityDetailsTotalProfit:true,expenseReceiptsNumericSequence:true,financeResponsiveLikeLedger:true,financeResponsiveAt900LikeLedger:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
 })();
