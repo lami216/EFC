@@ -163,6 +163,6 @@ document.head.appendChild(style);
 
 window.EFC_STUDENT_SEARCH_REDESIGN_V31=Object.freeze({
   ready:true,periodVisualLanguage:true,preservedStudentSearchContent:true,preservedStudentSearchBehavior:true,
-  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
+  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,unifiedIdentitySearchControl:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
 });
 })();

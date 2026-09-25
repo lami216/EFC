@@ -60,10 +60,16 @@ for(const [token,label] of [
   ['expenseWaitImages(paper)','expense PDF image readiness'],
   ['profitDetailsActionEmphasized:true','profit details action is visually emphasized'],
   ['profitabilitySpreadsheetTable:true','profit details use spreadsheet table styling'],
+  ['profitabilityDetailsTotalProfit:true','profit details show total net profit above the explorer'],
+  ['profitability-total-v13','profit details total card'],
+  ['<small>مجموع الربح</small>','profit details total label'],
   ['finance-profit-details-action-v27','profit details button class'],
   ['expenseReceiptsNumericSequence:true','expense receipts use numeric sequence'],
   ['function expenseReceiptCode(row){const number=expenseReceiptNumberOf','expense receipt header is numeric'],
   ['financeResponsiveLikeLedger:true','finance dashboards adapt like the daily ledger on narrower screens'],
+  ['financeResponsiveAt900LikeLedger:true','finance switches to ledger-like compact controls at 900px'],
+  ['@media(max-width:900px){','finance 900px compact breakpoint'],
+  ['.content:has(.finance-switch-v13) .finance-controls-v13{grid-template-columns:1fr!important}','finance controls collapse to one column on compact screens'],
   ['@media(max-width:1180px){','finance compact viewport breakpoint'],
   ['ledgerResponsiveLikeFinance:true','ledger adapts on narrower screens'],
   ['@media(max-width:1180px)','ledger responsive breakpoint'],
@@ -102,6 +108,9 @@ forbidFinance('<small>صافي اليوم</small>','obsolete daily net label');
 
 for(const [token,label] of [
   ['certificateFinanceResponsiveLikeLedger:true','certificate finance adapts like the daily ledger'],
+  ['certificateFinanceSpecialtyTerminology:true','certificate finance uses specialty terminology'],
+  ['حسب تخصص الشهادة','certificate finance specialty breakdown label'],
+  ['تخصص الشهادة<select id="certFinanceSpecialtyV13"','certificate finance specialty filter label'],
   ['@media(max-height:650px) and (max-width:1100px)','certificate finance compacts vertically on short narrow displays'],
   ['cert-finance-controls-v13[data-mode]{grid-template-columns:repeat(2,minmax(0,1fr))!important','certificate finance filters wrap safely on compact screens']
 ])requireCertificate(token,label);

@@ -16,6 +16,7 @@ const RUNTIME=[
   './assets/production-student-ui-v13.js',
   './assets/production-registration-schedule-v13.js',
   './assets/production-finance-ui-v13.js',
+  './assets/production-bank-v22.js',
   './assets/production-monthly-prepayment-ui-v14.js',
   './assets/production-registration-redesign-v15.js',
   './assets/production-registration-schedule-matrix-v17.js',
@@ -29,7 +30,7 @@ const RUNTIME=[
 ];
 const BOOTSTRAP_RUNTIME=RUNTIME.slice(0,2);
 const APP_RUNTIME=RUNTIME.slice(2);
-const RUNTIME_VERSION='20260922-certificate-records-summary-center-1';
+const RUNTIME_VERSION='20260925-bank-statement-bounds-2';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -71,6 +72,7 @@ async function startApplication(){
     await loadStage('./assets/production-student-ui-v13.js','واجهة الطلاب',()=>window.EFC_STUDENT_UI_V13?.ready);
     await loadStage('./assets/production-registration-schedule-v13.js','جدول تسجيل الطالب',()=>window.EFC_REGISTRATION_SCHEDULE_V13?.ready);
     await loadStage('./assets/production-finance-ui-v13.js','المالية',()=>window.EFC_FINANCE_UI_V13?.ready);
+    await loadStage('./assets/production-bank-v22.js','البنك',()=>window.EFC_BANK_V22?.ready);
     await loadStage('./assets/production-monthly-prepayment-ui-v14.js','واجهة الدفعات الشهرية',()=>window.EFC_MONTHLY_PREPAYMENT_UI_V14?.ready);
     await loadStage('./assets/production-registration-redesign-v15.js','التصميم النهائي لتسجيل الطالب',()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready);
     await loadStage('./assets/production-registration-schedule-matrix-v17.js','جدول الدورات في تسجيل الطالب',()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready);
@@ -109,5 +111,5 @@ async function silentStartup(){try{const status=await invoke('get_license_status
 if(!invoke){startApplication().catch(error=>{console.error('EFC browser bootstrap failed.',error);reveal();if(app)app.innerHTML=`<div style="max-width:720px;margin:90px auto;text-align:center;color:#8f3527"><b>تعذر تشغيل نظام EFC.</b><br><small>${String(error?.message||error)}</small></div>`;});}
 else silentStartup();
 
-window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveConsolidated:true,registrationScheduleMatrixV17:true,studentLifecycleV20:true,earlyCanonicalLogin:true,loginBeforeAppRuntime:true,noPostSecurityLoginLayer:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,parallelRuntimePreload:true,loginFirstPreload:true,heavyPreloadAfterLogin:true,gateOwnsBootReveal:true,finalUiBeforeReveal:true,centerOpsV13:true});
+window.EFC_LICENSE_GATE_V8=Object.freeze({offline:true,deviceBound:true,signedFiles:true,temporaryWatch:true,runtimeBlockedUntilValid:true,silentValidStartup:true,activationUiOnlyWhenInvalid:true,noReloadAfterInstall:true,noStartupSplash:true,deterministicRuntimeOrder:true,foundationV13:true,standaloneReceiptsV13:true,registrationScheduleV13:true,monthlyPrepaymentV14:true,registrationRedesignV15:true,registrationResponsiveConsolidated:true,registrationScheduleMatrixV17:true,studentLifecycleV20:true,bankV22:true,earlyCanonicalLogin:true,loginBeforeAppRuntime:true,noPostSecurityLoginLayer:true,noLegacyDemoRuntime:true,domainBeforeReceiptSequence:true,singleStartupRender:true,parallelRuntimePreload:true,loginFirstPreload:true,heavyPreloadAfterLogin:true,gateOwnsBootReveal:true,finalUiBeforeReveal:true,centerOpsV13:true});
 })();
