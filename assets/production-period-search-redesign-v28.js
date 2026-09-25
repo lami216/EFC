@@ -68,7 +68,7 @@ function enhancePeriod(){
 }
 
 // Consolidated result-count behavior formerly loaded as v33.
-const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodFromV13','periodToV13','periodBranchV13','periodSpecV13','periodStateV13']);
+const PERIOD_INPUT_IDS=new Set(['periodSearchV13','periodFromV13','periodToV13','periodEndingFromV13','periodEndingToV13','periodBranchV13','periodSpecV13','periodStateV13']);
 const tabUnit={registrations:'طلاب',payments:'عمليات',debts:'طلاب',ending:'دورات'};
 let syncTimer=0;
 
@@ -145,9 +145,9 @@ body.efc-period-redesign-v28 .period-tabs-prod button.active{background:linear-g
 body.efc-period-redesign-v28 .period-tabs-prod button[data-tab="payments"]{background:#fff4dc!important;border-color:#e8c672!important}
 body.efc-period-redesign-v28 .period-tabs-prod button[data-tab="dues"],body.efc-period-redesign-v28 .period-tabs-prod button[data-tab="ending"]{background:#eaf5ff!important;border-color:#bcd6ec!important}
 body.efc-period-redesign-v28 .period-tabs-prod button.active[data-tab="payments"],body.efc-period-redesign-v28 .period-tabs-prod button.active[data-tab="dues"],body.efc-period-redesign-v28 .period-tabs-prod button.active[data-tab="ending"]{background:linear-gradient(180deg,#0b755d,#08624f)!important;border-color:#08624f!important;color:#fff!important}
-body.efc-period-redesign-v28 .period-dates-prod{display:flex!important;align-items:flex-end!important;gap:8px!important;margin-inline-start:auto!important;direction:rtl!important}
-body.efc-period-redesign-v28 .period-dates-prod label{min-width:150px!important;margin:0!important;gap:5px!important;font-size:9px!important;color:#5c6f68!important;font-weight:650!important}
-body.efc-period-redesign-v28 .period-dates-prod .input{width:150px!important;min-width:150px!important;height:42px!important;border:1px solid #d2ded9!important;border-radius:8px!important;background:#fff!important;font-size:11px!important;padding:7px 10px!important}
+body.efc-period-redesign-v28 .period-dates-prod,body.efc-period-redesign-v28 .period-ending-dates-prod{display:flex!important;align-items:flex-end!important;gap:8px!important;margin-inline-start:auto!important;direction:rtl!important}body.efc-period-redesign-v28 .period-dates-prod[hidden],body.efc-period-redesign-v28 .period-ending-dates-prod[hidden]{display:none!important}
+body.efc-period-redesign-v28 .period-dates-prod label,body.efc-period-redesign-v28 .period-ending-dates-prod label{min-width:150px!important;margin:0!important;gap:5px!important;font-size:9px!important;color:#5c6f68!important;font-weight:650!important}
+body.efc-period-redesign-v28 .period-dates-prod .input,body.efc-period-redesign-v28 .period-ending-dates-prod .input{width:150px!important;min-width:150px!important;height:42px!important;border:1px solid #d2ded9!important;border-radius:8px!important;background:#fff!important;font-size:11px!important;padding:7px 10px!important}
 .efc-period-help-hidden-v28{display:none!important}
 
 body.efc-period-redesign-v28 .efc-period-result-v28{width:900px!important;max-width:900px!important;min-width:900px!important}
@@ -189,7 +189,7 @@ html body.efc-period-redesign-v28 .efc-period-count-v33::before{
 }
 html body.efc-period-redesign-v28 .efc-period-count-v33 b{font-size:12px!important;font-weight:900!important;line-height:1!important}
 html body.efc-period-redesign-v28 .efc-period-count-v33 span{font-size:11px!important;font-weight:800!important;line-height:1!important}
-html body.efc-period-redesign-v28 .period-dates-prod{margin-inline-start:auto!important}
+html body.efc-period-redesign-v28 .period-dates-prod,html body.efc-period-redesign-v28 .period-ending-dates-prod{margin-inline-start:auto!important}
 html body.efc-period-redesign-v28 .period-result-head-prod{display:none!important}
 
 /* Slightly thicker, darker grid lines on both search tables. */
@@ -251,5 +251,5 @@ html body.efc-student-search-redesign-v31 .page-title::after{
 
 `;
 document.head.appendChild(style);
-window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,canonicalPeriodRenderer:true,singlePeriodRenderOwner:true,noPeriodWrapperChain:true,mainUntouched:true});
+window.EFC_PERIOD_SEARCH_REDESIGN_V28=Object.freeze({ready:true,preservesSearchLogic:true,preservesSortAndRowActions:true,fixedCanvas:true,sidebarAligned:true,referenceStyledNotReferenceSized:true,routerOwnsPageClass:true,countGridConsolidated:true,titleGridUnifyConsolidated:true,movedPeriodCountIntoToolbar:true,dynamicCountUnit:true,endingFutureRangeVisuals:true,endingFutureRangeCountSync:true,darkerThickerSearchGridLines:true,equalOuterInnerGridWeight:true,studentTitleOnly:true,studentTitleUnderline:true,synchronousPostRenderCount:true,noHashEnhancer:true,canonicalPeriodRenderer:true,singlePeriodRenderOwner:true,noPeriodWrapperChain:true,mainUntouched:true});
 })();
