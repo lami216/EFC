@@ -16,26 +16,17 @@ fn sanitize_file_name(name: &str) -> String {
     format!("{stem}.pdf")
 }
 
-fn unique_path(dir: &Path, file_name: &str) -> PathBuf {
-    let candidate = dir.join(file_name);
-    if !candidate.exists() {
-        return candidate;
+fn ensure_pdf_extension(path: PathBuf) -> PathBuf {
+    if path.extension().and_then(|value| value.to_str()).is_some_and(|value| value.eq_ignore_ascii_case("pdf")) {
+        return path;
     }
-    let stem = Path::new(file_name)
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("EFC-receipt");
-    for index in 2..=9999 {
-        let path = dir.join(format!("{stem}-{index}.pdf"));
-        if !path.exists() {
-            return path;
-        }
-    }
-    dir.join(format!("{stem}-copy.pdf"))
+    let parent = path.parent().map(Path::to_path_buf).unwrap_or_default();
+    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("EFC-receipt");
+    parent.join(format!("{stem}.pdf"))
 }
 
 #[tauri::command]
-pub fn save_receipt_pdf(file_name: String, data_base64: String) -> Result<String, String> {
+pub fn save_receipt_pdf(file_name: String, data_base64: String) -> Result<Option<String>, String> {
     crate::license::require_valid_license()?;
     let bytes = STANDARD
         .decode(data_base64.as_bytes())
@@ -44,16 +35,17 @@ pub fn save_receipt_pdf(file_name: String, data_base64: String) -> Result<String
         return Err("ملف الروسي الناتج ليس PDF صالحًا.".to_string());
     }
 
-    let profile = std::env::var_os("USERPROFILE")
-        .map(PathBuf::from)
-        .ok_or_else(|| "تعذر تحديد مجلد المستخدم في Windows.".to_string())?;
-    let downloads = profile.join("Downloads");
-    fs::create_dir_all(&downloads)
-        .map_err(|e| format!("تعذر الوصول إلى مجلد التنزيلات: {e}"))?;
+    let suggested = sanitize_file_name(&file_name);
+    let Some(selected) = rfd::FileDialog::new()
+        .add_filter("PDF", &["pdf"])
+        .set_file_name(&suggested)
+        .save_file()
+    else {
+        return Ok(None);
+    };
 
-    let safe_name = sanitize_file_name(&file_name);
-    let path = unique_path(&downloads, &safe_name);
+    let path = ensure_pdf_extension(selected);
     fs::write(&path, bytes)
-        .map_err(|e| format!("تعذر حفظ ملف PDF: {e}"))?;
-    Ok(path.to_string_lossy().into_owned())
+        .map_err(|e| format!("تعذر حفظ ملف الروسي: {e}"))?;
+    Ok(Some(path.to_string_lossy().into_owned()))
 }
