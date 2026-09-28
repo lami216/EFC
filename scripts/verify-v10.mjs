@@ -62,7 +62,8 @@ for(const token of [
   'certificateNextReceiptNo:state.nextReceiptNo',
   'certificateReceiptNumbersNeverReused:true',
   'certificateReceiptHighWaterPersisted:true',
-  'certificateEditStudentSelectionLocked:true',
+  'certificateInternalEditStudentSelectionLocked:true',
+  'certificateExternalReceiptFullEdit:true',
   'if(editingReceipt())return;',
   "search?.classList.add('efc-cert-edit-hidden-v44')",
   "state.nextReceiptNo=Math.max(Number(state.nextReceiptNo||1),Number(receipt.receiptNo||0)+1)"
