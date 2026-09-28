@@ -17,8 +17,7 @@ for(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','cur
 ['.cert-delivery-student[hidden],.cert-delivery-agent[hidden]{display:none!important}','hidden recipient sections cannot be forced visible by grid css'],
 ["saveButton.disabled=!student&&!agent",'save is disabled until a recipient is selected'],
 ["if(!['student','agent'].includes(type.value))return alert('اختر المستلم.')",'delivery save rejects an empty recipient'],
-['cert-delivery-subject','delivery information student-name emphasis']
-
+['cert-delivery-subject','delivery information student-name emphasis'],
 ['certificateDeliveryHistoryDate:true','delivery date appears in certificate history'],
 ['certificateDeliveryReadonlyAfterSave:true','saved delivery opens as information'],
 ['function normalizeCertificateDelivery','certificate delivery data is normalized with receipt state'],
