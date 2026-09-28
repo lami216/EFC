@@ -28,6 +28,8 @@ for(const [token,label] of [['certificateFinanceCurrentGeneralVisuals:true','cur
 ['EFC_OPEN_CERTIFICATE_DELIVERY_RECEIPT_V13','delivery receipt viewer api'],
 ['EFC_SAVE_CERTIFICATE_DELIVERY_PDF_V13','delivery receipt PDF api'],
 ['cert-delivery-congrats-v13','decorated congratulation block'],
+['letter-spacing:normal;word-spacing:normal;unicode-bidi:isolate','Arabic congratulation stays joined in html2canvas PDF rendering'],
+
 ['روسي الاستلام','delivery information opens the delivery receipt'],
 
 ['function normalizeCertificateDelivery','certificate delivery data is normalized with receipt state'],
@@ -60,4 +62,5 @@ need(cert,"if(receipt.studentType!=='external')return false",'internal receipt d
 if(cert.includes('الشهادة / الدورة'))throw new Error('Certificate module must use الشهادة without the mixed الشهادة / الدورة label.');
 if(cert.includes('<small>الدورة</small>'))throw new Error('Certificate module detail labels must use الشهادة instead of الدورة.');
 if(cert.includes('<label>الدورة<select id="certInternalSpecV13"')||cert.includes('<label>الدورة<select id="certExternalSpecV13"'))throw new Error('Certificate issue filters must use الشهادة terminology.');
+if(cert.includes('cert-delivery-congrats-v13{')&&cert.includes('letter-spacing:.2px'))throw new Error('Arabic delivery congratulation must not use non-zero letter spacing because html2canvas breaks joining.');
 console.log('Stopped-student dates, certificate delivery receipts, full external edits, pickup tracking, and responsive certificate finance verified.');
