@@ -47,21 +47,6 @@ function normalizeCertificateDelivery(item){
   if(!date||!time||!receiverName)return null;
   return{receiverType,receiverName,receiverPhone,date,time,recordedAt:Number(item.recordedAt||Date.now())};
 }
-function certificateRegistrationInt(value){const number=Number(value);return Number.isInteger(number)&&number>0?number:null;}
-function normalizeCertificatePersonText(value){return String(value??'').trim().toLowerCase().replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/[ًٌٍَُِّْـ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').replace(/\s+/g,' ').trim();}
-function certificatePhoneDigits(value){const text=typeof westernDigitsV3==='function'?westernDigitsV3(String(value??'')):String(value??'');return text.replace(/\D/g,'');}
-function certificateManualStudentKey(item){
-  const existing=String(item?.manualStudentKey||'').trim();if(existing)return existing;
-  const name=normalizeCertificatePersonText(item?.studentName||item?.name),phone=certificatePhoneDigits(item?.phone),reg=certificateRegistrationInt(item?.reg)||String(item?.reg??'').trim();
-  return `manual:${name}|${phone||'-'}|${reg||'-'}`;
-}
-function normalizeCertificateBranchTransferHistory(value){
-  return(Array.isArray(value)?value:[]).slice(-50).map(item=>({
-    at:Math.max(0,Number(item?.at||0)),reason:String(item?.reason||''),
-    from:{branchType:item?.from?.branchType==='certificate'?'certificate':'internal',branchId:String(item?.from?.branchId||''),branchName:String(item?.from?.branchName||''),reg:item?.from?.reg===null||item?.from?.reg===undefined?null:String(item.from.reg)},
-    to:{branchType:item?.to?.branchType==='certificate'?'certificate':'internal',branchId:String(item?.to?.branchId||''),branchName:String(item?.to?.branchName||''),reg:item?.to?.reg===null||item?.to?.reg===undefined?null:String(item.to.reg)}
-  }));
-}
 function normalizeReceipt(item){
   if(!item||typeof item!=='object')return null;
   const amount=Math.max(0,Number(item.amount||0));
@@ -77,7 +62,6 @@ function normalizeReceipt(item){
     studentName:name,
     phone:String(item.phone||''),
     reg:item.reg===null||item.reg===undefined||item.reg===''?null:String(item.reg),
-    manualStudentKey:item.studentType==='external'?certificateManualStudentKey(item):null,
     specialtyId:String(item.specialtyId||''),
     specialtyName:String(item.specialtyName||''),
     branchType:item.branchType==='certificate'?'certificate':'internal',
@@ -89,7 +73,6 @@ function normalizeReceipt(item){
     time:String(item.time||'00:00'),
     timestamp:Number(item.timestamp||item.createdAt||Date.now()),
     createdAt:Number(item.createdAt||item.timestamp||Date.now()),
-    branchTransferHistory:normalizeCertificateBranchTransferHistory(item.branchTransferHistory),
     delivery:normalizeCertificateDelivery(item.delivery)
   };
 }
@@ -286,7 +269,7 @@ function certificateEditDirty(){
   const amountInput=document.getElementById('certAmountV13'),methodInput=document.getElementById('certMethodV13');if(!amountInput||!methodInput)return false;
   if(Number(amountInput.value||0)!==Number(receipt.amount||0)||String(methodInput.value||'')!==String(receipt.method||''))return true;
   if(receipt.studentType!=='external')return false;
-  return String(document.getElementById('certExternalNameV13')?.value||'').trim()!==String(receipt.studentName||'')||String(document.getElementById('certExternalPhoneV13')?.value||'').trim()!==String(receipt.phone||'')||String(document.getElementById('certExternalRegV13')?.value||'').trim()!==String(receipt.reg??'')||String(document.getElementById('certExternalSpecV13')?.value||'')!==String(receipt.specialtyId||'')||String(document.getElementById('certExternalBranchV13')?.value||'')!==certificateBranchChoiceValue(receipt.branchType,receipt.branchId);
+  return String(document.getElementById('certExternalNameV13')?.value||'').trim()!==String(receipt.studentName||'')||String(document.getElementById('certExternalPhoneV13')?.value||'').trim()!==String(receipt.phone||'')||String(document.getElementById('certExternalRegV13')?.value||'').trim()!==String(receipt.reg??'')||String(document.getElementById('certExternalSpecV13')?.value||'')!==String(receipt.specialtyId||'')||String(document.getElementById('certExternalBranchV13')?.value||'')!==String(receipt.branchId||'');
 }
 function clearCertificateEdit(){editingReceiptId=null;document.body.classList.remove('efc-certificate-editing-v44');}
 function cancelCertificateReceiptEdit(){
@@ -311,7 +294,7 @@ async function deleteCertificateReceipt(reference){
   receiptDeleteInFlight=true;state.certificateReceipts.splice(index,1);writeLocal();
   try{await persist();}
   catch(error){state.certificateReceipts.splice(index,0,receipt);writeLocal();console.error('EFC certificate receipt delete failed.',error);alert('تعذر حذف روسي الشهادة. لم يتم تغيير البيانات.');receiptDeleteInFlight=false;return false;}
-  releaseCertificateRegistrationIfUnused(receipt);receiptDeleteInFlight=false;if(String(editingReceiptId||'')===String(receipt.id))clearCertificateEdit();closeCertificateReceiptViewers();
+  receiptDeleteInFlight=false;if(String(editingReceiptId||'')===String(receipt.id))clearCertificateEdit();closeCertificateReceiptViewers();
   if(typeof currentPage==='undefined'||currentPage==='certificates'){renderCertificates();if(reopenFinance)setHistoryMode(true);}
   return true;
 }
@@ -335,7 +318,7 @@ function applyCertificateEditState(receipt){
   }else{
     const pane=document.getElementById('certExternalPaneV13'),name=document.getElementById('certExternalNameV13'),phone=document.getElementById('certExternalPhoneV13'),reg=document.getElementById('certExternalRegV13'),specialty=document.getElementById('certExternalSpecV13'),branch=document.getElementById('certExternalBranchV13'),addBranch=document.getElementById('certAddBranchV13');
     pane?.classList.add('efc-cert-edit-pane-v44');if(name)name.value=receipt.studentName||'';if(phone)phone.value=receipt.phone||'';if(reg)reg.value=receipt.reg??'';
-    ensureCertificateSelectValue(specialty,receipt.specialtyId,receipt.specialtyName);ensureCertificateSelectValue(branch,certificateBranchChoiceValue(receipt.branchType,receipt.branchId),certificateBranchDisplayName(receipt));if(addBranch)addBranch.hidden=false;syncBranchButtonBusy();
+    ensureCertificateSelectValue(specialty,receipt.specialtyId,receipt.specialtyName);ensureCertificateSelectValue(branch,receipt.branchId,receipt.branchName);if(addBranch)addBranch.hidden=false;syncBranchButtonBusy();
   }
   const amount=document.getElementById('certAmountV13'),method=document.getElementById('certMethodV13'),issue=document.getElementById('certIssueV13');
   if(amount)amount.value=String(receipt.amount||'');ensureCertificateSelectValue(method,receipt.method,`${receipt.method} · محفوظ سابقًا`);if(method)method.value=String(receipt.method||'');if(issue)issue.textContent='حفظ تعديل الروسي';syncIssueButton();
@@ -352,147 +335,25 @@ function syncCertificateFinanceDayFromContext(){
 
 function isOperationalStudent(student){return Boolean(student&&student.active!==false&&student.status!=='inactive');}
 function activeCertificateBranches(){return state.certificateBranches.filter(item=>!Number(item.deletedAt||0));}
-function certificateBranchChoiceValue(branchType,id){const value=String(id||'').trim();if(!value)return'';return`${branchType==='certificate'?'certificate':'internal'}:${value}`;}
-function certificateBranchChoiceFromValue(value){
-  const raw=String(value||''),split=raw.indexOf(':');if(split<=0)return null;
-  const branchType=raw.slice(0,split),branchId=raw.slice(split+1);if(!branchId)return null;
-  if(branchType==='internal'){
-    const branch=(Array.isArray(branches)?branches:[]).find(item=>String(item?.id||'')===branchId);
-    return branch?{branchType:'internal',branchId,branchName:String(branch.name||branchId),branch}:null;
-  }
-  if(branchType==='certificate'){
-    const branch=activeCertificateBranches().find(item=>String(item?.id||'')===branchId);
-    return branch?{branchType:'certificate',branchId,branchName:String(branch.name||branchId),branch}:null;
-  }
-  return null;
-}
-function certificateBranchOptionsMarkup(){
-  const official=(Array.isArray(branches)?branches:[]).map(item=>`<option value="${esc(certificateBranchChoiceValue('internal',item.id))}">${esc(item.name)}</option>`).join('');
-  const external=activeCertificateBranches().map(item=>`<option value="${esc(certificateBranchChoiceValue('certificate',item.id))}">${esc(item.name)}</option>`).join('');
-  return`${official?`<optgroup label="فروع المركز الرسمية">${official}</optgroup>`:''}${external?`<optgroup label="فروع الشهادات الخارجية">${external}</optgroup>`:''}`;
-}
-function selectedCertificateBranchChoice(){return certificateBranchChoiceFromValue(document.getElementById('certExternalBranchV13')?.value||'');}
-function selectedExternalCertificateBranch(){const choice=selectedCertificateBranchChoice();return choice?.branchType==='certificate'?choice.branch:null;}
-function certificateBranchLinkedReceipts(branch){if(!branch)return[];return state.certificateReceipts.filter(receipt=>receipt.branchType==='certificate'&&(String(receipt.branchId||'')===String(branch.id)||(!receipt.branchId&&String(receipt.branchName||'').trim()===String(branch.name||'').trim())));}
-function certificateBranchReceiptCount(branch){return certificateBranchLinkedReceipts(branch).length;}
-function normalizeCertificateBranchMatchName(value){
-  const generic=new Set(['مركز','المركز','فرع','الفرع','center','centre']);
-  return String(value??'').trim().toLowerCase().replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/[ًٌٍَُِّْـ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').split(/\s+/).filter(Boolean).filter(word=>!generic.has(word)).join(' ');
-}
-function certificateOfficialBranchMatch(branch){
-  const wanted=normalizeCertificateBranchMatchName(branch?.name);if(!wanted)return null;
-  const matches=(Array.isArray(branches)?branches:[]).filter(item=>normalizeCertificateBranchMatchName(item?.name)===wanted);
-  return matches.length===1?matches[0]:null;
-}
-function certificateBranchLinkedStudentCount(branch){return new Set(certificateBranchLinkedReceipts(branch).map(receipt=>String(receipt.manualStudentKey||certificateManualStudentKey(receipt)))).size;}
-function certificateStudentTypeLabel(receipt){return receipt?.studentType==='internal'||receipt?.branchType==='internal'?'مسجل':'خارجي';}
-function certificateOfficialManualReceipts(branchId,specialtyId,excludeIds=[]){
-  const excluded=new Set((excludeIds||[]).map(String));
-  return state.certificateReceipts.filter(receipt=>receipt.studentType==='external'&&receipt.branchType==='internal'&&String(receipt.branchId||'')===String(branchId||'')&&String(receipt.specialtyId||'')===String(specialtyId||'')&&!excluded.has(String(receipt.id||''))&&certificateRegistrationInt(receipt.reg));
-}
-function certificateRegistrationNumbers(branchId,specialtyId){
-  return[...new Set(certificateOfficialManualReceipts(branchId,specialtyId).map(receipt=>certificateRegistrationInt(receipt.reg)).filter(Boolean))];
-}
-function certificateSystemStudentsInScope(branchId,specialtyId){
-  return(typeof students!=='undefined'?students:[]).filter(student=>String(student?.branch||'')===String(branchId||'')&&String(student?.specialty||'')===String(specialtyId||'')&&certificateRegistrationInt(student?.reg));
-}
-function certificateManualIdentityMatches(a,b){
-  if(normalizeCertificatePersonText(a?.studentName)!==normalizeCertificatePersonText(b?.studentName))return false;
-  const aPhone=certificatePhoneDigits(a?.phone),bPhone=certificatePhoneDigits(b?.phone);
-  if(aPhone&&bPhone)return aPhone===bPhone;
-  return String(a?.manualStudentKey||certificateManualStudentKey(a))===String(b?.manualStudentKey||certificateManualStudentKey(b));
-}
-function certificateIdentityMatchesSystemStudent(data,student){
-  if(normalizeCertificatePersonText(data?.studentName)!==normalizeCertificatePersonText(student?.name))return false;
-  const a=certificatePhoneDigits(data?.phone),b=certificatePhoneDigits(student?.phone);
-  if(a&&b)return a===b;
-  const reg=certificateRegistrationInt(data?.reg),studentReg=certificateRegistrationInt(student?.reg);
-  return Boolean(reg&&studentReg&&reg===studentReg);
-}
-function certificateExistingOfficialRegistration(data,branchId,specialtyId,excludeIds=[]){
-  const own=certificateOfficialManualReceipts(branchId,specialtyId,excludeIds).find(receipt=>certificateManualIdentityMatches(data,receipt));
-  if(own)return{number:certificateRegistrationInt(own.reg),source:'certificate'};
-  const system=certificateSystemStudentsInScope(branchId,specialtyId).find(student=>certificateIdentityMatchesSystemStudent(data,student));
-  return system?{number:certificateRegistrationInt(system.reg),source:'student'}:null;
-}
-function certificateRegistrationPlanner(branchId,specialtyId,excludeIds=[]){
-  const occupied=new Set([
-    ...certificateSystemStudentsInScope(branchId,specialtyId).map(student=>certificateRegistrationInt(student.reg)),
-    ...certificateOfficialManualReceipts(branchId,specialtyId,excludeIds).map(receipt=>certificateRegistrationInt(receipt.reg))
-  ].filter(Boolean));
-  const seq=window.EFC_RECEIPT_SEQUENCES_V10,policy=seq?.registrationPolicy?.(branchId,specialtyId)||{},activeMax=occupied.size?Math.max(...occupied):0;
-  let latest=Math.max(0,Number(policy.latestIssued||0)),sealed=Math.max(0,Number(policy.sealedThrough||0)),released=Boolean(policy.releasedLatest),latestSeen=Boolean(policy.latestSeenActive);
-  if(activeMax>latest){sealed=Math.max(sealed,activeMax-1);latest=activeMax;released=false;latestSeen=true;}else if(activeMax===latest&&activeMax>0){released=false;latestSeen=true;}
-  const nextCandidate=()=>{
-    let candidate;
-    if(!latest)candidate=1;
-    else if(latest<=sealed)candidate=sealed+1;
-    else if(occupied.has(latest))candidate=latest+1;
-    else if(released||!latestSeen)candidate=latest;
-    else candidate=latest+1;
-    candidate=Math.max(1,candidate);
-    while(candidate<=sealed||occupied.has(candidate))candidate+=1;
-    return candidate;
-  };
-  const reserve=number=>{
-    const value=certificateRegistrationInt(number);if(!value)return null;
-    if(value>latest){sealed=Math.max(sealed,value-1);latest=value;}
-    else if(value<latest&&value>sealed)sealed=value;
-    occupied.add(value);latestSeen=true;released=false;return value;
-  };
-  return{allocate(requested){
-    const wanted=certificateRegistrationInt(requested),next=nextCandidate(),canKeep=Boolean(wanted&&!occupied.has(wanted)&&(wanted>latest||wanted===next)),number=canKeep?wanted:next;
-    reserve(number);return{number,requested:wanted,changed:Boolean(wanted&&number!==wanted),reason:canKeep?'kept':'collision-or-reserved'};
-  }};
-}
-function planCertificateOfficialRegistration(data,{excludeIds=[],planners=null}={}){
-  const branchId=String(data?.branchId||''),specialtyId=String(data?.specialtyId||''),requested=certificateRegistrationInt(data?.reg);
-  if(!branchId||!specialtyId||!requested)return null;
-  const existing=certificateExistingOfficialRegistration(data,branchId,specialtyId,excludeIds);
-  if(existing)return{number:existing.number,requested,changed:existing.number!==requested,reason:'existing-identity',reusedExisting:true};
-  const key=`${branchId}|${specialtyId}`,planner=planners?(planners.get(key)||(()=>{const created=certificateRegistrationPlanner(branchId,specialtyId,excludeIds);planners.set(key,created);return created;})()):certificateRegistrationPlanner(branchId,specialtyId,excludeIds);
-  return planner.allocate(requested);
-}
-function confirmCertificateRegistrationAdjustment(data,plan){
-  if(!plan||!plan.changed)return true;
-  const requested=String(plan.requested||'').padStart(4,'0'),assigned=String(plan.number||'').padStart(4,'0');
-  const reason=plan.reusedExisting?'يوجد لهذا الطالب رقم محفوظ مسبقًا في هذا الفرع والشهادة.':'رقم السجل المطلوب مستخدم أو محجوز في هذا الفرع والشهادة.';
-  return confirm(`${reason}\n\nسيتم استخدام الرقم ${assigned} بدلًا من ${requested}. هل تريد المتابعة؟`);
-}
-function noteCertificateOfficialRegistration(branchId,specialtyId,number){window.EFC_RECEIPT_SEQUENCES_V10?.noteRegistrationNumber?.(branchId,specialtyId,number);}
-function releaseCertificateRegistrationIfUnused(receipt){
-  if(receipt?.studentType!=='external'||receipt?.branchType!=='internal')return false;
-  const branchId=String(receipt.branchId||''),specialtyId=String(receipt.specialtyId||''),reg=certificateRegistrationInt(receipt.reg);if(!branchId||!specialtyId||!reg)return false;
-  const stillCertificate=certificateRegistrationNumbers(branchId,specialtyId).includes(reg),stillStudent=certificateSystemStudentsInScope(branchId,specialtyId).some(student=>certificateRegistrationInt(student.reg)===reg);
-  if(stillCertificate||stillStudent)return false;
-  return Boolean(window.EFC_RECEIPT_SEQUENCES_V10?.markRegistrationReleased?.(branchId,specialtyId,reg));
-}
-
+function selectedExternalCertificateBranch(){const id=String(document.getElementById('certExternalBranchV13')?.value||'');return activeCertificateBranches().find(item=>String(item.id)===id)||null;}
+function certificateBranchReceiptCount(branch){if(!branch)return 0;return state.certificateReceipts.filter(receipt=>receipt.branchType==='certificate'&&(String(receipt.branchId||'')===String(branch.id)||(!receipt.branchId&&String(receipt.branchName||'').trim()===String(branch.name||'').trim()))).length;}
 function syncBranchButtonBusy(){
-  const add=document.getElementById('certAddBranchV13'),edit=document.getElementById('certEditBranchV13'),remove=document.getElementById('certDeleteBranchV13'),move=document.getElementById('certMoveBranchStudentsV13'),selected=selectedExternalCertificateBranch(),busy=branchSaveInFlight||branchDeleteInFlight,official=selected?certificateOfficialBranchMatch(selected):null,records=selected?certificateBranchReceiptCount(selected):0;
+  const add=document.getElementById('certAddBranchV13'),remove=document.getElementById('certDeleteBranchV13'),selected=selectedExternalCertificateBranch(),busy=branchSaveInFlight||branchDeleteInFlight;
   if(add)add.disabled=busy||!canEditCertificates();
-  if(edit)edit.disabled=busy||!canEditCertificates()||!selected;
   if(remove)remove.disabled=busy||!canEditCertificates()||!selected;
-  if(move){move.hidden=!selected||!official||records<=0;move.disabled=busy||!canEditCertificates()||Boolean(editingReceipt());if(!move.hidden)move.textContent=`نقل الطلاب إلى ${official.name}`;}
 }
-function refreshExternalBranchOptions(selectedValue=''){
+function refreshExternalBranchOptions(selectedId=''){
   const select=document.getElementById('certExternalBranchV13');if(!select)return;
-  let wanted=String(selectedValue||'');
-  if(wanted&&!wanted.includes(':')){
-    if(activeCertificateBranches().some(item=>String(item.id)===wanted))wanted=certificateBranchChoiceValue('certificate',wanted);
-    else if((Array.isArray(branches)?branches:[]).some(item=>String(item.id)===wanted))wanted=certificateBranchChoiceValue('internal',wanted);
-  }
-  select.innerHTML=`<option value="">اختر فرع الشهادة</option>${certificateBranchOptionsMarkup()}`;
-  if(wanted&&[...select.options].some(option=>String(option.value)===wanted))select.value=wanted;
+  const wanted=String(selectedId||''),options=activeCertificateBranches().map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('');
+  select.innerHTML=`<option value="">اختر فرع الشهادة</option>${options}`;
+  if(wanted&&activeCertificateBranches().some(item=>String(item.id)===wanted))select.value=wanted;
   syncBranchButtonBusy();
 }
-function addBranchOption(branch){refreshExternalBranchOptions(certificateBranchChoiceValue('certificate',branch?.id||''));}
+function addBranchOption(branch){refreshExternalBranchOptions(branch?.id||'');}
 async function addBranch(){
   if(branchSaveInFlight||branchDeleteInFlight)return;
   if(!canEditCertificates())return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');
   const name=String(prompt('اسم فرع الشهادة الجديد:')||'').trim();if(!name)return;
-  const official=certificateOfficialBranchMatch({name});
-  if(official){refreshExternalBranchOptions(certificateBranchChoiceValue('internal',official.id));return alert(`هذا الاسم يطابق الفرع الرسمي «${official.name}». تم اختيار الفرع الرسمي بدل إنشاء فرع خارجي مكرر.`);}
   const existing=state.certificateBranches.find(item=>item.name.trim().toLowerCase()===name.toLowerCase());
   if(existing&&!Number(existing.deletedAt||0))return alert('هذا الفرع موجود مسبقًا.');
   const now=Date.now(),branch=existing||{id:uid('cert-branch'),recordCode:uid('cert-branch-record'),name,createdAt:now,updatedAt:now,deletedAt:0};
@@ -503,68 +364,6 @@ async function addBranch(){
   catch(error){
     if(existing)Object.assign(existing,previous);else state.certificateBranches=state.certificateBranches.filter(item=>item.id!==branch.id);
     writeLocal();console.error('EFC certificate branch save failed.',error);alert('تعذر حفظ فرع الشهادة. لم يتم تغيير البيانات المدخلة.');
-  }finally{branchSaveInFlight=false;syncBranchButtonBusy();}
-}
-async function renameBranch(){
-  if(branchSaveInFlight||branchDeleteInFlight)return;
-  if(!canEditCertificates())return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');
-  const branch=selectedExternalCertificateBranch();if(!branch)return alert('اختر فرع شهادة خارجيًا لتعديله.');
-  const name=String(prompt('الاسم الجديد لفرع الشهادة:',branch.name)||'').trim();if(!name||name===branch.name)return;
-  const official=certificateOfficialBranchMatch({name});
-  if(official)return alert(`الاسم الجديد يطابق الفرع الرسمي «${official.name}». استخدم زر «نقل الطلاب» بدل إنشاء نسخة أخرى من الفرع الرسمي.`);
-  if(activeCertificateBranches().some(item=>item.id!==branch.id&&item.name.trim().toLowerCase()===name.toLowerCase()))return alert('يوجد فرع شهادة آخر بهذا الاسم.');
-  const previous={name:branch.name,updatedAt:branch.updatedAt};branch.name=name;branch.updatedAt=Date.now();branchSaveInFlight=true;syncBranchButtonBusy();
-  try{await persist();refreshExternalBranchOptions(certificateBranchChoiceValue('certificate',branch.id));}
-  catch(error){Object.assign(branch,previous);writeLocal();console.error('EFC certificate branch rename failed.',error);alert('تعذر تعديل اسم فرع الشهادة. لم يتم تغيير البيانات.');}
-  finally{branchSaveInFlight=false;syncBranchButtonBusy();}
-}
-function assertCertificateBranchTransferMutable(receipts){
-  for(const receipt of receipts){
-    try{window.EFC_FISCAL_V14?.assertDateOpen?.(receipt.date,'تاريخ روسي الشهادة');}
-    catch(error){alert(`لا يمكن نقل الطلاب لأن روسي الشهادة رقم ${padReceipt(receipt.receiptNo)} يقع ضمن فترة مالية مغلقة. افتح الفترة أو عالج السجل أولًا.`);return false;}
-  }
-  return true;
-}
-function planCertificateBranchTransfer(branch,official){
-  const receipts=certificateBranchLinkedReceipts(branch),planners=new Map(),groups=new Map();
-  receipts.forEach(receipt=>{
-    const specialtyId=String(receipt.specialtyId||''),name=normalizeCertificatePersonText(receipt.studentName),phone=certificatePhoneDigits(receipt.phone),identity=phone?`person:${name}|${phone}`:String(receipt.manualStudentKey||certificateManualStudentKey(receipt)),key=`${specialtyId}|${identity}`;
-    if(!groups.has(key))groups.set(key,{specialtyId,identity,receipts:[],studentName:receipt.studentName,requested:certificateRegistrationInt(receipt.reg)});
-    groups.get(key).receipts.push(receipt);
-  });
-  const planned=[...groups.values()].map(group=>{
-    const sample=group.receipts[0],data={studentName:sample.studentName,phone:sample.phone,reg:group.requested,specialtyId:group.specialtyId,branchId:String(official.id),manualStudentKey:group.identity};
-    const plan=planCertificateOfficialRegistration(data,{planners});return{...group,plan};
-  });
-  return{receipts,groups:planned,studentsCount:new Set(planned.map(group=>group.identity)).size,changed:planned.filter(group=>group.plan?.changed)};
-}
-async function moveBranchStudents(){
-  if(branchSaveInFlight||branchDeleteInFlight)return;
-  if(editingReceipt())return alert('أكمل أو ألغِ تعديل الروسي الحالي قبل نقل الطلاب.');
-  if(!canEditCertificates())return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.');
-  const branch=selectedExternalCertificateBranch();if(!branch)return;
-  const official=certificateOfficialBranchMatch(branch);if(!official)return;
-  const receipts=certificateBranchLinkedReceipts(branch);if(!receipts.length)return;
-  if(!assertCertificateBranchTransferMutable(receipts))return;
-  const transfer=planCertificateBranchTransfer(branch,official);if(transfer.groups.some(group=>!group.plan?.number))return alert('تعذر حساب أرقام التسجيل الآمنة للطلاب. لم يتم تغيير أي سجل.');
-  const samples=transfer.changed.slice(0,3).map(group=>`${group.studentName}: ${String(group.plan.requested||'').padStart(4,'0')} ← ${String(group.plan.number).padStart(4,'0')}`).join('\n');
-  const renumberText=transfer.changed.length?`\n\nسيتم تغيير رقم التسجيل لـ ${transfer.changed.length} ملف لتجنب التكرار أو استخدام رقم محجوز:${samples?`\n${samples}`:''}${transfer.changed.length>3?'\n…':''}`:'';
-  const message=`اكتشف النظام تشابهًا واضحًا بين فرع الشهادات «${branch.name}» والفرع الرسمي «${official.name}».\n\nسيتم نقل ${transfer.studentsCount} طالب مرتبط عبر ${receipts.length} سجل شهادة إلى الفرع الرسمي، وسيظهرون في سجل الشهادات كطلاب «مسجلين». ستبقى طريقة تعديلهم من نموذج الطالب الخارجي لأنهم غير موجودين أصلًا في سجل الطلاب.${renumberText}\n\nهل تريد المتابعة؟`;
-  if(!confirm(message))return;
-  const previousBranch={deletedAt:branch.deletedAt,updatedAt:branch.updatedAt},previousReceipts=receipts.map(receipt=>({receipt,branchType:receipt.branchType,branchId:receipt.branchId,branchName:receipt.branchName,reg:receipt.reg,branchTransferHistory:Array.isArray(receipt.branchTransferHistory)?receipt.branchTransferHistory.slice():[]}));
-  const now=Date.now();
-  transfer.groups.forEach(group=>group.receipts.forEach(receipt=>{
-    const from={branchType:receipt.branchType,branchId:String(receipt.branchId||''),branchName:String(receipt.branchName||''),reg:receipt.reg};
-    receipt.branchType='internal';receipt.branchId=String(official.id);receipt.branchName=String(official.name);receipt.reg=String(group.plan.number);
-    const history=Array.isArray(receipt.branchTransferHistory)?receipt.branchTransferHistory:[];history.push({at:now,reason:'external-branch-to-official',from,to:{branchType:'internal',branchId:String(official.id),branchName:String(official.name),reg:String(group.plan.number)}});receipt.branchTransferHistory=history.slice(-50);
-  }));
-  branch.deletedAt=now;branch.updatedAt=now;branchSaveInFlight=true;syncBranchButtonBusy();
-  try{
-    await persist();
-    transfer.groups.forEach(group=>noteCertificateOfficialRegistration(official.id,group.specialtyId,group.plan.number));
-    refreshExternalBranchOptions(certificateBranchChoiceValue('internal',official.id));if(historyOpen)drawCertificateFinance();alert(`تم نقل ${transfer.studentsCount} طالب إلى الفرع الرسمي «${official.name}» وإزالة الفرع الخارجي المكرر من القوائم النشطة.`);
-  }catch(error){
-    previousReceipts.forEach(item=>{item.receipt.branchType=item.branchType;item.receipt.branchId=item.branchId;item.receipt.branchName=item.branchName;item.receipt.reg=item.reg;item.receipt.branchTransferHistory=item.branchTransferHistory;});Object.assign(branch,previousBranch);writeLocal();console.error('EFC certificate branch transfer failed.',error);alert('تعذر نقل الطلاب. لم يتم تغيير أي سجل.');
   }finally{branchSaveInFlight=false;syncBranchButtonBusy();}
 }
 async function deleteBranch(){
@@ -578,7 +377,7 @@ async function deleteBranch(){
   catch(error){Object.assign(branch,previous);writeLocal();console.error('EFC certificate branch delete failed.',error);alert('تعذر حذف فرع الشهادة. لم يتم تغيير البيانات.');}
   finally{branchDeleteInFlight=false;syncBranchButtonBusy();}
 }
-function historyRows(receipts=state.certificateReceipts){return[...receipts].sort((a,b)=>b.date.localeCompare(a.date)||Number(b.timestamp)-Number(a.timestamp)).map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}" data-date="${esc(receipt.date)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${certificateStudentTypeLabel(receipt)}</td><td>${esc(certificateBranchDisplayName(receipt))}</td><td>${esc(receipt.specialtyName)}</td><td>${cash(receipt.amount)}</td><td>${esc(receipt.method)}</td><td>${showDate(receipt.date)}</td><td>${receipt.delivery?showDate(receipt.delivery.date):'<span class="cert-delivery-missing">—</span>'}</td></tr>`).join('');}
+function historyRows(receipts=state.certificateReceipts){return[...receipts].sort((a,b)=>b.date.localeCompare(a.date)||Number(b.timestamp)-Number(a.timestamp)).map(receipt=>`<tr class="cert-history-row-v13" data-certificate="${esc(receipt.id)}" data-date="${esc(receipt.date)}"><td>${padReceipt(receipt.receiptNo)}</td><td><b>${esc(receipt.studentName)}</b><small>${esc(receipt.phone||'')}</small></td><td>${receipt.studentType==='internal'?'مسجل':'خارجي'}</td><td>${esc(certificateBranchDisplayName(receipt))}</td><td>${esc(receipt.specialtyName)}</td><td>${cash(receipt.amount)}</td><td>${esc(receipt.method)}</td><td>${showDate(receipt.date)}</td><td>${receipt.delivery?showDate(receipt.delivery.date):'<span class="cert-delivery-missing">—</span>'}</td></tr>`).join('');}
 function renderHistoryRows(receipts=state.certificateReceipts){return historyRows(receipts);}
 function certificateHistorySearchDigits(value){const text=typeof westernDigitsV3==='function'?westernDigitsV3(String(value??'')):String(value??'');return text.replace(/\D/g,'');}
 function certificateHistoryDisplayRecord(value){const digits=certificateHistorySearchDigits(value);return digits?digits.padStart(4,'0'):'';}
@@ -714,7 +513,7 @@ html body.efc-certificate-finance-open-v43 .cert-finance-summary-card-v43 .finan
 html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.chart-card{width:100%!important;margin:0 0 8px!important;padding:5px 10px 3px!important;border:1px solid #d8e5e0!important;border-radius:13px!important;background:#fff!important;box-shadow:0 8px 20px rgba(22,75,61,.035)!important;box-sizing:border-box!important}.cert-finance-v13 .finance-chart-wrap-v13{width:100%!important;overflow:hidden!important}.cert-finance-v13 .finance-chart-wrap-v13 svg{display:block!important;width:100%!important;height:auto!important;max-height:205px!important}.cert-finance-v13 .finance-gridline-v13{stroke:#dbe6e2!important}.cert-finance-v13 .finance-line-v13{stroke:#08745b!important;stroke-width:3!important}.cert-finance-v13 .finance-dot-v13{stroke:#08745b!important;fill:#fff!important}
 html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;margin:0 0 8px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.breakdowns>.card{min-width:0!important;min-height:96px!important;margin:0!important;padding:9px 13px!important;border-radius:12px!important;box-shadow:0 7px 18px rgba(22,75,61,.035)!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(1){background:linear-gradient(135deg,#eef9fb,#e8f5f2)!important;border:1px solid #b9ddd5!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(2){background:linear-gradient(135deg,#fff9ed,#fff3df)!important;border:1px solid #ecdcb7!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns>.card:nth-child(3){background:linear-gradient(135deg,#eef5ff,#e8f1fb)!important;border:1px solid #cadced!important}.cert-finance-v13 #certFinanceBodyV13>.breakdowns h3{margin:0 0 8px!important;font-size:11.5px!important;color:#173d34!important}.cert-finance-v13 .break-row{grid-template-columns:minmax(0,1fr) auto!important;gap:3px 9px!important;margin:0 0 6px!important;font-size:9.5px!important}.cert-finance-v13 .break-row>span{min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}.cert-finance-v13 .break-row>div{grid-column:1/-1!important;height:4px!important;border-radius:99px!important;background:#dfe8e4!important;overflow:hidden!important}.cert-finance-v13 .break-row>div>i{height:100%!important;border-radius:99px!important;background:#159577!important}
 html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap{width:100%!important;max-width:100%!important;min-width:0!important;max-height:min(430px,calc(100dvh - 310px))!important;overflow:auto!important;border:1.2px solid #aaccc1!important;border-radius:10px!important;background:#fff!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;font-size:10px!important}html body.efc-certificate-finance-open-v43 #certFinanceBodyV13>.table-wrap td{height:35px!important;padding:6px 9px!important;font-size:10px!important}
-.cert-external-branch-actions-v13{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}.cert-external-branch-actions-v13 .cert-move-branch-v13{border-color:#9bcfc0!important;background:#eef9f5!important;color:#08624f!important;font-weight:850!important}.cert-external-branch-actions-v13 .cert-move-branch-v13:not(:disabled):hover{background:#def4ec!important;border-color:#4aa68c!important}.cert-external-branch-actions-v13 .cert-delete-branch-v13{border-color:#d9b4b4!important;background:#fff4f4!important;color:#9a3030!important}.cert-external-branch-actions-v13 .cert-delete-branch-v13:not(:disabled):hover{background:#ffeaea!important;border-color:#bd6c6c!important}.cert-external-branch-actions-v13 button:disabled{opacity:.48!important;cursor:not-allowed!important}
+.cert-external-branch-actions-v13{display:flex;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}.cert-external-branch-actions-v13 .cert-delete-branch-v13{border-color:#d9b4b4!important;background:#fff4f4!important;color:#9a3030!important}.cert-external-branch-actions-v13 .cert-delete-branch-v13:not(:disabled):hover{background:#ffeaea!important;border-color:#bd6c6c!important}.cert-external-branch-actions-v13 button:disabled{opacity:.48!important;cursor:not-allowed!important}
 html body.efc-certificate-editing-v44 .efc-cert-edit-hidden-v44{display:none!important}
 html body.efc-certificate-editing-v44 .cert-mode-v13 button:disabled{opacity:.68!important;cursor:default!important}
 html body.efc-certificate-editing-v44 .efc-cert-cancel-edit-v44{height:40px!important;min-width:142px!important;padding:0 14px!important;border:1px solid #9c7777!important;border-radius:8px!important;background:#fff!important;color:#8b3030!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;font-family:inherit!important;font-size:12px!important;font-weight:850!important;cursor:pointer!important}
@@ -862,23 +661,14 @@ async function saveEditedReceipt(receipt){
   if(amount<=0)return alert('أدخل مبلغًا صحيحًا.');if(!method)return alert('اختر وسيلة الدفع.');
   let externalData=null;
   if(receipt.studentType==='external'){
-    const name=String(document.getElementById('certExternalNameV13')?.value||'').trim(),phone=String(document.getElementById('certExternalPhoneV13')?.value||'').trim(),reg=String(document.getElementById('certExternalRegV13')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpecV13')?.value||''),branchValue=String(document.getElementById('certExternalBranchV13')?.value||''),specialty=spec(specialtyId)||(specialtyId===String(receipt.specialtyId||'')?{name:receipt.specialtyName}:null);
-    let branchChoice=certificateBranchChoiceFromValue(branchValue);
-    if(!branchChoice&&branchValue===certificateBranchChoiceValue(receipt.branchType,receipt.branchId))branchChoice={branchType:receipt.branchType==='certificate'?'certificate':'internal',branchId:String(receipt.branchId||''),branchName:certificateBranchDisplayName(receipt)};
-    if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branchChoice)return alert('اختر فرع الشهادة.');
-    externalData={studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:branchChoice.branchType,branchId:branchChoice.branchId,branchName:branchChoice.branchName};
-    if(branchChoice.branchType==='internal'){
-      const sameScope=receipt.branchType==='internal'&&String(receipt.branchId||'')===String(externalData.branchId||'')&&String(receipt.specialtyId||'')===String(externalData.specialtyId||'')&&certificateRegistrationInt(receipt.reg)===certificateRegistrationInt(externalData.reg),plan=sameScope?{number:certificateRegistrationInt(receipt.reg),requested:certificateRegistrationInt(externalData.reg),changed:false,reason:'same-record'}:planCertificateOfficialRegistration({...externalData,manualStudentKey:receipt.manualStudentKey||certificateManualStudentKey(receipt)},{excludeIds:[receipt.id]});if(!plan)return alert('رقم التسجيل غير صالح.');
-      if(!confirmCertificateRegistrationAdjustment(externalData,plan))return;externalData.reg=String(plan.number);externalData._registrationPlan=plan;
-    }
+    const name=String(document.getElementById('certExternalNameV13')?.value||'').trim(),phone=String(document.getElementById('certExternalPhoneV13')?.value||'').trim(),reg=String(document.getElementById('certExternalRegV13')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpecV13')?.value||''),branchId=String(document.getElementById('certExternalBranchV13')?.value||''),specialty=spec(specialtyId)||(specialtyId===String(receipt.specialtyId||'')?{name:receipt.specialtyName}:null),branch=state.certificateBranches.find(item=>String(item.id)===branchId)||(branchId===String(receipt.branchId||'')?{id:receipt.branchId,name:receipt.branchName}:null);
+    if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branch)return alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');
+    externalData={studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:String(branch.id||branchId),branchName:branch.name};
   }
   const previous={studentName:receipt.studentName,phone:receipt.phone,reg:receipt.reg,specialtyId:receipt.specialtyId,specialtyName:receipt.specialtyName,branchType:receipt.branchType,branchId:receipt.branchId,branchName:receipt.branchName,amount:receipt.amount,method:receipt.method};
-  const registrationPlan=externalData?externalData._registrationPlan:null;if(externalData)delete externalData._registrationPlan;
   issueInFlight=true;Object.assign(receipt,externalData||{}, {amount,method});syncIssueButton();
   try{await persist();}
   catch(error){Object.assign(receipt,previous);writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate receipt edit failed.',error);alert('تعذر حفظ تعديل الروسي. لم يتم تغيير البيانات.');return;}
-  if(receipt.studentType==='external')releaseCertificateRegistrationIfUnused({studentType:'external',branchType:previous.branchType,branchId:previous.branchId,specialtyId:previous.specialtyId,reg:previous.reg});
-  if(receipt.studentType==='external'&&receipt.branchType==='internal'&&registrationPlan?.number)noteCertificateOfficialRegistration(receipt.branchId,receipt.specialtyId,registrationPlan.number);
   issueInFlight=false;clearCertificateEdit();renderCertificates();openReceipt(receipt);
 }
 
@@ -893,20 +683,14 @@ async function issueReceipt(){
     const student=students.find(item=>String(item.id)===String(selectedStudentId));if(!student||!isOperationalStudent(student))return alert('اختر الطالب المسجل أولًا.');const specialty=spec(student.specialty);
     data={studentType:'internal',studentId:student.id,studentName:student.name,phone:student.phone||'',reg:student.reg,specialtyId:student.specialty,specialtyName:specialty?.name||student.specialty,branchType:'internal',branchId:student.branch,branchName:branchName(student.branch)};
   }else{
-    const name=String(document.getElementById('certExternalNameV13')?.value||'').trim(),phone=String(document.getElementById('certExternalPhoneV13')?.value||'').trim(),reg=String(document.getElementById('certExternalRegV13')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpecV13')?.value||''),specialty=spec(specialtyId),branchChoice=selectedCertificateBranchChoice();
-    if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branchChoice)return alert('اختر فرع الشهادة.');
-    data={studentType:'external',studentId:null,studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:branchChoice.branchType,branchId:branchChoice.branchId,branchName:branchChoice.branchName};
-    if(branchChoice.branchType==='internal'){
-      const plan=planCertificateOfficialRegistration(data);if(!plan)return alert('رقم التسجيل غير صالح.');
-      if(!confirmCertificateRegistrationAdjustment(data,plan))return;data.reg=String(plan.number);data._registrationPlan=plan;
-    }
+    const name=String(document.getElementById('certExternalNameV13')?.value||'').trim(),phone=String(document.getElementById('certExternalPhoneV13')?.value||'').trim(),reg=String(document.getElementById('certExternalRegV13')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpecV13')?.value||''),branchId=String(document.getElementById('certExternalBranchV13')?.value||''),specialty=spec(specialtyId),branch=activeCertificateBranches().find(item=>item.id===branchId);
+    if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branch)return alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');
+    data={studentType:'external',studentId:null,studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:branch.id,branchName:branch.name};
   }
-  const registrationPlan=data?data._registrationPlan:null;if(data)delete data._registrationPlan;
   const receipt=normalizeReceipt({...data,id:uid('certificate'),recordCode:uid('certificate-record'),transactionCode:uid('certificate-tx'),receiptNo:nextReceiptNo(),amount,method,date:today(),time:nowTime(),timestamp:Date.now(),createdAt:Date.now()});
   issueInFlight=true;syncIssueButton();state.certificateReceipts.unshift(receipt);
   try{await persist();}
   catch(error){state.certificateReceipts=state.certificateReceipts.filter(item=>item.id!==receipt.id);writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate issue failed.',error);alert('تعذر حفظ الشهادة. لم يتم اعتماد العملية، ويمكنك المحاولة مجددًا.');return;}
-  if(receipt.studentType==='external'&&receipt.branchType==='internal'&&registrationPlan?.number)noteCertificateOfficialRegistration(receipt.branchId,receipt.specialtyId,registrationPlan.number);
   issueInFlight=false;renderCertificates();openReceipt(receipt);
 }
 
@@ -914,19 +698,17 @@ function renderCertificates(){
   resetTransientIssueState();ensureCertificateFinanceStyles();
   currentPage='certificates';document.body.classList.add('efc-certificates-redesign-v35','efc-certificates-workspace-v36');
   const editing=editingReceipt();document.body.classList.toggle('efc-certificate-editing-v44',Boolean(editing));if(editing)mode=editing.studentType==='external'?'external':'internal';
-  const branchOptions=certificateBranchOptionsMarkup(),editable=canEditCertificates(),date=today(),currentYear=Number(date.slice(0,4)),currentMonth=Number(date.slice(5,7)),financeYears=certificateFinanceYears(),financeBranches=certificateFinanceBranches(),financeSpecialties=certificateFinanceSpecialties(),financeMethods=[...new Set(state.certificateReceipts.map(item=>String(item.method||'').trim()).filter(Boolean))];
+  const branchOptions=activeCertificateBranches().map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join(''),editable=canEditCertificates(),date=today(),currentYear=Number(date.slice(0,4)),currentMonth=Number(date.slice(5,7)),financeYears=certificateFinanceYears(),financeBranches=certificateFinanceBranches(),financeSpecialties=certificateFinanceSpecialties(),financeMethods=[...new Set(state.certificateReceipts.map(item=>String(item.method||'').trim()).filter(Boolean))];
   const title=`<div class="page-title efc-cert-hero-v35 efc-cert-hero-v36"><div><span class="efc-cert-title-icon-v36">${CERT_ICON}</span><h1>${editing?'تعديل روسي الشهادة':'روسي الشهادة'}</h1></div></div>`;
   const payment=`<div class="grid two cert-payment-v13"><label>المبلغ<input class="input" id="certAmountV13" type="number" min="1" autocomplete="off" placeholder="المبلغ" required ${editable?'':'disabled'}></label><label>وسيلة الدفع<select id="certMethodV13" ${editable?'':'disabled'}>${methods.map(item=>`<option>${esc(item)}</option>`).join('')}</select></label></div><button class="button" type="button" id="certIssueV13" disabled>${editing?'حفظ تعديل الروسي':'إصدار روسي الشهادة'}</button>`;
   const finance=`<div class="cert-history-v13 cert-finance-v13" hidden><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/></g></svg><h1>مالية الشهادات</h1></section><div class="cert-finance-topbar-v43"><button class="button secondary cert-finance-back-v43" id="certFinanceBackV13" type="button">${BACK_ICON}<span>العودة للإصدار</span></button><div class="cert-finance-switch-v43"><button class="active" type="button">دخل الشهادات</button><button id="certManagerReceiptV22" type="button">روسي الشهادات</button></div></div><div class="cert-finance-summary-row-v49"><div class="cert-finance-primary-summary-v45"><div class="cert-finance-summary-card-v43"><div class="finance-kpi-line-v13"><small id="certFinancePeriodTitleV13">دخل اليوم</small><b id="certFinancePeriodTotalV13">${cash(0)}</b></div><span id="certFinancePeriodRangeV13">هذا دخل يوم ${showDate(date)}</span></div></div></div><div class="card finance-controls cert-finance-controls-v13"><div class="segmented" id="certFinanceModeV13"><button class="active" type="button" data-mode="daily">يومي</button><button type="button" data-mode="weekly">أسبوع</button><button type="button" data-mode="monthly">شهري</button><button type="button" data-mode="yearly">سنوي</button></div><label id="certFinanceDayWrapV13">اليوم<input class="input" id="certFinanceDayV13" type="date" value="${date}"></label><label id="certFinanceFromWrapV48" hidden>من<input class="input" id="certFinanceFromV48" type="date" value="${date}"></label><label id="certFinanceToWrapV48" hidden>إلى<input class="input" id="certFinanceToV48" type="date" value="${date}"></label><label id="certFinanceMonthWrapV13">الشهر<select id="certFinanceMonthV13">${MONTH_NAMES.map((name,index)=>`<option value="${index+1}" ${index+1===currentMonth?'selected':''}>${name}</option>`).join('')}</select></label><label id="certFinanceYearWrapV13">السنة<select id="certFinanceYearV13">${financeYears.map(year=>`<option value="${year}" ${year===currentYear?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="certFinanceBranchV13"><option value="">كل الفروع</option>${financeBranches.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label class="cert-finance-specialty-v46">تخصص الشهادة<select id="certFinanceSpecialtyV13"><option value="">كل التخصصات</option>${financeSpecialties.map(([key,label])=>`<option value="${esc(key)}">${esc(label)}</option>`).join('')}</select></label><label class="cert-finance-method-v44">وسيلة الدفع<select id="certFinanceMethodV13"><option value="">كل وسائل الدفع</option>${financeMethods.map(value=>`<option>${esc(value)}</option>`).join('')}</select></label></div><div id="certFinanceBodyV13"></div></div>`;
   const toolbarAction=editing?`<button type="button" class="efc-cert-cancel-edit-v44" id="certCancelEditV44">${BACK_ICON}<span>إلغاء التعديل</span></button>`:`<button type="button" class="efc-cert-history-toggle-v36 efc-cert-toolbar-action-v47" aria-pressed="false">${FINANCE_ICON}<span>مالية الشهادات</span></button><button type="button" class="efc-cert-records-toggle-v47 efc-cert-toolbar-action-v47">${HISTORY_ICON}<span>سجل الشهادات</span></button>`;
-  shell(`${title}<div class="cert-layout-v13"><div class="card cert-form-v13" data-efc-history-open-v36="0"><div class="efc-cert-workspace-toolbar-v36"><div class="cert-mode-v13"><button type="button" data-mode="internal" ${editing?'disabled':''}>طالب مسجل</button><button type="button" data-mode="external" ${editing?'disabled':''}>طالب خارجي</button></div><div class="efc-cert-history-actions-v36">${toolbarAction}</div></div><div id="certInternalPaneV13"><label class="efc-cert-student-search-v38">ابحث عن الطالب<input class="input" id="certStudentSearchV13" autocomplete="off" placeholder="ابحث عن الطالب"></label><div class="grid two efc-cert-student-filters-v38"><label>الفرع<select id="certInternalBranchV13"><option value="">كل الفروع</option>${branches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>الشهادة<select id="certInternalSpecV13"><option value="">كل الشهادات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label></div><div id="certStudentResultsV13" class="cert-results-v13"></div><div class="efc-cert-selected-host-v40" hidden></div>${payment}</div><div id="certExternalPaneV13" hidden><div class="grid two"><label>اسم الطالب<input class="input" id="certExternalNameV13" autocomplete="off" placeholder="اسم الطالب" ${editable?'':'disabled'}></label><label>رقم الهاتف<input class="input" id="certExternalPhoneV13" autocomplete="off" placeholder="رقم الهاتف" ${editable?'':'disabled'}></label><label>رقم التسجيل<input class="input" id="certExternalRegV13" inputmode="numeric" autocomplete="off" placeholder="رقم التسجيل" required ${editable?'':'disabled'}></label><label>الشهادة<select id="certExternalSpecV13" ${editable?'':'disabled'}><option value="">اختر الشهادة</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>فرع الشهادة<select id="certExternalBranchV13" ${editable?'':'disabled'}><option value="">اختر فرع الشهادة</option>${branchOptions}</select></label></div><div class="cert-external-branch-actions-v13"><button type="button" class="mini" id="certAddBranchV13" ${editable?'':'disabled'}>＋ إضافة فرع شهادة</button><button type="button" class="mini" id="certEditBranchV13" disabled>تعديل الفرع</button><button type="button" class="mini cert-move-branch-v13" id="certMoveBranchStudentsV13" hidden disabled>نقل الطلاب</button><button type="button" class="mini cert-delete-branch-v13" id="certDeleteBranchV13" disabled>حذف الفرع</button></div></div><span class="efc-cert-payment-anchor-v40" hidden></span>${finance}</div></div>`);
+  shell(`${title}<div class="cert-layout-v13"><div class="card cert-form-v13" data-efc-history-open-v36="0"><div class="efc-cert-workspace-toolbar-v36"><div class="cert-mode-v13"><button type="button" data-mode="internal" ${editing?'disabled':''}>طالب مسجل</button><button type="button" data-mode="external" ${editing?'disabled':''}>طالب خارجي</button></div><div class="efc-cert-history-actions-v36">${toolbarAction}</div></div><div id="certInternalPaneV13"><label class="efc-cert-student-search-v38">ابحث عن الطالب<input class="input" id="certStudentSearchV13" autocomplete="off" placeholder="ابحث عن الطالب"></label><div class="grid two efc-cert-student-filters-v38"><label>الفرع<select id="certInternalBranchV13"><option value="">كل الفروع</option>${branches.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>الشهادة<select id="certInternalSpecV13"><option value="">كل الشهادات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label></div><div id="certStudentResultsV13" class="cert-results-v13"></div><div class="efc-cert-selected-host-v40" hidden></div>${payment}</div><div id="certExternalPaneV13" hidden><div class="grid two"><label>اسم الطالب<input class="input" id="certExternalNameV13" autocomplete="off" placeholder="اسم الطالب" ${editable?'':'disabled'}></label><label>رقم الهاتف<input class="input" id="certExternalPhoneV13" autocomplete="off" placeholder="رقم الهاتف" ${editable?'':'disabled'}></label><label>رقم التسجيل<input class="input" id="certExternalRegV13" inputmode="numeric" autocomplete="off" placeholder="رقم التسجيل" required ${editable?'':'disabled'}></label><label>الشهادة<select id="certExternalSpecV13" ${editable?'':'disabled'}><option value="">اختر الشهادة</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>فرع الشهادة<select id="certExternalBranchV13" ${editable?'':'disabled'}><option value="">اختر فرع الشهادة</option>${branchOptions}</select></label></div><div class="cert-external-branch-actions-v13"><button type="button" class="mini" id="certAddBranchV13" ${editable?'':'disabled'}>＋ إضافة فرع شهادة</button><button type="button" class="mini cert-delete-branch-v13" id="certDeleteBranchV13" disabled>حذف الفرع</button></div></div><span class="efc-cert-payment-anchor-v40" hidden></span>${finance}</div></div>`);
   document.querySelectorAll('.cert-mode-v13 button').forEach(button=>button.addEventListener('click',()=>{if(editingReceipt())return;setHistoryMode(false);switchMode(button.dataset.mode);}));
   document.getElementById('certInternalBranchV13').addEventListener('change',renderStudentPicker);
   document.getElementById('certInternalSpecV13').addEventListener('change',renderStudentPicker);
   document.getElementById('certStudentSearchV13').addEventListener('input',renderStudentPicker);
   document.getElementById('certAddBranchV13').addEventListener('click',addBranch);
-  document.getElementById('certEditBranchV13').addEventListener('click',renameBranch);
-  document.getElementById('certMoveBranchStudentsV13').addEventListener('click',moveBranchStudents);
   document.getElementById('certDeleteBranchV13').addEventListener('click',deleteBranch);
   document.getElementById('certExternalBranchV13').addEventListener('change',syncBranchButtonBusy);
   document.getElementById('certIssueV13').addEventListener('click',issueReceipt);
@@ -952,8 +734,6 @@ document.addEventListener('click',event=>{
   clearCertificateEdit();
 },true);
 
-window.EFC_CERTIFICATE_REGISTRATIONS_V13=Object.freeze({numbers:certificateRegistrationNumbers});
-
 async function boot(){
   await loadState();ensureSidebar();
   window.EFC_REGISTER_STATE_CONTRIBUTOR?.('certificates',snapshot=>Object.assign(snapshot,{certificateBranches:state.certificateBranches,certificateReceipts:state.certificateReceipts,certificateNextReceiptNo:state.nextReceiptNo}));
@@ -973,7 +753,7 @@ async function boot(){
   window.EFC_CERTIFICATE_PAYMENTS_V13=()=>state.certificateReceipts.map(certificatePayment);
   window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set((ids||[]).map(String)),records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!idSet.has(String(item.id||''))&&!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});
   window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;
-  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceCustomWeekRange:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodSummary:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryAboveFilters:true,certificateFinanceSummaryFilterClearance:true,certificateFinanceSummaryDedicatedRow:true,certificateFinanceCompactFilterGeometry:true,certificatePeriodSwitchConstrainedToGrid:true,certificateFinanceResponsiveRulesConsolidated:true,certificateFinancePositiveSummary:true,certificateFinanceFixedSpecialtyFilterWidth:true,certificateFinanceTopbarAligned:true,certificateFinanceNoChart:true,certificateFinanceDailyDateOnly:true,certificateFinanceFilterSummaryText:true,certificateFinanceResponsiveLikeLedger:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateHistorySeparatePage:true,certificateHistoryCount:true,certificateHistoryCountCenteredBelowTitle:true,certificateHistoryUsesFinanceFilters:true,certificateHistoryCustomWeekRange:true,certificateHistoryFilterByPeriod:true,certificateHistoryFilterByBranch:true,certificateHistoryFilterBySpecialty:true,certificateHistoryFilterByPaymentMethod:true,certificateHistoryFilterSummaryText:true,certificateHistoryIdentitySearch:true,certificateHistorySearchMatchesStudentIdentityRules:true,certificateHistorySummaryMatchesFinance:true,certificateTerminologyUsesCertificateOnly:true,certificateToolbarStyledActions:true,certificateFinanceNoHistoryTable:true,certificateHistorySpreadsheetTable:true,certificateHistoryStandardGreenHeader:true,certificateManagerReceipt:true,certificateManagerReceiptDoesNotMutateFinance:true,certificateManagerReceiptAsksFundsLocation:true,certificateManagerReceiptFiltersCenterAndCertificate:true,certificateManagerReceiptDefaultsAllCentersAndCertificates:true,certificateManagerReceiptColoredSummary:true,certificateManagerAmountProminentInline:true,certificateFinanceSpecialtyTerminology:true,certificateReceiptPaidAmountLabel:true,certificatePdfLogoCaptureFixed:true,certificateUsesSharedEmbeddedLogo:true,certificateReceiptEditDelete:true,certificateDeliveryTracking:true,certificateDeliveryStudentOrAgent:true,certificateDeliveryNoDefaultRecipient:true,certificateDeliveryExclusiveRecipientFields:true,certificateDeliveryClearStudentHeader:true,certificateDeliveryHistoryDate:true,certificateDeliveryReadonlyAfterSave:true,certificateDeliveryReceipt:true,certificateDeliveryReceiptCongrats:true,certificateExternalReceiptFullEdit:true,certificateInternalReceiptIdentityLocked:true,certificateReceiptFiscalLockAware:true,certificateReceiptNumbersNeverReused:true,certificateReceiptHighWaterPersisted:true,certificateInternalEditStudentSelectionLocked:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,externalCertificateBranchDelete:true,deletedCertificateBranchHistoryPreserved:true,certificateBranchFiltersRequireLiveReceipt:true,certificateBranchFiltersRequireLiveSource:true,certificateBranchDisplayResolvesCurrentSource:true,certificateBranchStoredNameFallback:true,officialBranchesAvailableForExternalCertificateEntry:true,manualExternalOfficialBranchDisplaysRegistered:true,manualExternalOfficialBranchStaysExternalEditable:true,externalCertificateBranchRename:true,externalCertificateBranchMoveStudents:true,externalCertificateBranchMoveKeepsExternalStudentType:true,externalCertificateBranchMoveRequiresStrongOfficialMatch:true,externalCertificateBranchMoveFiscalLockAware:true,certificateOfficialRegistrationCollisionSafe:true,certificateOfficialRegistrationSharesStudentSequence:true,certificateManualRegistrationReservations:true,certificateBranchTransferRegistrationHistory:true,certificateBranchTransferAtomicRenumber:true,certificateManualRegistrationReleaseOnDeleteOrScopeChange:true,duplicateOfficialBranchCreationBlocked:true,externalCertificateBranchReactivation:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
+  window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceCustomWeekRange:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodSummary:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryAboveFilters:true,certificateFinanceSummaryFilterClearance:true,certificateFinanceSummaryDedicatedRow:true,certificateFinanceCompactFilterGeometry:true,certificatePeriodSwitchConstrainedToGrid:true,certificateFinanceResponsiveRulesConsolidated:true,certificateFinancePositiveSummary:true,certificateFinanceFixedSpecialtyFilterWidth:true,certificateFinanceTopbarAligned:true,certificateFinanceNoChart:true,certificateFinanceDailyDateOnly:true,certificateFinanceFilterSummaryText:true,certificateFinanceResponsiveLikeLedger:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateHistorySeparatePage:true,certificateHistoryCount:true,certificateHistoryCountCenteredBelowTitle:true,certificateHistoryUsesFinanceFilters:true,certificateHistoryCustomWeekRange:true,certificateHistoryFilterByPeriod:true,certificateHistoryFilterByBranch:true,certificateHistoryFilterBySpecialty:true,certificateHistoryFilterByPaymentMethod:true,certificateHistoryFilterSummaryText:true,certificateHistoryIdentitySearch:true,certificateHistorySearchMatchesStudentIdentityRules:true,certificateHistorySummaryMatchesFinance:true,certificateTerminologyUsesCertificateOnly:true,certificateToolbarStyledActions:true,certificateFinanceNoHistoryTable:true,certificateHistorySpreadsheetTable:true,certificateHistoryStandardGreenHeader:true,certificateManagerReceipt:true,certificateManagerReceiptDoesNotMutateFinance:true,certificateManagerReceiptAsksFundsLocation:true,certificateManagerReceiptFiltersCenterAndCertificate:true,certificateManagerReceiptDefaultsAllCentersAndCertificates:true,certificateManagerReceiptColoredSummary:true,certificateManagerAmountProminentInline:true,certificateFinanceSpecialtyTerminology:true,certificateReceiptPaidAmountLabel:true,certificatePdfLogoCaptureFixed:true,certificateUsesSharedEmbeddedLogo:true,certificateReceiptEditDelete:true,certificateDeliveryTracking:true,certificateDeliveryStudentOrAgent:true,certificateDeliveryNoDefaultRecipient:true,certificateDeliveryExclusiveRecipientFields:true,certificateDeliveryClearStudentHeader:true,certificateDeliveryHistoryDate:true,certificateDeliveryReadonlyAfterSave:true,certificateDeliveryReceipt:true,certificateDeliveryReceiptCongrats:true,certificateExternalReceiptFullEdit:true,certificateInternalReceiptIdentityLocked:true,certificateReceiptFiscalLockAware:true,certificateReceiptNumbersNeverReused:true,certificateReceiptHighWaterPersisted:true,certificateInternalEditStudentSelectionLocked:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,externalCertificateBranchDelete:true,deletedCertificateBranchHistoryPreserved:true,certificateBranchFiltersRequireLiveReceipt:true,certificateBranchFiltersRequireLiveSource:true,certificateBranchDisplayResolvesCurrentSource:true,certificateBranchStoredNameFallback:true,externalCertificateBranchReactivation:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }
 
 boot().catch(error=>{console.error('EFC certificates v13 failed to initialize.',error);throw error;});

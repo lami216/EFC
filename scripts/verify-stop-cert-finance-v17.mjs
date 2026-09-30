@@ -56,7 +56,7 @@ need(cert,'certificateFinanceDailyDateOnly:true','daily date-only marker');
 need(cert,'certificateFinanceFilterSummaryText:true','filtered summary sentence marker');
 if(cert.includes('name.readOnly=true')||cert.includes('specialty.disabled=true')||cert.includes('branch.disabled=true'))throw new Error('External certificate receipt fields must not be locked during edit.');
 need(cert,"if(receipt.studentType==='external'){",'external receipt full-edit branch');
-need(cert,"externalData={studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:branchChoice.branchType,branchId:branchChoice.branchId,branchName:branchChoice.branchName}",'external receipt full data collection preserves manual-edit routing while allowing official or external branch affiliation');
+need(cert,"externalData={studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate'","external receipt full data collection");
 need(cert,"Object.assign(receipt,externalData||{}, {amount,method})",'external receipt full data save');
 need(cert,"if(receipt.studentType!=='external')return false",'internal receipt dirty-check identity remains locked');
 if(cert.includes('الشهادة / الدورة'))throw new Error('Certificate module must use الشهادة without the mixed الشهادة / الدورة label.');

@@ -24,9 +24,7 @@ for(const [token,label] of [
   ['function deleteStudentPermanently(student)','permanent student delete path'],
   ['studentLifecycleV20:clone(state)','backup contributor contains lifecycle state'],
   ['filterDeletedStudents(incoming)','deleted students are filtered from restores'],
-  ['function monthlyCoverageEnd(student)','monthly coverage end calculator'],
-  ['certificateManualRegistrationReservationsIncluded:true','manual certificate registration numbers participate in student numbering'],
-  ['EFC_CERTIFICATE_REGISTRATIONS_V13?.numbers?.(branch,specialty)','student number allocation reads live certificate reservations']
+  ['function monthlyCoverageEnd(student)','monthly coverage end calculator']
 ])need(lifecycle,token,label);
 for(const [token,label] of [
   ["label.textContent='نهاية الشهر'",'student file monthly end label'],
@@ -52,7 +50,6 @@ const addDuration=(value,count,unit)=>{
 const addDays=(value,count)=>{const d=new Date(`${value}T12:00:00`);d.setDate(d.getDate()+Number(count));const pad=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
 const scopeKey=(branch,specialty)=>`${encodeURIComponent(branch)}|${encodeURIComponent(specialty)}`;
 const students=[{id:'s5',recordCode:'r5',branch:'A',specialty:'F',reg:5,start:'2026-09-16',snapshot:{dynamicMonthly:true,billing:'monthly',fee:1000},payments:[],updatedAt:10}];
-const certificateReservations=new Map();
 let restored=null;
 const sequenceBase={identitySnapshot:()=>({registrationLastByScope:{[scopeKey('A','F')]:5}}),registrationNumbersNeverReused:true};
 const baseDomain={
@@ -66,7 +63,6 @@ const baseDomain={
 };
 const window={
   EFC_DOMAIN_V13:baseDomain,EFC_RECEIPT_SEQUENCES_V10:sequenceBase,
-  EFC_CERTIFICATE_REGISTRATIONS_V13:{numbers:(branch,specialty)=>certificateReservations.get(scopeKey(String(branch),String(specialty)))||[]},
   EFC_REGISTER_STATE_CONTRIBUTOR:(name,fn)=>contributors.set(name,fn),
   EFC_APPLY_RESTORED_STATE:async incoming=>{restored=incoming;return incoming;},
   EFC_CORE_CHANGED:()=>{},EFC_FORCE_PERSIST:async()=>{},EFC_CODES:{ensureStudentRecord:s=>s.recordCode||'generated'}
@@ -76,8 +72,6 @@ context.globalThis=context;
 vm.runInNewContext(lifecycle,context,{filename:'production-student-lifecycle-domain-v20.js'});
 await Promise.resolve();
 const seq=window.EFC_RECEIPT_SEQUENCES_V10,D=window.EFC_DOMAIN_V13;
-certificateReservations.set(scopeKey('CERT','EN'),[8]);
-if(seq.previewRegistrationNumber('CERT','EN')!==9)throw new Error('Manual certificate registration #8 must reserve the normal student scope and make the next number #9.');
 if(seq.previewRegistrationNumber('A','F')!==6)throw new Error('Active latest #5 must make the next number #6.');
 await D.deleteStudentPermanently(students[0]);
 if(seq.previewRegistrationNumber('A','F')!==5)throw new Error('Deleted latest #5 must be reusable before #6 is issued.');
@@ -113,4 +107,4 @@ if(!blocked)throw new Error('A student with closed-year financial history must n
 await window.EFC_APPLY_RESTORED_STATE({students:[{id:'s5',recordCode:'r5',branch:'A',specialty:'F',reg:5}]});
 if(restored.students.length!==0)throw new Error('A permanently deleted student must not be resurrected by an older backup.');
 
-console.log('Student lifecycle v20 verified: latest registration reuse until successor, manual certificate reservations, sealed older/archive numbers, automatic target-scope numbering, closed-period reclassification protection, monthly paid-through end date, and deletion tombstones.');
+console.log('Student lifecycle v20 verified: latest registration reuse until successor, sealed older/archive numbers, automatic target-scope numbering, closed-period reclassification protection, monthly paid-through end date, and deletion tombstones.');
