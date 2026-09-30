@@ -92,6 +92,9 @@ requireText(certificates,'certificateOfficialRegistrationSharesStudentSequence:t
 requireText(certificates,'certificateManualRegistrationReservations:true','manual certificate students reserve registration numbers for later student registration');
 requireText(certificates,'certificateBranchTransferRegistrationHistory:true','branch transfer records registration-number history');
 requireText(certificates,'certificateBranchTransferAtomicRenumber:true','branch transfer plans all registration numbers before one atomic save');
+requireText(certificates,'certificateManualRegistrationReleaseOnDeleteOrScopeChange:true','unused provisional certificate registration can be released safely');
+requireText(certificates,'function releaseCertificateRegistrationIfUnused(receipt)','certificate receipt delete or scope change checks whether its old number is still in use');
+requireText(certificates,'releaseCertificateRegistrationIfUnused(receipt);receiptDeleteInFlight=false','deleting the last manual official receipt releases only an eligible latest number');
 requireText(certificates,'function certificateRegistrationPlanner(','certificate registrations use a target-scope allocator');
 requireText(certificates,'function planCertificateOfficialRegistration(','manual official-branch receipts use one registration planner');
 requireText(certificates,'window.EFC_CERTIFICATE_REGISTRATIONS_V13=Object.freeze({numbers:certificateRegistrationNumbers})','student lifecycle can read live manual-certificate reservations');
