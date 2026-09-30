@@ -101,6 +101,12 @@ for(const [token,label] of [
   ["document.getElementById('certRecordsSearchV50')?.addEventListener('input',drawCertificateHistory)",'certificate history search redraws results while typing'],
   ['certificateHistorySearchMatches(receipt,query)&&certificateFilterMatches','certificate history identity search composes with existing filters']
 ])requireText(certificates,token,label);
+requireText(certificates,'certificateHistoryFilterByDeliveryStatus:true','certificate history filters by delivery status instead of specialty');
+requireText(certificates,'id="certRecordsDeliveryV51"','certificate history exposes a delivery-status filter');
+requireText(certificates,'<option value="received">مستلمة</option>','certificate history can show received certificates only');
+requireText(certificates,'<option value="pending">غير مستلمة</option>','certificate history can show pending certificates only');
+requireText(certificates,"certificateFilterMatches(receipt,{branch,method,delivery:deliveryStatus})",'delivery status composes with records search/date/branch/payment filters');
+forbidText(certificates,'certRecordsSpecialtyV48','certificate records no longer expose the specialty filter');
 forbidText(certificates,'الفلترة الخاصة بها ستبقى محفوظة','deleted external branches must not remain as filter options');
 
 forbidText(certificates,'new MutationObserver(','certificate renderer observer');
