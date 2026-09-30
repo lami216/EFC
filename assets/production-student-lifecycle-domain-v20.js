@@ -53,6 +53,7 @@ function activeRegs(branch,specialty,excludeId=''){
     if(String(student?.branch||'')!==String(branch||'')||String(student?.specialty||'')!==String(specialty||''))return;
     const reg=int(student?.reg);if(reg)values.push(reg);
   });
+  try{(window.EFC_CERTIFICATE_REGISTRATIONS_V13?.numbers?.(branch,specialty)||[]).forEach(value=>{const reg=int(value);if(reg)values.push(reg);});}catch{}
   return values;
 }
 function legacyEntry(branch,specialty){
@@ -202,7 +203,7 @@ window.EFC_RECEIPT_SEQUENCES_V10=Object.freeze({...sequenceBase,
   sealRegistrationNumber,
   registrationPolicy
 });
-const next=Object.freeze({...B,updateStudentRegistration,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
+const next=Object.freeze({...B,updateStudentRegistration,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,certificateManualRegistrationReservationsIncluded:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20=Object.freeze({ready:true,version:VERSION,storageKey:STORAGE_KEY,registrationNumberPolicy:'successor-sealed-latest-reusable',latestNumberReusableUntilSuccessor:true,olderNumbersStayReserved:true,automaticNumberOnScopeChange:true,monthlyCoverageEnd,previewRegistrationNumber,registrationNumberWillBeReusable,markRegistrationReleased,sealRegistrationNumber,deleteStudentPermanently,snapshot:()=>clone(state)});
