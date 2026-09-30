@@ -87,6 +87,17 @@ requireText(certificates,'externalCertificateBranchMoveStudents:true','duplicate
 requireText(certificates,'externalCertificateBranchMoveKeepsExternalStudentType:true','branch transfer keeps technical external student identity');
 requireText(certificates,'externalCertificateBranchMoveRequiresStrongOfficialMatch:true','move action requires one strong official-branch match');
 requireText(certificates,'externalCertificateBranchMoveFiscalLockAware:true','branch transfer respects closed fiscal periods');
+requireText(certificates,'certificateOfficialRegistrationCollisionSafe:true','official-branch certificate registrations avoid collisions and sealed numbers');
+requireText(certificates,'certificateOfficialRegistrationSharesStudentSequence:true','certificate registrations share the normal student registration sequence');
+requireText(certificates,'certificateManualRegistrationReservations:true','manual certificate students reserve registration numbers for later student registration');
+requireText(certificates,'certificateBranchTransferRegistrationHistory:true','branch transfer records registration-number history');
+requireText(certificates,'certificateBranchTransferAtomicRenumber:true','branch transfer plans all registration numbers before one atomic save');
+requireText(certificates,'function certificateRegistrationPlanner(','certificate registrations use a target-scope allocator');
+requireText(certificates,'function planCertificateOfficialRegistration(','manual official-branch receipts use one registration planner');
+requireText(certificates,'window.EFC_CERTIFICATE_REGISTRATIONS_V13=Object.freeze({numbers:certificateRegistrationNumbers})','student lifecycle can read live manual-certificate reservations');
+requireText(certificates,'const transfer=planCertificateBranchTransfer(branch,official)','branch transfer precomputes the complete registration plan');
+requireText(certificates,"receipt.reg=String(group.plan.number)",'branch transfer applies the planned non-colliding register number');
+requireText(certificates,"reason:'external-branch-to-official'",'branch transfer stores an audit reason');
 requireText(certificates,'duplicateOfficialBranchCreationBlocked:true','new external branches cannot duplicate a strongly matching official branch');
 requireText(certificates,'function certificateBranchChoiceValue(','certificate branch choices encode official versus external sources');
 requireText(certificates,'<optgroup label="فروع المركز الرسمية">','external certificate form exposes official branches separately');
