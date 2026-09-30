@@ -74,14 +74,28 @@ requireText(certificates,'state.certificateReceipts=state.certificateReceipts.fi
 requireText(certificates,"'\"':'&quot;'",'certificate HTML quote escaping');
 forbidText(certificates,'persist().then(renderCertificates)','certificate branch add rerendering and discarding the external form draft');
 requireText(certificates,'externalCertificateBranchDelete:true','external certificate branches can be deleted');
-requireText(certificates,'deletedCertificateBranchHistoryPreserved:true','deleted certificate branches preserve historical receipts');
-requireText(certificates,'deletedCertificateBranchFilterFromReceiptsOnly:true','deleted branch filters are derived only from historical receipts');
+requireText(certificates,'deletedCertificateBranchHistoryPreserved:true','deleted certificate branches preserve historical receipt text without remaining selectable');
+requireText(certificates,'certificateBranchFiltersRequireLiveReceipt:true','certificate branch filters only exist while a live certificate receipt needs them');
+requireText(certificates,'certificateBranchFiltersRequireLiveSource:true','certificate branch filters cannot resurrect branches removed from their primary source');
 requireText(certificates,'externalCertificateBranchReactivation:true','re-adding a deleted branch reactivates the same branch identity');
 requireText(certificates,'function activeCertificateBranches()','certificate issue dropdown excludes deleted branches');
 requireText(certificates,'function deleteBranch()','certificate branch delete controller');
 requireText(certificates,"branch.deletedAt=Date.now();branch.updatedAt=branch.deletedAt",'certificate branch delete is archived instead of destroying history identity');
-requireText(certificates,"state.certificateReceipts.forEach(receipt=>{const key=certificateBranchKey(receipt)",'certificate filter branch list remains receipt-driven');
+requireText(certificates,'function certificateBranchSourceIsActive(receipt)','certificate filters validate each receipt branch against its live primary source');
+requireText(certificates,'if(!certificateBranchSourceIsActive(receipt))return;','deleted or orphaned branches cannot remain in certificate filter lists');
+requireText(certificates,"state.certificateReceipts.forEach(receipt=>{if(!certificateBranchSourceIsActive(receipt))return;const key=certificateBranchKey(receipt)",'certificate filter branch list remains receipt-driven without stale primary-source entries');
 requireText(certificates,'id="certDeleteBranchV13"','external certificate branch delete button');
+for(const [token,label] of [
+  ['certificateHistoryIdentitySearch:true','certificate history exposes one identity search control'],
+  ['certificateHistorySearchMatchesStudentIdentityRules:true','certificate history search follows the student identity rules'],
+  ['function certificateHistorySearchMatches(receipt,query)','certificate history has a dedicated name/phone/register matcher'],
+  ["certificateHistorySearchDigits(receipt?.phone).includes(digits)||certificateHistoryDisplayRecord(receipt?.reg).includes(digits)",'certificate history numeric search matches phone or displayed register number'],
+  ['id="certRecordsSearchV50"','certificate history search banner input'],
+  ['placeholder="ابحث بالاسم أو الهاتف أو رقم السجل"','certificate history search wording matches the existing search pages'],
+  ["document.getElementById('certRecordsSearchV50')?.addEventListener('input',drawCertificateHistory)",'certificate history search redraws results while typing'],
+  ['certificateHistorySearchMatches(receipt,query)&&certificateFilterMatches','certificate history identity search composes with existing filters']
+])requireText(certificates,token,label);
+forbidText(certificates,'الفلترة الخاصة بها ستبقى محفوظة','deleted external branches must not remain as filter options');
 
 forbidText(certificates,'new MutationObserver(','certificate renderer observer');
 forbidText(certificates,'activeStudentId','duplicate certificate student state');
