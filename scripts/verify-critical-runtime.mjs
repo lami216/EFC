@@ -77,6 +77,12 @@ requireText(certificates,'externalCertificateBranchDelete:true','external certif
 requireText(certificates,'deletedCertificateBranchHistoryPreserved:true','deleted certificate branches preserve historical receipt text without remaining selectable');
 requireText(certificates,'certificateBranchFiltersRequireLiveReceipt:true','certificate branch filters only exist while a live certificate receipt needs them');
 requireText(certificates,'certificateBranchFiltersRequireLiveSource:true','certificate branch filters cannot resurrect branches removed from their primary source');
+requireText(certificates,'certificateBranchDisplayResolvesCurrentSource:true','certificate displays resolve live branch names by branch identity');
+requireText(certificates,'certificateBranchStoredNameFallback:true','certificate displays preserve stored branch text only when the source identity is gone');
+requireText(certificates,'function certificateBranchDisplayName(receipt)','certificate branch display has one canonical resolver');
+requireText(certificates,"const current=(Array.isArray(branches)?branches:[]).find(item=>id&&String(item?.id||'')===id)",'internal certificate branches resolve their current source name by id');
+requireText(certificates,'<td>${esc(certificateBranchDisplayName(receipt))}</td>','certificate history does not render stale receipt branchName snapshots directly');
+requireText(certificates,'label=certificateBranchDisplayName(receipt)','certificate filter labels use the same canonical branch display resolver');
 requireText(certificates,'externalCertificateBranchReactivation:true','re-adding a deleted branch reactivates the same branch identity');
 requireText(certificates,'function activeCertificateBranches()','certificate issue dropdown excludes deleted branches');
 requireText(certificates,'function deleteBranch()','certificate branch delete controller');
