@@ -32,7 +32,10 @@ for(const token of ['mod bank_state;','load_bank_state','save_bank_state','bank_
 for(const token of ['validate_bank_state','bankEntries','bankTombstones','bankNextReceiptNo'])need(rust,token,'Rust bank state '+token);
 need(security,"const reminderLogo=()=>window.EFC_RECEIPT_LOGO_DATA_URI||new URL('./efc-logo.svg',location.href).href",'embedded reminder logo');
 for(const token of ['certificateManagerReceipt:true','certificateManagerReceiptDoesNotMutateFinance:true','certificateManagerReceiptAsksFundsLocation:true','certificateManagerReceiptFiltersCenterAndCertificate:true','certificateManagerReceiptDefaultsAllCentersAndCertificates:true','certificateManagerReceiptColoredSummary:true','certificateManagerAmountProminentInline:true','وسائل الدفع الإلكترونية','البنك','certManagerReceiptV22','كل المراكز','كل الشهادات','إدارة الشهادات','روسي الشهادات'])need(cert,token,'certificate manager receipt '+token);
-need(cert,"certificateManagerRows(from,to,{branch='',specialty=''}={})",'certificate manager filters period rows by center and certificate');
+need(cert,"certificateManagerRows(from,to,{branch='',branches=[],specialty=''}={})",'certificate manager filters period rows by one or more centers and certificate');
+need(cert,'certificateManagerReceiptMultiBranch:true','certificate manager supports multiple centers');
+need(cert,'certificateManagerReceiptBranchChips:true','certificate manager renders removable center chips');
+need(cert,'id="certManagerBranchChipsV52"','certificate manager multi-center chip container');
 forbid(cert,'managerPaymentBreakdownV22','manager receipt must not include payment breakdown');
 forbid(cert,'روسي سحب مالية الشهادات','manager receipt must not use withdrawal wording');
 need(bank,"incomeCount=rows.filter(item=>item.type!=='out').length",'bank income count');
