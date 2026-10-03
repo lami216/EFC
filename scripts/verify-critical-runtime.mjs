@@ -149,11 +149,18 @@ requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero
 requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
 requireText(financeUi,'customDateRangeFilter:true','finance page exposes a custom date-range filter');
-requireText(financeUi,'data-mode="weekly">فترة</button>','finance custom period mode is visible');
+requireText(financeUi,'data-mode="weekly">أسبوع</button>','finance custom period mode uses the same week label as certificate finance');
 requireText(financeUi,'id="fromV13"','finance custom period has a start date');
 requireText(financeUi,'id="toV13"','finance custom period has an end date');
 requireText(financeUi,"mode==='weekly'?{from:from<=to?from:to,to:from<=to?to:from}",'profitability details preserve the selected custom period');
 requireText(financeUi,"['dayV13','fromV13','toV13','monthV13','yearV13','branchV13','specV13']", 'finance redraws when either custom-period date changes');
+requireText(financeUi,"controlsRoot.dataset.mode=mode",'finance controls expose their selected period for certificate-matched geometry');
+requireText(financeUi,'.finance-controls-v13[data-mode="weekly"]{grid-template-columns:148px 124px 124px 102px 140px!important','general finance week geometry matches certificate finance without its payment-method column');
+requireText(financeUi,'#financeModeV13{width:100%!important;max-width:100%!important;min-width:0!important;height:34px!important','general finance period switch matches certificate finance height');
+requireText(financeUi,'grid-template-columns:repeat(4,minmax(0,1fr))!important','general finance period switch uses the certificate four-button geometry');
+requireText(financeUi,'button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important','general finance week button uses the certificate finance color');
+requireText(financeUi,'EFC_DELETE_EXPENSE_RECEIPT_V13','expense receipt exposes source deletion');
+requireText(financeUi,'expenseReceiptSourceDeletion:true','expense receipt deletion feature marker');
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
 requireText(financeUi,'height:min(520px,calc(100dvh - 205px))!important','expense history keeps a fixed full-height list frame');
@@ -265,6 +272,19 @@ const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'registrationReceiptPaidAmountLabel:true','registration receipt labels the paid amount explicitly');
 requireText(receiptsUi,"half('Montant',moneyV3(model.amount),'المبلغ المدفوع')",'registration receipt paid amount wording');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
+const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
+for(const [token,label] of [
+  ['paymentTombstones','deleted student payments have restore tombstones'],
+  ['paymentRestoreTombstones:true','payment deletion survives backup restore'],
+  ['paymentReceiptDeletionReversesSource:true','student receipt deletion reverses the payment source'],
+  ['registrationReceiptDeletionRemovesRegistration:true','registration receipt deletion reverses the registration source'],
+  ['studentReceiptDeleteAction:true','student receipt viewer receives a delete action'],
+  ['certificateDeliveryReceiptDeleteAction:true','certificate delivery receipt receives a delete action'],
+  ['certificateDeliveryDeleteReversesSource:true','certificate delivery deletion reverses delivery state'],
+  ['aggregateReportsRemainReadOnly:true','aggregate reports are intentionally not fake-deletable'],
+  ['deleteStudentPaymentSource','student payment source delete implementation'],
+  ['deleteCertificateDeliverySource','certificate delivery source delete implementation']
+])requireText(accountingIntegrity,token,label);
 
 const indexHtml=read('index.html');
 const licenseGate=read('assets/production-license-gate-v8.js');
