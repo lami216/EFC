@@ -26,6 +26,16 @@ for(const [token,label] of [
   ['dedupeLegacyIncomingPayments','legacy backup payment deduplication'],
   ['expenseTombstones','deleted expense restore protection'],
   ['certificateTombstones','deleted certificate restore protection'],
+  ['paymentTombstones','deleted student payment restore protection'],
+  ['paymentRestoreTombstones:true','payment tombstones are exported as a runtime invariant'],
+  ['paymentReceiptDeletionReversesSource:true','student receipt delete removes the payment source'],
+  ['registrationReceiptDeletionRemovesRegistration:true','registration receipt delete removes the registration source'],
+  ['studentReceiptDeleteAction:true','student receipt viewer gets source delete'],
+  ['certificateDeliveryReceiptDeleteAction:true','delivery receipt gets source delete'],
+  ['certificateDeliveryDeleteReversesSource:true','delivery receipt delete clears delivery state'],
+  ['aggregateReportsRemainReadOnly:true','aggregate reports stay non-deletable'],
+  ['deleteStudentPaymentSource','student payment deletion implementation'],
+  ['deleteCertificateDeliverySource','certificate delivery deletion implementation'],
   ['studentTombstones','manual deleted student restore protection'],
   ['historicalPaymentScopeSnapshots:true','payments retain historical branch/course classification'],
   ['window.allPayments=function()','finance and fiscal readers receive historical payment scope'],
@@ -80,6 +90,13 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(prepared.students[0].branch==='A','student branch reference must remap to canonical id');
   assert(prepared.expenses.some(row=>row.id==='e1'&&row.branch==='A'),'expense branch reference must remap to canonical id');
   assert(prepared.certificateReceipts[0].branchId==='A','internal certificate branch reference must remap to canonical id');
+}
+
+{
+  const payment=['2026-09-16',500,'cash','10:00',123,'دفعة', 'tx-deleted',1,'00012',null],incoming={id:'s1',recordCode:'student-r1',branch:'A',specialty:'S',payments:[payment]};
+  const {window}=await makeContext({branches:[{id:'A',name:'Nouadhibou'}],integrityState:{paymentTombstones:[{studentRecordCode:'student-r1',transactionCode:'tx-deleted',deletedAt:5}]}});
+  const prepared=window.EFC_ACCOUNTING_INTEGRITY_V21.prepareIncoming({students:[incoming]});
+  assert(prepared.students[0].payments.length===0,'deleted payment transaction must not be resurrected by restore');
 }
 
 {

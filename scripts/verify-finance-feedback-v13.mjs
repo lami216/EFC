@@ -83,10 +83,18 @@ for(const [token,label] of [
 for(const [token,label] of [
   ['chartsRemovedFromFinance:true','finance dashboards no longer render graphs'],
   ['dailyDateFilter:true','daily finance uses one full date'],
+  ['customDateRangeFilter:true','finance supports a custom from/to period'],
   ['monthlySelectedMonth:true','monthly finance uses the selected month'],
   ['yearlySelectedYear:true','yearly finance uses the selected year'],
   ['id=\"dayV13\" type=\"date\"','daily finance date picker'],
-  ["dayWrap.hidden=mode!=='daily';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=mode==='daily'",'period-specific finance controls']
+  ['id=\"fromV13\" type=\"date\"','custom finance range start'],
+  ['id=\"toV13\" type=\"date\"','custom finance range end'],
+  ['data-mode="weekly">أسبوع</button>','main finance uses the certificate finance week label'],
+  ['controlsRoot.dataset.mode=mode','finance controls expose selected period geometry'],
+  ['.finance-controls-v13[data-mode="weekly"]{grid-template-columns:148px 124px 124px 102px 140px!important','week filter geometry matches certificate finance'],
+  ['#financeModeV13{width:100%!important;max-width:100%!important;min-width:0!important;height:34px!important','finance period switch matches certificate finance size'],
+  ['button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important','week filter uses certificate finance color'],
+  ["dayWrap.hidden=mode!=='daily';fromWrap.hidden=mode!=='weekly';toWrap.hidden=mode!=='weekly';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=!['monthly','yearly'].includes(mode)",'period-specific finance controls']
 ])requireFinance(token,label);
 forbidFinance('<div class=\"card chart-card\">${chart(series(income','income chart must stay removed');
 forbidFinance('<div class=\"card chart-card\">${chart(series(costs','expense chart must stay removed');
@@ -125,4 +133,4 @@ for(const [token,label] of [
 forbidAuth('transform:scale(.5)','obsolete 50 percent login scaling');
 requireSecurity('canonicalLoginOwnedByAuth:true','security delegates login rendering to canonical auth');
 
-console.log('User feedback v13 verified: finance dashboards without graphs, selected daily/monthly/yearly periods, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
+console.log('User feedback v13 verified: finance dashboards without graphs, selected daily/custom/monthly/yearly periods, shared finance action row, single profitability explorer, daily statement column, and compact masked login.');
