@@ -91,6 +91,19 @@ requireText(certificates,'function certificateBranchSourceIsActive(receipt)','ce
 requireText(certificates,'if(!certificateBranchSourceIsActive(receipt))return;','deleted or orphaned branches cannot remain in certificate filter lists');
 requireText(certificates,"state.certificateReceipts.forEach(receipt=>{if(!certificateBranchSourceIsActive(receipt))return;const key=certificateBranchKey(receipt)",'certificate filter branch list remains receipt-driven without stale primary-source entries');
 requireText(certificates,'id="certDeleteBranchV13"','external certificate branch delete button');
+requireText(certificates,'certificateRegisteredIssuanceRemoved:true','registered-student certificate issuance is removed');
+requireText(certificates,'certificateManualReceiptOnly:true','certificate issuance uses the manual receipt form only');
+requireText(certificates,'cert-single-mode-v51','certificate workspace exposes one receipt mode instead of registered/external choices');
+requireText(certificates,'id="certEditBranchV13"','certificate branch rename button exists');
+requireText(certificates,'async function renameBranch()','certificate branch rename preserves the branch identity');
+requireText(certificates,'certificateExternalBranchRename:true','certificate branch rename feature marker');
+requireText(certificates,'certificateManagerReceiptMultiBranch:true','certificate manager receipt supports multiple branches');
+requireText(certificates,'certificateManagerReceiptBranchChips:true','certificate manager receipt shows removable selected-branch chips');
+requireText(certificates,'id="certManagerBranchChipsV52"','certificate manager branch chips container exists');
+requireText(certificates,'const range=certificateManagerCurrentRange(),branchOptions=certificateFinanceBranches(),branchNames=new Map(branchOptions),specialtyOptions=certificateFinanceSpecialties(),selectedBranches=new Set()','certificate manager starts with an empty multi-branch selection meaning all branches');
+requireText(certificates,'branches:branchKeys,branchLabels','selected branch set is passed into the manager receipt model');
+forbidText(certificates,'>طالب مسجل</button>','registered-student issuance mode must not be visible');
+forbidText(certificates,'>طالب خارجي</button>','old external-student issuance mode label must be removed');
 for(const [token,label] of [
   ['certificateHistoryIdentitySearch:true','certificate history exposes one identity search control'],
   ['certificateHistorySearchMatchesStudentIdentityRules:true','certificate history search follows the student identity rules'],
@@ -135,6 +148,12 @@ const financeUi=read('assets/production-finance-ui-v13.js');
 requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero language');
 requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
+requireText(financeUi,'customDateRangeFilter:true','finance page exposes a custom date-range filter');
+requireText(financeUi,'data-mode="weekly">فترة</button>','finance custom period mode is visible');
+requireText(financeUi,'id="fromV13"','finance custom period has a start date');
+requireText(financeUi,'id="toV13"','finance custom period has an end date');
+requireText(financeUi,"mode==='weekly'?{from:from<=to?from:to,to:from<=to?to:from}",'profitability details preserve the selected custom period');
+requireText(financeUi,"['dayV13','fromV13','toV13','monthV13','yearV13','branchV13','specV13']", 'finance redraws when either custom-period date changes');
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
 requireText(financeUi,'height:min(520px,calc(100dvh - 205px))!important','expense history keeps a fixed full-height list frame');
