@@ -281,6 +281,7 @@ async function deleteStudentPaymentSource(model){
   const domain=D();if(!model||!domain)return false;
   const canStudents=window.EFC_AUTH_V13?.canEdit?.('students')??true,canRegister=window.EFC_AUTH_V13?.canEdit?.('register')??true;if(!canStudents||!canRegister)return alert('الحساب الحالي لا يملك صلاحية حذف دفعات الطلاب.'),false;
   const student=(Array.isArray(window.students)?window.students:[]).find(item=>String(item?.id||'')===String(model.studentId||''));if(!student)return alert('تعذر العثور على ملف الطالب المرتبط بهذا الروسي.'),false;
+  if(model?.registrationReceipt)return deleteStudentWithFinance(student,null);
   const payments=Array.isArray(student.payments)?student.payments:[];let index=-1,transactionCode=text(model.transactionCode);
   if(transactionCode)index=payments.findIndex(payment=>text(payment?.[6])===transactionCode);
   if(index<0&&Number.isInteger(Number(model.paymentIndex))&&Number(model.paymentIndex)>=0)index=Number(model.paymentIndex);
@@ -365,6 +366,7 @@ function installGlobalCapture(){
     if(target.closest('.efc-open-fiscal-archive-v21')){event.preventDefault();event.stopImmediatePropagation();openFiscalArchive();return;}
     const openLive=target.closest('.efc-open-live-ledger-v21');if(openLive){event.preventDefault();event.stopImmediatePropagation();openLedgerFrom(openLive.dataset.openFrom);return;}
     const openPeriod=target.closest('.efc-show-open-period-v21');if(openPeriod){event.preventDefault();event.stopImmediatePropagation();showOpenPeriod(openPeriod.dataset.openFrom);return;}
+    const deliveryReceiptOpen=target.closest('.cert-delivery-receipt-open');if(deliveryReceiptOpen){const card=deliveryReceiptOpen.closest('.cert-delivery-card'),id=text(card?.dataset.efcCertificateIdV21);if(id)setTimeout(()=>{const receipt=window.EFC_FIND_CERTIFICATE_V13?.(id),viewer=[...document.querySelectorAll('.receipt-viewer-v13')].at(-1);if(receipt?.delivery&&viewer)injectViewerDelete({frame:viewer.querySelector('iframe')},'حذف وصل الاستلام',()=>deleteCertificateDeliverySource(receipt));},0);}
     const studentDelete=target.closest('.student-delete-v20');if(studentDelete){event.preventDefault();event.stopImmediatePropagation();const modal=studentDelete.closest('.modal'),id=text(modal?.dataset.efcStudentIdV21||window.__EFC_LAST_STUDENT_MODAL_ID_V21__),student=(students||[]).find(item=>String(item.id)===id);deleteStudentWithFinance(student,modal).catch(error=>alert(String(error?.message||error)));return;}
     const expenseDelete=target.closest('.delete-expense-v13');if(expenseDelete){event.preventDefault();event.stopImmediatePropagation();const id=text(expenseDelete.dataset.id),row=(D()?.getExpenses?.()||[]).find(item=>String(item.id)===id);deleteExpense(row,expenseDelete).catch(error=>alert(String(error?.message||error)));return;}
     const expenseEdit=target.closest('.edit-expense-history-v13,.edit-expense-v13');if(expenseEdit){const id=text(expenseEdit.dataset.id),row=(D()?.getExpenses?.()||[]).find(item=>String(item.id)===id);if(row&&fiscal()?.isDateClosed?.(row.date)){event.preventDefault();event.stopImmediatePropagation();alert('هذا المصروف داخل سنة مالية مقفلة ولا يمكن تعديله. راجع الأرشيف المالي.');return;}if(id)attachExpenseEditAudit(id);}
@@ -404,7 +406,7 @@ async function install(){
     closedFinanceViewsUseArchiveOnly:true,mixedFinanceViewsAreSplitExplicitly:true,periodPaymentArchiveGuard:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
     restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
     paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,auditTrail:true,
-    paymentReceiptDeletionReversesSource:true,studentReceiptDeleteAction:true,certificateDeliveryReceiptDeleteAction:true,certificateDeliveryDeleteReversesSource:true,aggregateReportsRemainReadOnly:true,deleteStudentPaymentSource,deleteCertificateDeliverySource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
+    paymentReceiptDeletionReversesSource:true,registrationReceiptDeletionRemovesRegistration:true,studentReceiptDeleteAction:true,certificateDeliveryReceiptDeleteAction:true,certificateDeliveryDeleteReversesSource:true,aggregateReportsRemainReadOnly:true,deleteStudentPaymentSource,deleteCertificateDeliverySource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
     snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),guardFinanceViews,rangeState
   });
 }
