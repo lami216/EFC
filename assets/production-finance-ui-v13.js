@@ -92,7 +92,7 @@ window.EFC_OPEN_EXPENSE_RECEIPT_V13=openExpenseReceipt;
 window.EFC_DELETE_EXPENSE_RECEIPT_V13=async reference=>{
   expenses=D.getExpenses();const id=String(reference?.id||reference||''),row=expenses.find(item=>String(item.id)===id);if(!row)return alert('تعذر العثور على المصروف الأصلي.'),false;
   const remove=window.EFC_ACCOUNTING_INTEGRITY_V21?.deleteExpenseSource;if(typeof remove!=='function')return alert('خدمة الحذف المحاسبي لم تجهز بعد. أعد المحاولة بعد لحظة.'),false;
-  try{const deleted=await remove(row,null);if(deleted){document.querySelectorAll('.receipt-viewer-v13').forEach(modal=>modal.remove());if(typeof currentPage==='undefined'||currentPage==='finance')renderExpenseHistory();}return Boolean(deleted);}
+  try{const deleted=await remove(row,null);if(deleted){document.querySelectorAll('.receipt-viewer-v13').forEach(modal=>modal.remove());if(typeof currentPage==='undefined'||currentPage==='finance')renderExpenseHistory();else window.renderCurrentV13?.();}return Boolean(deleted);}
   catch(error){console.error('EFC expense receipt delete failed.',error);alert(String(error?.message||error||'تعذر حذف روسي المصروف.'));return false;}
 };
 function profitabilityTable(view,income,costs){
