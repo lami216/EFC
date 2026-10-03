@@ -302,8 +302,13 @@ function ensureSourceDeleteStyle(){
   const style=document.createElement('style');style.id='efc-source-receipt-delete-style-v21';style.textContent='.efc-source-delete-receipt-v21{height:32px;border:0;border-radius:8px;background:#a63b32;color:#fff;padding:0 13px;font-family:inherit;font-size:11px;font-weight:850;cursor:pointer}.efc-source-delete-receipt-v21:hover{background:#8f3029}.receipt-viewer-head-v13 .efc-source-delete-receipt-v21{margin-inline-start:auto;margin-inline-end:8px}';document.head.appendChild(style);
 }
 function injectViewerDelete(viewer,label,onDelete){
-  const modal=viewer?.frame?.closest?.('.receipt-viewer-v13')||[...document.querySelectorAll('.receipt-viewer-v13')].at(-1),head=modal?.querySelector('.receipt-viewer-head-v13');if(!head||head.querySelector('.efc-source-delete-receipt-v21'))return;
-  ensureSourceDeleteStyle();const button=document.createElement('button');button.type='button';button.className='efc-source-delete-receipt-v21';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(onDelete()).catch(error=>alert(String(error?.message||error))));const close=head.querySelector('.receipt-viewer-close-v13');head.insertBefore(button,close||null);
+  const frame=viewer?.frame||[...document.querySelectorAll('.receipt-viewer-v13 iframe')].at(-1);if(!frame)return;
+  const install=()=>{
+    const doc=frame.contentDocument,host=doc?.querySelector('.actions12,.cert-delivery-receipt-actions-v13,.bank-actions-v22');if(!doc||!host||host.querySelector('.efc-source-delete-receipt-v21'))return;
+    const style=doc.createElement('style');style.textContent='.efc-source-delete-receipt-v21{border:0;border-radius:7px;background:#a63b32;color:#fff;padding:10px 17px;font:700 13px Tahoma;cursor:pointer;min-width:108px}.efc-source-delete-receipt-v21:hover{background:#8f3029}';doc.head.appendChild(style);
+    const button=doc.createElement('button');button.type='button';button.className='efc-source-delete-receipt-v21';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(onDelete()).catch(error=>alert(String(error?.message||error))));host.appendChild(button);
+  };
+  if(frame.contentDocument?.readyState==='complete')setTimeout(install,0);else frame.addEventListener('load',install,{once:true});
 }
 function installStudentReceiptDelete(){
   if(window.__EFC_STUDENT_RECEIPT_DELETE_V21__)return;const base=window.receiptWindowV4;if(typeof base!=='function')return;
