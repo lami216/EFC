@@ -296,6 +296,39 @@ async function deleteStudentPaymentSource(model){
   document.querySelectorAll('.receipt-viewer-v13').forEach(modal=>modal.remove());window.renderCurrentV13?.();return true;
 }
 
+function ensureSourceDeleteStyle(){
+  if(document.getElementById('efc-source-receipt-delete-style-v21'))return;
+  const style=document.createElement('style');style.id='efc-source-receipt-delete-style-v21';style.textContent='.efc-source-delete-receipt-v21{height:32px;border:0;border-radius:8px;background:#a63b32;color:#fff;padding:0 13px;font-family:inherit;font-size:11px;font-weight:850;cursor:pointer}.efc-source-delete-receipt-v21:hover{background:#8f3029}.receipt-viewer-head-v13 .efc-source-delete-receipt-v21{margin-inline-start:auto;margin-inline-end:8px}';document.head.appendChild(style);
+}
+function injectViewerDelete(viewer,label,onDelete){
+  const modal=viewer?.frame?.closest?.('.receipt-viewer-v13')||[...document.querySelectorAll('.receipt-viewer-v13')].at(-1),head=modal?.querySelector('.receipt-viewer-head-v13');if(!head||head.querySelector('.efc-source-delete-receipt-v21'))return;
+  ensureSourceDeleteStyle();const button=document.createElement('button');button.type='button';button.className='efc-source-delete-receipt-v21';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(onDelete()).catch(error=>alert(String(error?.message||error))));const close=head.querySelector('.receipt-viewer-close-v13');head.insertBefore(button,close||null);
+}
+function installStudentReceiptDelete(){
+  if(window.__EFC_STUDENT_RECEIPT_DELETE_V21__)return;const base=window.receiptWindowV4;if(typeof base!=='function')return;
+  window.receiptWindowV4=function(model,...args){const viewer=base.call(this,model,...args),deletable=Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false&&model?.receiptSource==='payment'&&Number(model?.amount||0)>0;if(deletable)injectViewerDelete(viewer,'حذف الروسي',()=>deleteStudentPaymentSource(model));return viewer;};
+  window.__EFC_STUDENT_RECEIPT_DELETE_V21__=true;
+}
+async function persistCertificateSnapshot(){
+  const snapshot=window.EFC_CERTIFICATE_STATE_V14?.snapshot?.();if(!snapshot)throw new Error('تعذر قراءة سجل الشهادات.');
+  localStorage.setItem('efc-certificate-state-v1',JSON.stringify(snapshot));if(invoke)await invoke('save_certificate_state',{state:JSON.stringify(snapshot)});await window.EFC_FORCE_PERSIST?.();return snapshot;
+}
+async function deleteCertificateDeliverySource(reference){
+  const id=text(reference?.id||reference),receipt=window.EFC_FIND_CERTIFICATE_V13?.(id);if(!receipt?.delivery)return alert('لا توجد عملية استلام مسجلة لهذه الشهادة.'),false;
+  if(!(window.EFC_AUTH_V13?.canEdit?.('certificates')??true))return alert('الحساب الحالي لا يملك صلاحية تعديل الشهادات.'),false;
+  try{fiscal()?.assertDateOpen?.(receipt.delivery.date,'تاريخ استلام الشهادة');}catch(error){alert(String(error?.message||error||'لا يمكن حذف عملية الاستلام.'));return false;}
+  if(!window.confirm(`حذف وصل استلام الشهادة؟\nسيتم إلغاء عملية الاستلام وإرجاع الشهادة إلى حالة «لم تُستلم». لن يتم حذف روسي إصدار الشهادة أو مبلغها.`))return false;
+  const previous=clone(receipt.delivery);receipt.delivery=null;
+  try{await persistCertificateSnapshot();addAudit('certificate-delivery-delete',{certificateId:text(receipt.id),receiptNo:Number(receipt.receiptNo)||null,deliveryDate:text(previous?.date)});document.querySelectorAll('.receipt-viewer-v13,.cert-delivery-card').forEach(node=>node.closest?.('.modal')?.remove?.()||node.remove?.());window.renderCurrentV13?.();return true;}
+  catch(error){receipt.delivery=previous;try{await persistCertificateSnapshot();}catch(rollbackError){console.error('EFC certificate delivery delete rollback failed.',rollbackError);}console.error('EFC certificate delivery delete failed.',error);alert('تعذر حذف عملية الاستلام. لم يتم تغيير البيانات.');return false;}
+}
+function installCertificateDeliveryDelete(){
+  if(window.__EFC_CERTIFICATE_DELIVERY_DELETE_V21__)return;const baseInfo=window.EFC_OPEN_CERTIFICATE_DELIVERY_V13,baseReceipt=window.EFC_OPEN_CERTIFICATE_DELIVERY_RECEIPT_V13;if(typeof baseInfo!=='function')return;
+  window.EFC_OPEN_CERTIFICATE_DELIVERY_V13=function(reference,...args){const id=text(reference?.id||reference),receipt=window.EFC_FIND_CERTIFICATE_V13?.(id),result=baseInfo.call(this,reference,...args);if(receipt?.delivery){setTimeout(()=>{const card=[...document.querySelectorAll('.cert-delivery-card')].at(-1),actions=card?.querySelector('.cert-delivery-actions');if(!card||!actions)return;card.dataset.efcCertificateIdV21=text(receipt.id);if(!actions.querySelector('.efc-source-delete-receipt-v21')){ensureSourceDeleteStyle();const button=document.createElement('button');button.type='button';button.className='button efc-source-delete-receipt-v21';button.textContent='حذف وصل الاستلام';button.onclick=()=>deleteCertificateDeliverySource(receipt);actions.appendChild(button);}},0);}return result;};
+  if(typeof baseReceipt==='function')window.EFC_OPEN_CERTIFICATE_DELIVERY_RECEIPT_V13=function(reference,...args){const id=text(reference?.id||reference),receipt=window.EFC_FIND_CERTIFICATE_V13?.(id),viewer=baseReceipt.call(this,reference,...args);if(receipt?.delivery)injectViewerDelete(viewer,'حذف وصل الاستلام',()=>deleteCertificateDeliverySource(receipt));return viewer;};
+  window.__EFC_CERTIFICATE_DELIVERY_DELETE_V21__=true;
+}
+
 async function deleteExpense(row,button){
   const domain=D();if(!row||!domain)return false;if(!(window.EFC_AUTH_V13?.canEdit?.('finance')??true))return false;if(fiscal()?.isDateClosed?.(row.date))return alert('هذا المصروف داخل سنة مالية مقفلة ولا يمكن حذفه. راجع الأرشيف المالي.'),false;
   if(!window.confirm(`حذف المصروف «${row.name}» بقيمة ${domain.cash?.(row.amount)||row.amount}؟`))return false;
@@ -364,14 +397,14 @@ function installRestoreGuard(){
 function installStateContributor(){window.EFC_REGISTER_STATE_CONTRIBUTOR?.('accounting-integrity-v21',snapshot=>Object.assign(snapshot,{accountingIntegrityV21:clone(state)}));}
 
 async function install(){
-  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installClosedPaymentGuard();installGlobalCapture();installRenderGuards();await sanitizeLiveState();scheduleGuards();
+  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installStudentReceiptDelete();installCertificateDeliveryDelete();installClosedPaymentGuard();installGlobalCapture();installRenderGuards();await sanitizeLiveState();scheduleGuards();
   window.EFC_ACCOUNTING_INTEGRITY_V21=Object.freeze({
     ready:true,version:VERSION,storageKey:STORAGE_KEY,paymentAccountingSnapshotIndex:SNAPSHOT_INDEX,
     manualStudentDeletionRemovesFinance:true,manualStudentDeletionWarnsBeforeRemoval:true,fiscalCleanupKeepsArchiveAsHistoricalSource:true,
     closedFinanceViewsUseArchiveOnly:true,mixedFinanceViewsAreSplitExplicitly:true,periodPaymentArchiveGuard:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
     restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
     paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,auditTrail:true,
-    paymentReceiptDeletionReversesSource:true,deleteStudentPaymentSource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
+    paymentReceiptDeletionReversesSource:true,studentReceiptDeleteAction:true,certificateDeliveryReceiptDeleteAction:true,certificateDeliveryDeleteReversesSource:true,aggregateReportsRemainReadOnly:true,deleteStudentPaymentSource,deleteCertificateDeliverySource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
     snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),guardFinanceViews,rangeState
   });
 }
