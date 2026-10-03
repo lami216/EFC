@@ -7,7 +7,7 @@ const STORAGE_KEY='efc-accounting-integrity-v21';
 const SNAPSHOT_INDEX=12;
 const MAX_AUDIT=600;
 const invoke=window.__TAURI__?.core?.invoke;
-let state={version:VERSION,studentTombstones:[],expenseTombstones:[],certificateTombstones:[],audit:[],updatedAt:0};
+let state={version:VERSION,studentTombstones:[],paymentTombstones:[],expenseTombstones:[],certificateTombstones:[],audit:[],updatedAt:0};
 let installed=false,persistTimer=null,guardFrame=0,pendingCertificateEdit=null;
 
 const clone=value=>{try{return structuredClone(value);}catch{return JSON.parse(JSON.stringify(value??null));}};
@@ -41,6 +41,15 @@ function certificateTombstone(value){
   const id=text(value.id),recordCode=text(value.recordCode),transactionCode=text(value.transactionCode);if(!id&&!recordCode&&!transactionCode)return null;
   return{id,recordCode,transactionCode,receiptNo:Number(value.receiptNo)||null,deletedAt:Math.max(0,Number(value.deletedAt||0))};
 }
+function paymentFingerprint(payment){
+  return JSON.stringify([text(payment?.[0]),Number(payment?.[1]||0),norm(payment?.[2]),text(payment?.[3]),text(payment?.[5]),text(payment?.[8])]);
+}
+function paymentTombstone(value){
+  if(!value||typeof value!=='object')return null;
+  const payment=Array.isArray(value.payment)?value.payment:[],studentRecordCode=text(value.studentRecordCode||value.recordCode),transactionCode=text(value.transactionCode||payment?.[6]),fingerprint=text(value.fingerprint||paymentFingerprint(payment));
+  if(!transactionCode&&!fingerprint)return null;
+  return{studentRecordCode,transactionCode,fingerprint,receiptNo:Number(value.receiptNo||payment?.[8])||null,deletedAt:Math.max(0,Number(value.deletedAt||0))};
+}
 function mergeLatest(items,normalize,keyFn){
   const map=new Map();
   (Array.isArray(items)?items:[]).map(normalize).filter(Boolean).forEach(item=>{const key=keyFn(item),old=map.get(key);if(!old||Number(item.deletedAt||0)>=Number(old.deletedAt||0))map.set(key,item);});
@@ -52,6 +61,7 @@ function normalizeState(raw){
   return{
     version:VERSION,
     studentTombstones:mergeLatest(source.studentTombstones,studentTombstone,item=>item.recordCode?`r:${item.recordCode}`:`i:${item.id}`),
+    paymentTombstones:mergeLatest(source.paymentTombstones,paymentTombstone,item=>item.transactionCode?`t:${item.studentRecordCode}:${item.transactionCode}`:`f:${item.studentRecordCode}:${item.fingerprint}`),
     expenseTombstones:mergeLatest(source.expenseTombstones,expenseTombstone,item=>item.id?`i:${item.id}`:`f:${item.fingerprint}`),
     certificateTombstones:mergeLatest(source.certificateTombstones,certificateTombstone,item=>item.recordCode?`r:${item.recordCode}`:item.transactionCode?`t:${item.transactionCode}`:`i:${item.id}`),
     audit,
@@ -63,6 +73,7 @@ function mergeState(aRaw,bRaw){
   [...a.audit,...b.audit].forEach(item=>{const key=`${item.at}|${item.type||''}|${item.id||item.recordCode||item.expenseId||item.certificateId||''}`;auditMap.set(key,item);});
   return normalizeState({
     studentTombstones:[...a.studentTombstones,...b.studentTombstones],
+    paymentTombstones:[...a.paymentTombstones,...b.paymentTombstones],
     expenseTombstones:[...a.expenseTombstones,...b.expenseTombstones],
     certificateTombstones:[...a.certificateTombstones,...b.certificateTombstones],
     audit:[...auditMap.values()],
@@ -86,8 +97,9 @@ function certificateIsDead(row,fromState=state){
   const id=text(row?.id),recordCode=text(row?.recordCode),transactionCode=text(row?.transactionCode);return fromState.certificateTombstones.some(item=>(item.id&&item.id===id)||(item.recordCode&&item.recordCode===recordCode)||(item.transactionCode&&item.transactionCode===transactionCode));
 }
 
-function paymentFingerprint(payment){
-  return JSON.stringify([text(payment?.[0]),Number(payment?.[1]||0),norm(payment?.[2]),text(payment?.[3]),text(payment?.[5]),text(payment?.[8])]);
+function paymentIsDead(payment,student,fromState=state){
+  const transactionCode=text(payment?.[6]),fingerprint=paymentFingerprint(payment),studentRecordCode=text(student?.recordCode);
+  return fromState.paymentTombstones.some(item=>(!item.studentRecordCode||item.studentRecordCode===studentRecordCode)&&((item.transactionCode&&transactionCode&&item.transactionCode===transactionCode)||(!item.transactionCode&&item.fingerprint&&item.fingerprint===fingerprint)));
 }
 function dedupeLegacyIncomingPayments(current,incoming){
   const currentList=Array.isArray(current)?current:[],incomingList=Array.isArray(incoming)?incoming:[],counts=new Map();
@@ -130,7 +142,8 @@ function prepareStudents(incoming,fromState=state,branchRemap=null){
   return (Array.isArray(incoming)?incoming:[]).filter(student=>!studentIsDead(student,fromState)).map(raw=>{
     const item=clone(raw);item.branch=remapBranchValue(item.branch,branchRemap);const same=byId.get(text(item.id))||byCode.get(text(item.recordCode));
     if(same&&text(item.id)===text(same.id)&&text(same.recordCode))item.recordCode=text(same.recordCode);
-    if(same)item.payments=dedupeLegacyIncomingPayments(same.payments,item.payments);
+    item.payments=(Array.isArray(item.payments)?item.payments:[]).filter(payment=>!paymentIsDead(payment,item,fromState));
+    if(same)item.payments=dedupeLegacyIncomingPayments((Array.isArray(same.payments)?same.payments:[]).filter(payment=>!paymentIsDead(payment,same,fromState)),item.payments);
     return item;
   });
 }
@@ -255,6 +268,34 @@ async function deleteStudentWithFinance(student,modal){
   modal?.remove();window.renderCurrentV13?.();return true;
 }
 
+function refreshStudentDebtAfterPaymentDelete(student,domain){
+  const payments=Array.isArray(student?.payments)?student.payments:[];
+  if(domain?.isDynamicMonthly?.(student)){
+    const dueDates={};payments.forEach(payment=>{const due=text(payment?.[9]);if(!due)return;const month=Math.max(1,Number(payment?.[7]||1)),remaining=Number(domain?.targetRemaining?.(student,month,'9999-12-31')||0);if(remaining>0)dueDates[String(month)]=due;else payment[9]=null;});student.debtDueDates=dueDates;
+  }else{
+    const remaining=Math.max(0,Number(domain?.remainingAmount?.(student)||0)),due=[...payments].reverse().find(payment=>text(payment?.[9]))?.[9];student.debtDueDates=remaining>0&&due?{course:String(due)}:{};if(!remaining)payments.forEach(payment=>{payment[9]=null;});
+  }
+  domain?.reconcileStudent?.(student);student.paid=payments.reduce((sum,payment)=>sum+Number(payment?.[1]||0),0);
+}
+async function deleteStudentPaymentSource(model){
+  const domain=D();if(!model||!domain)return false;
+  const canStudents=window.EFC_AUTH_V13?.canEdit?.('students')??true,canRegister=window.EFC_AUTH_V13?.canEdit?.('register')??true;if(!canStudents||!canRegister)return alert('الحساب الحالي لا يملك صلاحية حذف دفعات الطلاب.'),false;
+  const student=(Array.isArray(window.students)?window.students:[]).find(item=>String(item?.id||'')===String(model.studentId||''));if(!student)return alert('تعذر العثور على ملف الطالب المرتبط بهذا الروسي.'),false;
+  const payments=Array.isArray(student.payments)?student.payments:[];let index=-1,transactionCode=text(model.transactionCode);
+  if(transactionCode)index=payments.findIndex(payment=>text(payment?.[6])===transactionCode);
+  if(index<0&&Number.isInteger(Number(model.paymentIndex))&&Number(model.paymentIndex)>=0)index=Number(model.paymentIndex);
+  const payment=payments[index];if(!payment)return alert('تعذر العثور على العملية الأصلية لهذا الروسي.'),false;
+  window.EFC_CODES?.ensurePaymentCode?.(student,payment,index);transactionCode=text(payment?.[6]);const paymentDate=text(payment?.[0]);if(fiscal()?.isDateClosed?.(paymentDate))return alert('هذه الدفعة داخل سنة مالية مقفلة ولا يمكن حذفها. راجع الأرشيف المالي.'),false;
+  const amount=Math.max(0,Number(payment?.[1]||0)),receiptNo=Number(payment?.[8]||model.receipt||0)||null,name=text(student.name)||'الطالب';
+  if(!window.confirm(`حذف روسي الطالب${receiptNo?` رقم ${String(receiptNo).padStart(5,'0')}`:''} للطالب ${name}؟\nسيتم حذف الدفعة الأصلية بقيمة ${domain.cash?.(amount)||amount} من ملف الطالب ومن المالية واليومية، ثم يعاد حساب الدين والأشهر. رقم الروسي المحذوف لن يعاد استخدامه.`))return false;
+  const beforeStudent=clone(student),beforeState=clone(state),stamp=now(),tomb=paymentTombstone({studentRecordCode:student.recordCode,transactionCode,payment,receiptNo,deletedAt:stamp});if(!tomb)return alert('تعذر تثبيت هوية العملية المراد حذفها.'),false;
+  state.paymentTombstones.push(tomb);state=normalizeState({...state,updatedAt:stamp});writeLocal(false);student.payments.splice(index,1);student.updatedAt=stamp;refreshStudentDebtAfterPaymentDelete(student,domain);
+  const history=Array.isArray(student.registrationEditHistory)?student.registrationEditHistory:[];history.push({at:stamp,action:'delete-payment',transactionCode,receipt:receiptNo?String(receiptNo):'',amount});student.registrationEditHistory=history.slice(-50);
+  try{domain.saveStudents?.();addAudit('student-payment-delete',{studentId:text(student.id),studentRecordCode:text(student.recordCode),transactionCode,receiptNo,amount,date:paymentDate});await window.EFC_FORCE_PERSIST?.();}
+  catch(error){Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,beforeStudent);state=beforeState;writeLocal(true);try{domain.saveStudents?.();await window.EFC_FORCE_PERSIST?.();}catch(rollbackError){console.error('EFC student payment delete rollback failed.',rollbackError);}throw error;}
+  document.querySelectorAll('.receipt-viewer-v13').forEach(modal=>modal.remove());window.renderCurrentV13?.();return true;
+}
+
 async function deleteExpense(row,button){
   const domain=D();if(!row||!domain)return false;if(!(window.EFC_AUTH_V13?.canEdit?.('finance')??true))return false;if(fiscal()?.isDateClosed?.(row.date))return alert('هذا المصروف داخل سنة مالية مقفلة ولا يمكن حذفه. راجع الأرشيف المالي.'),false;
   if(!window.confirm(`حذف المصروف «${row.name}» بقيمة ${domain.cash?.(row.amount)||row.amount}؟`))return false;
@@ -301,7 +342,11 @@ function installGlobalCapture(){
 
 async function sanitizeLiveState(){
   const domain=D();let changed=false;
-  if(Array.isArray(window.students)){const kept=students.filter(student=>!studentIsDead(student));if(kept.length!==students.length){students.splice(0,students.length,...kept);domain?.saveStudents?.();changed=true;}}
+  if(Array.isArray(window.students)){
+    const kept=students.filter(student=>!studentIsDead(student));if(kept.length!==students.length){students.splice(0,students.length,...kept);domain?.saveStudents?.();changed=true;}
+    let paymentsChanged=false;students.forEach(student=>{const list=Array.isArray(student.payments)?student.payments:[],next=list.filter(payment=>!paymentIsDead(payment,student));if(next.length!==list.length){student.payments=next;student.updatedAt=now();refreshStudentDebtAfterPaymentDelete(student,domain);paymentsChanged=true;}});
+    if(paymentsChanged){domain?.saveStudents?.();changed=true;}
+  }
   const expenses=domain?.getExpenses?.()||[],keptExpenses=expenses.filter(row=>!expenseIsDead(row));if(keptExpenses.length!==expenses.length){domain?.saveExpenses?.(keptExpenses);changed=true;}
   const certs=state.certificateTombstones;if(certs.length){const result=await window.EFC_CERTIFICATE_STATE_V14?.purgeReceiptsByIdentity?.({ids:certs.map(x=>x.id).filter(Boolean),recordCodes:certs.map(x=>x.recordCode).filter(Boolean),transactionCodes:certs.map(x=>x.transactionCode).filter(Boolean)});if(Number(result?.deleted||0)>0)changed=true;}
   if(changed)await window.EFC_FORCE_PERSIST?.();
@@ -325,7 +370,8 @@ async function install(){
     manualStudentDeletionRemovesFinance:true,manualStudentDeletionWarnsBeforeRemoval:true,fiscalCleanupKeepsArchiveAsHistoricalSource:true,
     closedFinanceViewsUseArchiveOnly:true,mixedFinanceViewsAreSplitExplicitly:true,periodPaymentArchiveGuard:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
     restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
-    expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,auditTrail:true,
+    paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,auditTrail:true,
+    paymentReceiptDeletionReversesSource:true,deleteStudentPaymentSource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
     snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),guardFinanceViews,rangeState
   });
 }
