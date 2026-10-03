@@ -89,6 +89,11 @@ for(const [token,label] of [
   ['id=\"dayV13\" type=\"date\"','daily finance date picker'],
   ['id=\"fromV13\" type=\"date\"','custom finance range start'],
   ['id=\"toV13\" type=\"date\"','custom finance range end'],
+  ['data-mode="weekly">أسبوع</button>','main finance uses the certificate finance week label'],
+  ['controlsRoot.dataset.mode=mode','finance controls expose selected period geometry'],
+  ['.finance-controls-v13[data-mode="weekly"]{grid-template-columns:148px 124px 124px 102px 140px!important','week filter geometry matches certificate finance'],
+  ['#financeModeV13{width:100%!important;max-width:100%!important;min-width:0!important;height:34px!important','finance period switch matches certificate finance size'],
+  ['button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important','week filter uses certificate finance color'],
   ["dayWrap.hidden=mode!=='daily';fromWrap.hidden=mode!=='weekly';toWrap.hidden=mode!=='weekly';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=!['monthly','yearly'].includes(mode)",'period-specific finance controls']
 ])requireFinance(token,label);
 forbidFinance('<div class=\"card chart-card\">${chart(series(income','income chart must stay removed');
