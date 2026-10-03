@@ -249,6 +249,7 @@ const style=document.createElement('style');style.textContent=`
     width:100%!important;max-width:100%!important;min-width:0!important;
     grid-template-columns:repeat(2,minmax(0,1fr))!important
   }
+  .content:has(.finance-switch-v13) .finance-controls-v13[data-mode]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .content:has(.finance-switch-v13) #financeBodyV13>.kpis,
   .content:has(.finance-switch-v13) #financeBodyV13>.kpis.finance-kpis-three-v23{
     grid-template-columns:repeat(2,minmax(0,1fr))!important
@@ -268,6 +269,7 @@ const style=document.createElement('style');style.textContent=`
   .content:has(.finance-switch-v13) .finance-switch-v13 button{min-width:0!important;width:100%!important;padding:0 8px!important}
   .content:has(.finance-switch-v13) #financePrimaryActionV13{width:100%!important;justify-content:flex-end!important}
   .content:has(.finance-switch-v13) .finance-controls-v13{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .content:has(.finance-switch-v13) .finance-controls-v13[data-mode]{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .content:has(.finance-switch-v13) #financeModeV13{grid-column:1/-1!important;width:100%!important}
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns{grid-template-columns:1fr!important}
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card:last-child{grid-column:auto!important}
@@ -276,6 +278,7 @@ const style=document.createElement('style');style.textContent=`
 }
 @media(max-width:900px){
   .content:has(.finance-switch-v13) .finance-controls-v13{grid-template-columns:1fr!important}
+  .content:has(.finance-switch-v13) .finance-controls-v13[data-mode]{grid-template-columns:1fr!important}
   .content:has(.finance-switch-v13) #financeModeV13{grid-column:auto!important;width:100%!important}
   .content:has(.finance-switch-v13) #financePrimaryActionV13{justify-content:stretch!important}
   .content:has(.finance-switch-v13) #financePrimaryActionV13 .button{width:100%!important}
