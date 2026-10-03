@@ -312,7 +312,7 @@ function injectViewerDelete(viewer,label,onDelete){
 }
 function installStudentReceiptDelete(){
   if(window.__EFC_STUDENT_RECEIPT_DELETE_V21__)return;const base=window.receiptWindowV4;if(typeof base!=='function')return;
-  window.receiptWindowV4=function(model,...args){const viewer=base.call(this,model,...args),deletable=Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false&&model?.receiptSource==='payment'&&Number(model?.amount||0)>0;if(deletable)injectViewerDelete(viewer,'حذف الروسي',()=>deleteStudentPaymentSource(model));return viewer;};
+  window.receiptWindowV4=function(model,...args){const viewer=base.call(this,model,...args),deletable=Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false&&model?.receiptSource==='payment'&&(Boolean(model?.registrationReceipt)||Number(model?.amount||0)>0);if(deletable)injectViewerDelete(viewer,'حذف الروسي',()=>deleteStudentPaymentSource(model));return viewer;};
   window.__EFC_STUDENT_RECEIPT_DELETE_V21__=true;
 }
 async function persistCertificateSnapshot(){
