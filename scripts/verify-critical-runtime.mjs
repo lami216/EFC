@@ -272,6 +272,11 @@ const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'registrationReceiptPaidAmountLabel:true','registration receipt labels the paid amount explicitly');
 requireText(receiptsUi,"half('Montant',moneyV3(model.amount),'المبلغ المدفوع')",'registration receipt paid amount wording');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
+requireText(receiptsUi,"function commonNote(model){return model?.registrationReceipt?'':\`<p class=\\"note12\\">ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p>\`;}",'non-refund note remains limited to the same receipt scope');
+requireText(receiptsUi,'existingNonRefundNotePreservedInPrintAndPdf:true','existing non-refund note output preservation marker');
+requireText(receiptsUi,'nonRefundNoteScopeUnchanged:true','non-refund note scope stays unchanged');
+requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111715!important','non-refund note remains visible in PDF raster output');
+requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111!important}.actions12{display:none}','non-refund note remains visible in browser print output');
 const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
 for(const [token,label] of [
   ['paymentTombstones','deleted student payments have restore tombstones'],
