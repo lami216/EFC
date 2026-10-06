@@ -115,6 +115,11 @@ for(const [token,label] of [
   ['certificateHistorySearchMatches(receipt,query)&&certificateFilterMatches','certificate history identity search composes with existing filters']
 ])requireText(certificates,token,label);
 requireText(certificates,'certificateHistoryFilterByDeliveryStatus:true','certificate history filters by delivery status instead of specialty');
+requireText(certificates,'certificateHistoryBlankFromUsesOldestAvailable:true','certificate history blank week start uses oldest record');
+requireText(certificates,'certificateFinanceBlankFromUsesOldestAvailable:true','certificate finance blank week start uses oldest record');
+requireText(certificates,'function certificateOldestAvailableDate()','certificate views share an oldest-record resolver');
+requireText(certificates,"from=document.getElementById('certRecordsFromV48')?.value||''",'certificate history preserves a blank week start');
+requireText(certificates,"from=document.getElementById('certFinanceFromV48')?.value||''",'certificate finance preserves a blank week start');
 requireText(certificates,'id="certRecordsDeliveryV51"','certificate history exposes a delivery-status filter');
 requireText(certificates,'<option value="received">مستلمة</option>','certificate history can show received certificates only');
 requireText(certificates,'<option value="pending">غير مستلمة</option>','certificate history can show pending certificates only');
@@ -149,6 +154,12 @@ requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero
 requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
 requireText(financeUi,'customDateRangeFilter:true','finance page exposes a custom date-range filter');
+requireText(financeUi,'weeklyBlankFromUsesOldestAvailable:true','blank finance week start uses oldest available data');
+requireText(financeUi,'currentUnpaidBalanceDebtCard:true','finance debt card sums current unpaid balances');
+requireText(financeUi,'debtCardIgnoresDateFilter:true','finance debt card ignores date period filters');
+requireText(financeUi,'function financeOldestAvailableDate()','finance has an oldest-record resolver');
+requireText(financeUi,"from=document.getElementById('fromV13').value||''",'finance keeps a blank week start blank');
+requireText(financeUi,'إجمالي المبالغ غير المدفوعة حاليًا','finance debt caption explains current unpaid balance');
 requireText(financeUi,'data-mode="weekly">أسبوع</button>','finance custom period mode uses the same week label as certificate finance');
 requireText(financeUi,'id="fromV13"','finance custom period has a start date');
 requireText(financeUi,'id="toV13"','finance custom period has an end date');
