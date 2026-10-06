@@ -163,7 +163,7 @@ requireText(financeUi,'إجمالي المبالغ غير المدفوعة حا�
 requireText(financeUi,'data-mode="weekly">أسبوع</button>','finance custom period mode uses the same week label as certificate finance');
 requireText(financeUi,'id="fromV13"','finance custom period has a start date');
 requireText(financeUi,'id="toV13"','finance custom period has an end date');
-requireText(financeUi,"mode==='weekly'?{from:from<=to?from:to,to:from<=to?to:from}",'profitability details preserve the selected custom period');
+requireText(financeUi,"mode==='weekly'?(from?(from<=to?{from,to}:{from:to,to:from}):{from:financeOldestAvailableDate()<=to?financeOldestAvailableDate():to,to})",'profitability details preserve explicit week dates and use oldest data when start is blank');
 requireText(financeUi,"['dayV13','fromV13','toV13','monthV13','yearV13','branchV13','specV13']", 'finance redraws when either custom-period date changes');
 requireText(financeUi,"controlsRoot.dataset.mode=mode",'finance controls expose their selected period for certificate-matched geometry');
 requireText(financeUi,'.finance-controls-v13[data-mode="weekly"]{grid-template-columns:148px 124px 124px 102px 140px!important','general finance week geometry matches certificate finance without its payment-method column');
