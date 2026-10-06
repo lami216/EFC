@@ -182,6 +182,28 @@ function retargetStudentPaymentScopes(student){
   });
   return{updated,skippedClosed};
 }
+async function migrateLegacyPaymentScopeMismatches({reason='startup',persist=true}={}){
+  const list=Array.isArray(window.students)?window.students:[],affectedStudents=new Set();let updatedPayments=0,skippedClosed=0,mismatchedPayments=0;
+  list.forEach(student=>{
+    if(!student||!Array.isArray(student.payments))return;
+    const branch=text(student.branch),specialty=text(student.specialty);if(!branch||!specialty)return;
+    student.payments.forEach(payment=>{
+      if(!Array.isArray(payment))return;
+      const snap=payment[SNAPSHOT_INDEX];if(!validSnapshot(snap))return;
+      if(text(snap.branch)===branch&&text(snap.specialty)===specialty)return;
+      mismatchedPayments+=1;
+      const date=text(payment?.[0]);
+      if(date&&fiscal()?.isDateClosed?.(date)){skippedClosed+=1;return;}
+      payment[SNAPSHOT_INDEX]={...accountingSnapshot(student),capturedAt:now(),migratedFrom:{branch:text(snap.branch),specialty:text(snap.specialty)},migration:'registration-scope-v1'};
+      student.updatedAt=now();affectedStudents.add(text(student.id)||text(student.recordCode)||String(list.indexOf(student)));updatedPayments+=1;
+    });
+  });
+  if(!updatedPayments)return{updatedPayments:0,affectedStudents:0,skippedClosed,mismatchedPayments};
+  try{window.saveStudents?.();}catch(error){console.error('EFC legacy payment scope migration local save failed.',error);throw error;}
+  addAudit('legacy-payment-scope-migration',{migration:'registration-scope-v1',reason,updatedPayments,affectedStudents:affectedStudents.size,skippedClosed,mismatchedPayments});
+  if(persist)await window.EFC_FORCE_PERSIST?.();
+  return{updatedPayments,affectedStudents:affectedStudents.size,skippedClosed,mismatchedPayments};
+}
 function installAllPaymentsSnapshot(){
   if(window.__EFC_ACCOUNTING_ALLPAYMENTS_V21__)return;const base=window.allPayments;if(typeof base!=='function')return;
   window.allPayments=function(){
@@ -410,20 +432,20 @@ async function hydrateIntegrity(){
 }
 function installRestoreGuard(){
   const base=window.EFC_APPLY_RESTORED_STATE;if(typeof base!=='function'||window.__EFC_RESTORE_GUARD_V21__)return;
-  window.EFC_APPLY_RESTORED_STATE=async incoming=>{const prospective=mergeState(state,incoming?.accountingIntegrityV21),prepared=prepareIncoming(incoming,prospective),result=await base(prepared);state=prospective;writeLocal(true);stampAllPayments({persist:true});await sanitizeLiveState();await window.EFC_FORCE_PERSIST?.();return result;};window.__EFC_RESTORE_GUARD_V21__=true;
+  window.EFC_APPLY_RESTORED_STATE=async incoming=>{const prospective=mergeState(state,incoming?.accountingIntegrityV21),prepared=prepareIncoming(incoming,prospective),result=await base(prepared);state=prospective;writeLocal(true);await migrateLegacyPaymentScopeMismatches({reason:'restore',persist:false});stampAllPayments({persist:true});await sanitizeLiveState();await window.EFC_FORCE_PERSIST?.();return result;};window.__EFC_RESTORE_GUARD_V21__=true;
 }
 function installStateContributor(){window.EFC_REGISTER_STATE_CONTRIBUTOR?.('accounting-integrity-v21',snapshot=>Object.assign(snapshot,{accountingIntegrityV21:clone(state)}));}
 
 async function install(){
-  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installStudentReceiptDelete();installCertificateDeliveryDelete();installClosedPaymentGuard();installGlobalCapture();installRenderGuards();await sanitizeLiveState();scheduleGuards();
+  if(installed)return;installed=true;await hydrateIntegrity();installStateContributor();installRestoreGuard();await migrateLegacyPaymentScopeMismatches({reason:'startup'});installAllPaymentsSnapshot();stampAllPayments({persist:true});installStudentModalTagging();installCertificateGuards();installStudentReceiptDelete();installCertificateDeliveryDelete();installClosedPaymentGuard();installGlobalCapture();installRenderGuards();await sanitizeLiveState();scheduleGuards();
   window.EFC_ACCOUNTING_INTEGRITY_V21=Object.freeze({
     ready:true,version:VERSION,storageKey:STORAGE_KEY,paymentAccountingSnapshotIndex:SNAPSHOT_INDEX,
     manualStudentDeletionRemovesFinance:true,manualStudentDeletionWarnsBeforeRemoval:true,fiscalCleanupKeepsArchiveAsHistoricalSource:true,
     closedFinanceViewsUseArchiveOnly:true,mixedFinanceViewsAreSplitExplicitly:true,periodPaymentArchiveGuard:true,closedPaymentSourceEditBlocked:true,closedExpenseMutationBlocked:true,
     restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
-    paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,registrationScopeEditRetargetsLivePayments:true,closedPaymentScopeSnapshotsRemainHistorical:true,auditTrail:true,
+    paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,registrationScopeEditRetargetsLivePayments:true,closedPaymentScopeSnapshotsRemainHistorical:true,legacyPaymentScopeAutoMigration:true,legacyPaymentScopeMigrationIdempotent:true,legacyPaymentScopeMigrationAudited:true,auditTrail:true,
     paymentReceiptDeletionReversesSource:true,registrationReceiptDeletionRemovesRegistration:true,studentReceiptDeleteAction:true,certificateDeliveryReceiptDeleteAction:true,certificateDeliveryDeleteReversesSource:true,aggregateReportsRemainReadOnly:true,deleteStudentPaymentSource,deleteCertificateDeliverySource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
-    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),retargetStudentPaymentScopes,guardFinanceViews,rangeState
+    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),retargetStudentPaymentScopes,migrateLegacyPaymentScopeMismatches,guardFinanceViews,rangeState
   });
 }
 function ready(){return Boolean(window.EFC_FISCAL_V14?.ready&&window.EFC_STUDENT_LIFECYCLE_UI_V20?.ready&&window.EFC_CENTER_OPS_V13?.ready&&window.EFC_FINANCE_UI_V13?.ready&&window.EFC_CERTIFICATES_V13?.ready&&window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_DOMAIN_V13?.ready&&window.EFC_RECEIPT_SEQUENCES_V10);}
