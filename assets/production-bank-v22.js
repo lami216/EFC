@@ -120,10 +120,14 @@ function bankFilterYears(){
   for(let year=Math.max(2025,current-9);year<=current;year++)years.add(year);
   return[...years].sort((a,b)=>b-a);
 }
+function bankOldestAvailableDate(){
+  const dates=state.entries.map(item=>String(item?.date||'').slice(0,10)).filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(value)).sort();
+  return dates[0]||today();
+}
 function bankFilterRange(){
   const mode=['daily','weekly','monthly','yearly'].includes(filterState.mode)?filterState.mode:'daily',year=Number(filterState.year||today().slice(0,4)),month=Math.max(1,Math.min(12,Number(filterState.month||today().slice(5,7))));
   if(mode==='daily'){const day=String(filterState.day||today());return{mode,from:day,to:day,label:`يوم ${showDate(day)}`};}
-  if(mode==='weekly'){const first=String(filterState.from||today()),last=String(filterState.to||first),from=first<=last?first:last,to=first<=last?last:first;return{mode,from,to,label:`من ${showDate(from)} إلى ${showDate(to)}`};}
+  if(mode==='weekly'){const rawFrom=String(filterState.from||'').trim(),last=String(filterState.to||rawFrom||today());if(rawFrom){const from=rawFrom<=last?rawFrom:last,to=rawFrom<=last?last:rawFrom;return{mode,from,to,label:`من ${showDate(from)} إلى ${showDate(to)}`};}const oldest=bankOldestAvailableDate(),from=oldest<=last?oldest:last;return{mode,from,to:last,label:`من ${showDate(from)} إلى ${showDate(last)}`};}
   if(mode==='monthly'){const last=new Date(year,month,0).getDate(),from=`${year}-${pad2(month)}-01`,to=`${year}-${pad2(month)}-${pad2(last)}`;return{mode,from,to,label:`شهر ${MONTH_NAMES[month-1]} ${year}`};}
   return{mode,from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
 }
@@ -207,7 +211,7 @@ function renderBank(){
   document.getElementById('bankSaveV22')?.addEventListener('click',saveEntry);
   document.querySelectorAll('#bankPeriodModeV22 [data-mode]').forEach(button=>button.addEventListener('click',()=>{filterState.mode=button.dataset.mode;drawBankPeriod();}));
   document.getElementById('bankFilterDayV22')?.addEventListener('change',event=>{filterState.day=event.target.value||today();drawBankPeriod();});
-  document.getElementById('bankFilterFromV22')?.addEventListener('change',event=>{filterState.from=event.target.value||today();drawBankPeriod();});
+  document.getElementById('bankFilterFromV22')?.addEventListener('change',event=>{filterState.from=event.target.value||'';drawBankPeriod();});
   document.getElementById('bankFilterToV22')?.addEventListener('change',event=>{filterState.to=event.target.value||filterState.from||today();drawBankPeriod();});
   document.getElementById('bankFilterMonthV22')?.addEventListener('change',event=>{filterState.month=Number(event.target.value||1);drawBankPeriod();});
   document.getElementById('bankFilterMonthYearV22')?.addEventListener('change',event=>{filterState.year=Number(event.target.value||today().slice(0,4));const yearOnly=document.getElementById('bankFilterYearV22');if(yearOnly)yearOnly.value=String(filterState.year);drawBankPeriod();});
@@ -226,7 +230,7 @@ async function boot(){
   window.EFC_OPEN_BANK_PERIOD_REPORT_V22=openBankPeriodReport;
   window.EFC_SAVE_BANK_PERIOD_REPORT_PDF_V22=saveBankPeriodReportPdf;
   window.EFC_BANK_STATE_V22=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state))});
-  window.EFC_BANK_V22=Object.freeze({ready:true,bankIndependentFromFinance:true,bankEntriesEditableAndDeletable:true,bankReceiptSourceDeletion:true,bankDeleteFiscalLockAware:true,bankDeleteRollbackSafe:true,bankStatementFixedHeight:true,bankStatementLengthBounded:true,bankStatementWrapsSafely:true,bankUsesIncomeAndExpenseLabels:true,bankPeriodFiltersDailyWeeklyMonthlyYearly:true,bankPeriodReport:true,bankPeriodSummaryColors:true,bankIncomeExpenseCounts:true,bankLedgerStudentSearchTableStyle:true,bankReceiptSharedEmbeddedLogo:true,bankBackupRestore:true,bankOwnReceiptSequence:true,noFinanceStreamIntegration:true});
+  window.EFC_BANK_V22=Object.freeze({ready:true,bankIndependentFromFinance:true,bankEntriesEditableAndDeletable:true,bankReceiptSourceDeletion:true,bankDeleteFiscalLockAware:true,bankDeleteRollbackSafe:true,bankStatementFixedHeight:true,bankStatementLengthBounded:true,bankStatementWrapsSafely:true,bankUsesIncomeAndExpenseLabels:true,bankPeriodFiltersDailyWeeklyMonthlyYearly:true,bankWeeklyBlankFromUsesOldestAvailable:true,bankPeriodReport:true,bankPeriodSummaryColors:true,bankIncomeExpenseCounts:true,bankLedgerStudentSearchTableStyle:true,bankReceiptSharedEmbeddedLogo:true,bankBackupRestore:true,bankOwnReceiptSequence:true,noFinanceStreamIntegration:true});
 }
 boot().catch(error=>{console.error('EFC bank v22 failed to initialize.',error);throw error;});
 })();
