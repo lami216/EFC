@@ -183,7 +183,7 @@ function retargetStudentPaymentScopes(student){
   return{updated,skippedClosed};
 }
 async function migrateLegacyPaymentScopeMismatches({reason='startup',persist=true}={}){
-  const list=Array.isArray(window.students)?window.students:[],affectedStudents=new Set();let updatedPayments=0,skippedClosed=0,mismatchedPayments=0;
+  const list=Array.isArray(window.students)?window.students:[],affectedStudents=new Set(),changes=[];let updatedPayments=0,skippedClosed=0,mismatchedPayments=0;
   list.forEach(student=>{
     if(!student||!Array.isArray(student.payments))return;
     const branch=text(student.branch),specialty=text(student.specialty);if(!branch||!specialty)return;
@@ -194,14 +194,20 @@ async function migrateLegacyPaymentScopeMismatches({reason='startup',persist=tru
       mismatchedPayments+=1;
       const date=text(payment?.[0]);
       if(date&&fiscal()?.isDateClosed?.(date)){skippedClosed+=1;return;}
+      changes.push({student,payment,previousSnapshot:clone(snap),previousUpdatedAt:student.updatedAt});
       payment[SNAPSHOT_INDEX]={...accountingSnapshot(student),capturedAt:now(),migratedFrom:{branch:text(snap.branch),specialty:text(snap.specialty)},migration:'registration-scope-v1'};
       student.updatedAt=now();affectedStudents.add(text(student.id)||text(student.recordCode)||String(list.indexOf(student)));updatedPayments+=1;
     });
   });
   if(!updatedPayments)return{updatedPayments:0,affectedStudents:0,skippedClosed,mismatchedPayments};
-  try{window.saveStudents?.();}catch(error){console.error('EFC legacy payment scope migration local save failed.',error);throw error;}
-  addAudit('legacy-payment-scope-migration',{migration:'registration-scope-v1',reason,updatedPayments,affectedStudents:affectedStudents.size,skippedClosed,mismatchedPayments});
-  if(persist)await window.EFC_FORCE_PERSIST?.();
+  const rollback=async()=>{
+    changes.forEach(change=>{change.payment[SNAPSHOT_INDEX]=change.previousSnapshot;change.student.updatedAt=change.previousUpdatedAt;});
+    try{window.saveStudents?.();if(persist)await window.EFC_FORCE_PERSIST?.();}catch(rollbackError){console.error('EFC legacy payment scope migration rollback failed.',rollbackError);}
+  };
+  try{
+    window.saveStudents?.();if(persist)await window.EFC_FORCE_PERSIST?.();
+    addAudit('legacy-payment-scope-migration',{migration:'registration-scope-v1',reason,updatedPayments,affectedStudents:affectedStudents.size,skippedClosed,mismatchedPayments});
+  }catch(error){await rollback();console.error('EFC legacy payment scope migration failed.',error);throw error;}
   return{updatedPayments,affectedStudents:affectedStudents.size,skippedClosed,mismatchedPayments};
 }
 function installAllPaymentsSnapshot(){
