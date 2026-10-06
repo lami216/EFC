@@ -294,6 +294,11 @@ const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
 for(const [token,label] of [
   ['paymentTombstones','deleted student payments have restore tombstones'],
   ['paymentRestoreTombstones:true','payment deletion survives backup restore'],
+  ['legacyPaymentScopeAutoMigration:true','legacy live payment scopes migrate automatically'],
+  ['legacyPaymentScopeMigrationIdempotent:true','legacy scope migration remains idempotent'],
+  ['legacyPaymentScopeMigrationAudited:true','legacy scope migration records audit metadata'],
+  ['migrateLegacyPaymentScopeMismatches','legacy scope migration helper is available'],
+  ["reason:'restore'",'restored stale live payment scopes are migrated again'],
   ['registrationScopeEditRetargetsLivePayments:true','registration scope edits retarget live finance classification'],
   ['closedPaymentScopeSnapshotsRemainHistorical:true','closed-period payment classification remains historical'],
   ['function retargetStudentPaymentScopes(student)','accounting runtime exposes payment scope retargeting'],
