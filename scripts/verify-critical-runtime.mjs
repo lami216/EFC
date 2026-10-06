@@ -294,6 +294,9 @@ const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
 for(const [token,label] of [
   ['paymentTombstones','deleted student payments have restore tombstones'],
   ['paymentRestoreTombstones:true','payment deletion survives backup restore'],
+  ['registrationScopeEditRetargetsLivePayments:true','registration scope edits retarget live finance classification'],
+  ['closedPaymentScopeSnapshotsRemainHistorical:true','closed-period payment classification remains historical'],
+  ['function retargetStudentPaymentScopes(student)','accounting runtime exposes payment scope retargeting'],
   ['paymentReceiptDeletionReversesSource:true','student receipt deletion reverses the payment source'],
   ['registrationReceiptDeletionRemovesRegistration:true','registration receipt deletion reverses the registration source'],
   ['studentReceiptDeleteAction:true','student receipt viewer receives a delete action'],
