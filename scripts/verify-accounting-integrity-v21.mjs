@@ -37,7 +37,10 @@ for(const [token,label] of [
   ['deleteStudentPaymentSource','student payment deletion implementation'],
   ['deleteCertificateDeliverySource','certificate delivery deletion implementation'],
   ['studentTombstones','manual deleted student restore protection'],
-  ['historicalPaymentScopeSnapshots:true','payments retain historical branch/course classification'],
+  ['historicalPaymentScopeSnapshots:true','payments retain historical branch/course classification until an explicit registration scope edit'],
+  ['registrationScopeEditRetargetsLivePayments:true','registration scope edits retarget live payment accounting classification'],
+  ['closedPaymentScopeSnapshotsRemainHistorical:true','closed-period payment scope stays historical'],
+  ['retargetStudentPaymentScopes','payment scope retarget helper is exported'],
   ['window.allPayments=function()','finance and fiscal readers receive historical payment scope'],
   ["wrapRender(name)",'render guards are integrated at render boundaries'],
   ["'renderPeriod'",'unified search is guarded for archived payment periods'],
@@ -65,6 +68,17 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(api.rangeState('2026-08-01','2026-09-15').status==='closed','fully closed range must be classified closed');
   const mixed=api.rangeState('2026-09-01','2026-09-30');assert(mixed.status==='mixed'&&mixed.openFrom==='2026-09-16','mixed range must expose first open day');
   assert(api.rangeState('2026-09-16','2026-09-30').status==='open','range after lock must remain open');
+}
+
+{
+  const {window}=await makeContext();const api=window.EFC_ACCOUNTING_INTEGRITY_V21,student={id:'scope-edit',branch:'B',specialty:'NEW',reg:9,payments:[
+    ['2026-09-15',100,'cash','10:00',1,'','tx-closed',null,1,null,null,1,{v:1,branch:'A',specialty:'OLD',reg:9,capturedAt:1}],
+    ['2026-09-16',200,'cash','11:00',2,'','tx-open',null,2,null,null,2,{v:1,branch:'A',specialty:'OLD',reg:9,capturedAt:1}]
+  ]};
+  const result=api.retargetStudentPaymentScopes(student);
+  assert(result.updated===1&&result.skippedClosed===1,'scope edit must retarget only live payments when a closed payment exists');
+  assert(student.payments[1][12].branch==='B'&&student.payments[1][12].specialty==='NEW','open payment accounting scope did not move to the edited branch/course');
+  assert(student.payments[0][12].branch==='A'&&student.payments[0][12].specialty==='OLD','closed payment accounting scope must remain historical');
 }
 
 {
