@@ -41,6 +41,10 @@ for(const [token,label] of [
   ['registrationScopeEditRetargetsLivePayments:true','registration scope edits retarget live payment accounting classification'],
   ['closedPaymentScopeSnapshotsRemainHistorical:true','closed-period payment scope stays historical'],
   ['retargetStudentPaymentScopes','payment scope retarget helper is exported'],
+  ['legacyPaymentScopeAutoMigration:true','legacy mismatched live payment scopes migrate automatically'],
+  ['legacyPaymentScopeMigrationIdempotent:true','legacy payment scope migration is idempotent'],
+  ['legacyPaymentScopeMigrationAudited:true','legacy payment scope migration is audited'],
+  ['migrateLegacyPaymentScopeMismatches','legacy payment scope migration helper is exported'],
   ['window.allPayments=function()','finance and fiscal readers receive historical payment scope'],
   ["wrapRender(name)",'render guards are integrated at render boundaries'],
   ["'renderPeriod'",'unified search is guarded for archived payment periods'],
@@ -79,6 +83,24 @@ function makeContext({expenses=[],branches=[],integrityState={}}={}){
   assert(result.updated===1&&result.skippedClosed===1,'scope edit must retarget only live payments when a closed payment exists');
   assert(student.payments[1][12].branch==='B'&&student.payments[1][12].specialty==='NEW','open payment accounting scope did not move to the edited branch/course');
   assert(student.payments[0][12].branch==='A'&&student.payments[0][12].specialty==='OLD','closed payment accounting scope must remain historical');
+}
+
+{
+  const {context,window}=await makeContext();const api=window.EFC_ACCOUNTING_INTEGRITY_V21;
+  const student={id:'legacy-move',recordCode:'legacy-move-r',branch:'center-new',specialty:'course-new',reg:44,payments:[
+    ['2026-09-15',100,'cash','09:00',1,'','tx-old-closed',null,11,null,null,1,{v:1,branch:'center-old',specialty:'course-old',reg:44,capturedAt:1}],
+    ['2026-09-16',200,'cash','10:00',2,'','tx-old-open',null,12,null,null,2,{v:1,branch:'center-old',specialty:'course-old',reg:44,capturedAt:1}]
+  ]};
+  context.students.push(student);
+  const first=await api.migrateLegacyPaymentScopeMismatches({reason:'test'});
+  assert(first.updatedPayments===1&&first.skippedClosed===1&&first.affectedStudents===1,'legacy migration must move only the open mismatched payment');
+  assert(student.payments[1][12].branch==='center-new'&&student.payments[1][12].specialty==='course-new','open legacy payment did not migrate to current registration scope');
+  assert(student.payments[0][12].branch==='center-old'&&student.payments[0][12].specialty==='course-old','closed legacy payment scope must remain historical');
+  const auditAfterFirst=api.snapshot().audit.filter(item=>item.type==='legacy-payment-scope-migration').length;
+  const second=await api.migrateLegacyPaymentScopeMismatches({reason:'test-repeat'});
+  const auditAfterSecond=api.snapshot().audit.filter(item=>item.type==='legacy-payment-scope-migration').length;
+  assert(second.updatedPayments===0&&second.skippedClosed===1,'repeated legacy migration must make no additional live changes');
+  assert(auditAfterSecond===auditAfterFirst,'idempotent migration must not append duplicate audit records when nothing changes');
 }
 
 {
