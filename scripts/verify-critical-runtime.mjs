@@ -172,6 +172,14 @@ requireText(financeUi,'grid-template-columns:repeat(4,minmax(0,1fr))!important',
 requireText(financeUi,'button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important','general finance week button uses the certificate finance color');
 requireText(financeUi,'EFC_DELETE_EXPENSE_RECEIPT_V13','expense receipt exposes source deletion');
 requireText(financeUi,'expenseReceiptSourceDeletion:true','expense receipt deletion feature marker');
+requireText(financeUi,'viewIncomeHistoryV13','finance income exposes a dedicated history action');
+requireText(financeUi,'incomeHistoryPeriodFilters:true','income history exposes finance-style period filters');
+requireText(financeUi,'incomeHistoryFilterMatchesFinance:true','income history filters branch/course like finance');
+requireText(financeUi,'incomeHistoryBlankFromUsesOldestAvailable:true','income history week filter accepts an empty start');
+requireText(financeUi,'incomeHistorySourceActions:true','income history actions route to original student payment sources');
+requireText(financeUi,'id="incomeHistoryModeV13"','income history has daily/week/month/year controls');
+requireText(financeUi,'id="incomeHistoryMessageV13"','income history shows the selected filter scope and result count');
+requireText(financeUi,'deleteStudentPaymentSource','income history deletion uses the accounting source-delete route');
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
 requireText(financeUi,'expenseHistoryPeriodFilters:true','expense history exposes finance-style period filters');
@@ -356,6 +364,11 @@ for(const obsolete of [
   'production-certificates-student-layout-v40.js'
 ])forbidText(runtimeBlock,obsolete,`obsolete certificate patch ${obsolete}`);
 for(const leftover of ['scripts/apply-reminder-document-polish.mjs','.github/workflows/reminder-document-polish.yml'])requireText(runtimeManifest,leftover,`temporary reminder patch guard ${leftover}`);
+
+const windowsBuild=read('.github/workflows/windows-build.yml');
+requireText(windowsBuild,'$maxAttempts = 3','Windows installer build retries transient bundle/download failures');
+requireText(windowsBuild,'npm run tauri build -- --bundles nsis','Windows installer retry still builds the NSIS bundle');
+requireText(windowsBuild,'Retrying in $delay seconds','Windows installer retry logs the transient retry delay');
 
 await verifyPersistenceCompletes();
 console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, compact-screen safeguards are enforced, certificates keep direct state ownership, reminder documents stay consolidated, preview cache versions remain synchronized, and browser/Windows use one deterministic post-license redesign runtime.');
