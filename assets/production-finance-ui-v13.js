@@ -190,10 +190,10 @@ function editIncomeHistoryReceipt(row){
   const model=incomeHistoryReceiptModel(row);if(!model)return false;
   return Boolean(window.EFC_EDIT_RECEIPT?.(model));
 }
-async function deleteIncomeHistoryReceipt(row,redraw){
+async function deleteIncomeHistoryReceipt(row){
   const model=incomeHistoryReceiptModel(row),remove=window.EFC_ACCOUNTING_INTEGRITY_V21?.deleteStudentPaymentSource;
   if(!model||typeof remove!=='function')return false;
-  try{const deleted=await remove(model);if(deleted)redraw?.();return Boolean(deleted);}
+  try{const deleted=await remove(model);if(deleted)renderIncomeHistory();return Boolean(deleted);}
   catch(error){console.error('EFC income history delete failed.',error);alert(String(error?.message||error||'تعذر حذف روسي الدخل.'));return false;}
 }
 function renderIncomeHistory(){
@@ -221,7 +221,7 @@ function renderIncomeHistory(){
   function bindRows(){
     document.querySelectorAll('.open-income-receipt-v13').forEach(button=>button.onclick=()=>openIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)]));
     document.querySelectorAll('.edit-income-history-v13').forEach(button=>button.onclick=()=>editIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)]));
-    document.querySelectorAll('.delete-income-history-v13').forEach(button=>button.onclick=()=>deleteIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)],draw));
+    document.querySelectorAll('.delete-income-history-v13').forEach(button=>button.onclick=()=>deleteIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)]));
   }
   function draw(){
     const r=range(),effectiveTo=r.to<current?r.to:current,branch=String(state.branch||''),specialty=String(state.specialty||'');
