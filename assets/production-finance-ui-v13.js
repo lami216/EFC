@@ -128,9 +128,11 @@ renderFinance=function(initialSection='income'){
     specEl.innerHTML=`<option value="">كل الدورات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}${section!=='income'?`<option value="${GENERAL_EXPENSE}">مصروف عام</option>`:''}`;
     if([...specEl.options].some(option=>option.value===previous))specEl.value=previous;
     if(controlsRoot)controlsRoot.dataset.mode=mode;dayWrap.hidden=mode!=='daily';fromWrap.hidden=mode!=='weekly';toWrap.hidden=mode!=='weekly';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=!['monthly','yearly'].includes(mode);
-    if(section==='expenses')action.innerHTML='<button class="button finance-expense-history-action-v23" id="viewExpenseHistoryV13">عرض سجل المصاريف</button>';
+    if(section==='income')action.innerHTML='<button class="button finance-income-history-action-v23" id="viewIncomeHistoryV13">عرض سجل المداخيل</button>';
+    else if(section==='expenses')action.innerHTML='<button class="button finance-expense-history-action-v23" id="viewExpenseHistoryV13">عرض سجل المصاريف</button>';
     else if(section==='profit')action.innerHTML='<button class="button secondary finance-profit-details-action-v27" id="viewProfitabilityDetailsV13">عرض تفاصيل الربحية</button>';
     else action.innerHTML='';
+    document.getElementById('viewIncomeHistoryV13')?.addEventListener('click',renderIncomeHistory);
     document.getElementById('viewExpenseHistoryV13')?.addEventListener('click',renderExpenseHistory);
     document.getElementById('viewProfitabilityDetailsV13')?.addEventListener('click',()=>renderProfitabilityDetails({mode,day:document.getElementById('dayV13').value,from:document.getElementById('fromV13').value,to:document.getElementById('toV13').value,year:document.getElementById('yearV13').value,month:document.getElementById('monthV13').value,branch:document.getElementById('branchV13').value,specialty:specEl.value}));
   }
@@ -161,6 +163,82 @@ function renderProfitabilityDetails(context={}){
   document.getElementById('backToProfitV13')?.addEventListener('click',()=>renderFinance('profit'));
   const list=document.getElementById('profitabilityListV13');
   document.querySelectorAll('#profitDimensionV13 [data-profit-view]').forEach(button=>button.onclick=()=>{view=button.dataset.profitView;document.querySelectorAll('#profitDimensionV13 [data-profit-view]').forEach(item=>item.classList.toggle('active',item===button));list.innerHTML=profitabilityTable(view,income,costs);});
+}
+
+let incomeHistoryFilterStateV13=null;
+function incomeHistoryOldestDate(){
+  const dates=allPayments().map(row=>String(row?.date||'').slice(0,10)).filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(value)).sort();
+  return dates[0]||today();
+}
+function incomeHistoryReceiptCode(row){
+  const raw=String(row?.receipt||row?.student?.payments?.[Number(row?.paymentIndex)]?.[8]||'').trim(),number=Number(raw);
+  return Number.isInteger(number)&&number>0?String(number).padStart(5,'0'):(raw||'—');
+}
+function incomeHistoryReceiptModel(row){
+  if(!row||row.sourceType==='certificate')return null;
+  const actual=(typeof students!=='undefined'?students:[]).find(student=>String(student?.id||'')===String(row?.student?.id||''))||row.student;
+  return typeof receiptModelV4==='function'?receiptModelV4(actual,Number(row.paymentIndex),false):null;
+}
+function openIncomeHistoryReceipt(row){
+  if(!row)return;
+  if(row.sourceType==='certificate'){
+    const receipt=window.EFC_FIND_CERTIFICATE_V13?.(row.certificateId);if(receipt)window.EFC_OPEN_CERTIFICATE_RECEIPT_V13?.(receipt);return;
+  }
+  const model=incomeHistoryReceiptModel(row);if(model)window.receiptWindowV4?.(model);
+}
+function editIncomeHistoryReceipt(row){
+  const model=incomeHistoryReceiptModel(row);if(!model)return false;
+  return Boolean(window.EFC_EDIT_RECEIPT?.(model));
+}
+async function deleteIncomeHistoryReceipt(row,redraw){
+  const model=incomeHistoryReceiptModel(row),remove=window.EFC_ACCOUNTING_INTEGRITY_V21?.deleteStudentPaymentSource;
+  if(!model||typeof remove!=='function')return false;
+  try{const deleted=await remove(model);if(deleted)redraw?.();return Boolean(deleted);}
+  catch(error){console.error('EFC income history delete failed.',error);alert(String(error?.message||error||'تعذر حذف روسي الدخل.'));return false;}
+}
+function renderIncomeHistory(){
+  currentPage='finance';
+  const current=today(),currentYear=Number(current.slice(0,4)),currentMonth=Number(current.slice(5,7)),state=incomeHistoryFilterStateV13||{mode:'monthly',day:current,from:current,to:current,month:currentMonth,year:currentYear,branch:'',specialty:''};
+  incomeHistoryFilterStateV13=state;
+  shell(`<section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16M7 3v3M7 9v3M7 15v3"/></g></svg><h1>سجل المداخيل</h1></section><div class="expense-history-toolbar-v13 income-history-toolbar-v13"><button class="button secondary" id="backToIncomeFinanceV13">العودة للمالية</button><span id="incomeHistoryMessageV13"></span></div><div class="card finance-controls-v13 expense-history-controls-v13 income-history-controls-v13" data-mode="${esc(state.mode)}"><div class="segmented" id="incomeHistoryModeV13"><button data-mode="daily" class="${state.mode==='daily'?'active':''}">يومي</button><button data-mode="weekly" class="${state.mode==='weekly'?'active':''}">أسبوع</button><button data-mode="monthly" class="${state.mode==='monthly'?'active':''}">شهري</button><button data-mode="yearly" class="${state.mode==='yearly'?'active':''}">سنوي</button></div><label id="incomeHistoryDayWrapV13">اليوم<input class="input" id="incomeHistoryDayV13" type="date" value="${esc(state.day||current)}"></label><label id="incomeHistoryFromWrapV13">من<input class="input" id="incomeHistoryFromV13" type="date" value="${esc(state.from||'')}"></label><label id="incomeHistoryToWrapV13">إلى<input class="input" id="incomeHistoryToV13" type="date" value="${esc(state.to||current)}"></label><label id="incomeHistoryMonthWrapV13">الشهر<select id="incomeHistoryMonthV13">${monthNames.map((name,index)=>`<option value="${index+1}" ${index+1===Number(state.month)?'selected':''}>${name}</option>`).join('')}</select></label><label id="incomeHistoryYearWrapV13">السنة<select id="incomeHistoryYearV13">${years().map(year=>`<option value="${year}" ${Number(year)===Number(state.year)?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="incomeHistoryBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select></label><label>الدورة<select id="incomeHistorySpecV13"><option value="">كل الدورات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label></div><div class="card expense-history-v13 income-history-v13" id="incomeHistoryBodyV13"></div>`);
+  const controls=document.querySelector('.income-history-controls-v13'),dayWrap=document.getElementById('incomeHistoryDayWrapV13'),fromWrap=document.getElementById('incomeHistoryFromWrapV13'),toWrap=document.getElementById('incomeHistoryToWrapV13'),monthWrap=document.getElementById('incomeHistoryMonthWrapV13'),yearWrap=document.getElementById('incomeHistoryYearWrapV13'),branchEl=document.getElementById('incomeHistoryBranchV13'),specEl=document.getElementById('incomeHistorySpecV13');
+  branchEl.value=state.branch||'';specEl.value=state.specialty||'';
+  function syncControls(){
+    controls.dataset.mode=state.mode;dayWrap.hidden=state.mode!=='daily';fromWrap.hidden=state.mode!=='weekly';toWrap.hidden=state.mode!=='weekly';monthWrap.hidden=state.mode!=='monthly';yearWrap.hidden=!['monthly','yearly'].includes(state.mode);
+    document.querySelectorAll('#incomeHistoryModeV13 [data-mode]').forEach(button=>button.classList.toggle('active',button.dataset.mode===state.mode));
+  }
+  function range(){
+    if(state.mode==='daily')return{...dayBounds(state.day||current),label:`يوم ${showDate(state.day||current)}`};
+    if(state.mode==='weekly'){
+      const rawFrom=String(state.from||'').trim(),last=String(state.to||rawFrom||current);
+      if(rawFrom){const from=rawFrom<=last?rawFrom:last,to=rawFrom<=last?last:rawFrom;return{from,to,label:`من ${showDate(from)} إلى ${showDate(to)}`};}
+      const oldest=incomeHistoryOldestDate(),from=oldest<=last?oldest:last;return{from,to:last,label:`من ${showDate(from)} إلى ${showDate(last)}`};
+    }
+    if(state.mode==='monthly'){const r=monthBounds(Number(state.year||currentYear),Number(state.month||currentMonth));return{...r,label:`${monthNames[Number(state.month||currentMonth)-1]} ${Number(state.year||currentYear)}`};}
+    const r=yearBounds(Number(state.year||currentYear));return{...r,label:`سنة ${Number(state.year||currentYear)}`};
+  }
+  let visibleRows=[];
+  function bindRows(){
+    document.querySelectorAll('.open-income-receipt-v13').forEach(button=>button.onclick=()=>openIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)]));
+    document.querySelectorAll('.edit-income-history-v13').forEach(button=>button.onclick=()=>editIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)]));
+    document.querySelectorAll('.delete-income-history-v13').forEach(button=>button.onclick=()=>deleteIncomeHistoryReceipt(visibleRows[Number(button.dataset.row)],draw));
+  }
+  function draw(){
+    const r=range(),effectiveTo=r.to<current?r.to:current,branch=String(state.branch||''),specialty=String(state.specialty||'');
+    visibleRows=allPayments().filter(row=>row.date>=r.from&&row.date<=effectiveTo&&(!branch||String(row.student?.branch||'')===branch)&&(!specialty||String(row.student?.specialty||'')===specialty)).sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time))||Number(b.order||0)-Number(a.order||0));
+    const branchLabel=branch?branchName(branch):'كل الفروع',specialtyLabel=specialty?(spec(specialty)?.name||specialty):'كل الدورات';
+    document.getElementById('incomeHistoryMessageV13').textContent=`${visibleRows.length} عملية · ${r.label} · ${branchLabel} · ${specialtyLabel}`;
+    document.getElementById('incomeHistoryBodyV13').innerHTML=table(['رقم الروسي','التاريخ','الوقت','الاسم','البيان','الفرع','الدورة','الوسيلة','المبلغ','الإجراءات'],visibleRows.map((row,index)=>{
+      const studentSource=row.sourceType!=='certificate',canEditSource=studentSource&&canEdit('register'),canDeleteSource=studentSource&&canEdit('register')&&canEdit('students');
+      return`<tr><td>${esc(incomeHistoryReceiptCode(row))}</td><td>${showDate(row.date)}</td><td>${esc(row.time||'—')}</td><td>${esc(row.student?.name||'—')}</td><td>${esc(dailyStatement(row))}</td><td>${esc(branchName(row.student?.branch))}</td><td>${esc(spec(row.student?.specialty)?.name||row.student?.specialty||'—')}</td><td>${esc(row.method||'—')}</td><td><b>${cash(row.amount)}</b></td><td><div class="expense-history-actions-v13 income-history-actions-v13"><button class="mini open-income-receipt-v13" data-row="${index}">فتح الروسي</button>${canEditSource?`<button class="mini edit-income-history-v13" data-row="${index}">تعديل</button>`:''}${canDeleteSource?`<button class="mini danger delete-income-history-v13" data-row="${index}">حذف</button>`:''}</div></td></tr>`;
+    }).join(''));
+    bindRows();
+  }
+  document.getElementById('backToIncomeFinanceV13')?.addEventListener('click',()=>renderFinance('income'));
+  document.querySelectorAll('#incomeHistoryModeV13 [data-mode]').forEach(button=>button.onclick=()=>{state.mode=button.dataset.mode;syncControls();draw();});
+  const bindings=[['incomeHistoryDayV13','day'],['incomeHistoryFromV13','from'],['incomeHistoryToV13','to'],['incomeHistoryMonthV13','month'],['incomeHistoryYearV13','year'],['incomeHistoryBranchV13','branch'],['incomeHistorySpecV13','specialty']];
+  bindings.forEach(([id,key])=>document.getElementById(id)?.addEventListener('change',event=>{state[key]=event.target.value;draw();}));
+  syncControls();draw();
 }
 
 let expenseHistoryFilterStateV13=null;
@@ -264,7 +342,12 @@ const style=document.createElement('style');style.textContent=`
 .content:has(.expense-history-v13) #expenseHistoryModeV13 button{width:100%!important;height:26px!important;min-width:0!important;max-width:100%!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:9.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important;padding:0 4px!important;overflow:hidden!important;white-space:nowrap!important}
 .content:has(.expense-history-v13) #expenseHistoryModeV13 button[data-mode="daily"]{background:linear-gradient(180deg,#f6fbff,#eef8fb)!important}.content:has(.expense-history-v13) #expenseHistoryModeV13 button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important}.content:has(.expense-history-v13) #expenseHistoryModeV13 button[data-mode="monthly"]{background:linear-gradient(180deg,#f1fbf7,#e7f6ef)!important}.content:has(.expense-history-v13) #expenseHistoryModeV13 button[data-mode="yearly"]{background:linear-gradient(180deg,#fffaf0,#fbf3e5)!important}
 .content:has(.expense-history-v13) #expenseHistoryModeV13 button:hover{transform:translateY(-1px)!important;color:#0b6853!important;box-shadow:0 3px 8px rgba(32,85,69,.08)!important}.content:has(.expense-history-v13) #expenseHistoryModeV13 button.active{background:linear-gradient(180deg,#0b7b62,#08624f)!important;border-color:#08624f!important;color:#fff!important;box-shadow:0 5px 12px rgba(8,98,79,.16)!important;transform:none!important}
+.content:has(.income-history-v13) #incomeHistoryModeV13{width:100%!important;max-width:100%!important;min-width:0!important;height:34px!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:3px!important;padding:3px!important;margin:0!important;border:1px solid #c9ddd6!important;border-radius:11px!important;background:#e9f4f0!important;box-shadow:inset 0 1px 0 #ffffffb8!important;box-sizing:border-box!important;justify-self:stretch!important;align-self:end!important}
+.content:has(.income-history-v13) #incomeHistoryModeV13 button{width:100%!important;height:26px!important;min-width:0!important;max-width:100%!important;border:1px solid transparent!important;border-radius:8px!important;background:transparent!important;color:#58746b!important;font-family:inherit!important;font-size:9.5px!important;font-weight:780!important;cursor:pointer!important;transition:all .14s ease!important;padding:0 4px!important;overflow:hidden!important;white-space:nowrap!important}
+.content:has(.income-history-v13) #incomeHistoryModeV13 button[data-mode="daily"]{background:linear-gradient(180deg,#f6fbff,#eef8fb)!important}.content:has(.income-history-v13) #incomeHistoryModeV13 button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important}.content:has(.income-history-v13) #incomeHistoryModeV13 button[data-mode="monthly"]{background:linear-gradient(180deg,#f1fbf7,#e7f6ef)!important}.content:has(.income-history-v13) #incomeHistoryModeV13 button[data-mode="yearly"]{background:linear-gradient(180deg,#fffaf0,#fbf3e5)!important}
+.content:has(.income-history-v13) #incomeHistoryModeV13 button:hover{transform:translateY(-1px)!important;color:#0b6853!important;box-shadow:0 3px 8px rgba(32,85,69,.08)!important}.content:has(.income-history-v13) #incomeHistoryModeV13 button.active{background:linear-gradient(180deg,#0b7b62,#08624f)!important;border-color:#08624f!important;color:#fff!important;box-shadow:0 5px 12px rgba(8,98,79,.16)!important;transform:none!important}
 .expense-history-toolbar-v13{width:900px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}.expense-history-toolbar-v13>span{height:32px;padding:0 11px;border:1px solid #75a9d6;border-radius:9px;background:#e6f2ff;color:#174a71;display:inline-flex;align-items:center;font-size:10px;font-weight:800}.expense-history-v13{width:900px!important;margin:0!important;padding:12px!important;border:1.4px solid #4aa68c!important;border-radius:13px!important;background:#fff!important;box-shadow:0 10px 28px rgba(22,83,64,.045)!important;box-sizing:border-box!important}.expense-history-v13 .table-wrap{height:min(455px,calc(100dvh - 285px))!important;max-height:min(455px,calc(100dvh - 285px))!important;overflow:auto!important;scrollbar-gutter:auto!important;border:1.2px solid rgba(0,0,0,.72)!important;border-radius:9px!important}.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important}.expense-history-v13 th{position:sticky!important;top:0!important;z-index:2!important;height:38px!important;padding:6px 7px!important;background:linear-gradient(180deg,#0a715b,#075846)!important;color:#fff!important;border:1px solid rgba(0,0,0,.55)!important;font-size:10.5px!important}.expense-history-v13 td{height:35px!important;padding:5px 7px!important;border:1px solid rgba(0,0,0,.35)!important;text-align:center!important;font-size:10px!important}.expense-history-actions-v13{display:flex;align-items:center;justify-content:center;gap:5px}.expense-history-actions-v13 .danger{border-color:#d9a2a2!important;color:#9b2929!important;background:#fff7f7!important}
+.finance-income-history-action-v23{background:#0b7b62!important;border-color:#0b7b62!important;color:#fff!important}.finance-income-history-action-v23:hover{background:#08624f!important;border-color:#08624f!important}
 
 @media(max-height:650px) and (min-width:1050px){.content:has(.finance-switch-v13){padding-top:8px!important;padding-bottom:8px!important}.finance-hero-v13{margin-bottom:8px!important}.content:has(.finance-switch-v13) #financeBodyV13>.chart-card{margin-bottom:6px!important}.content:has(.finance-switch-v13) .finance-chart-wrap-v13 svg{max-height:188px!important}.content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card{min-height:88px!important;padding-top:7px!important;padding-bottom:7px!important}}
 
@@ -354,6 +437,7 @@ const style=document.createElement('style');style.textContent=`
   .content:has(.finance-switch-v13) #financeBodyV13>.breakdowns>.card{min-height:82px!important;padding-top:7px!important;padding-bottom:7px!important}
 }
 `;document.head.appendChild(style);
+window.EFC_OPEN_INCOME_HISTORY_V13=renderIncomeHistory;
 window.EFC_OPEN_EXPENSE_HISTORY_V13=renderExpenseHistory;
 window.EFC_ENHANCE_FINANCE_SETTINGS_V13=enhanceFinanceSettings;
 window.EFC_FINANCE_PRESENTATION_V13=Object.freeze({financialYearWindow,financialYears,chart,bindChartTooltips,breakdown,groupRows,series,monthNames,pad2});
@@ -396,5 +480,5 @@ ledgerRedesignStyle.textContent=`
 `;
 document.head.appendChild(ledgerRedesignStyle);
 window.EFC_RENDER_LEDGER_BASE_V13=renderLedgerBaseV13;
-window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptSourceDeletion:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,customDateRangeFilter:true,weeklyBlankFromUsesOldestAvailable:true,currentUnpaidBalanceDebtCard:true,debtCardIgnoresDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,expenseHistoryActionRed:true,expenseHistoryPeriodFilters:true,expenseHistoryFilterMatchesFinance:true,expenseHistoryBlankFromUsesOldestAvailable:true,expenseHistoryFilterMessage:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,profitabilityDetailsTotalProfit:true,expenseReceiptsNumericSequence:true,financeResponsiveLikeLedger:true,financeResponsiveAt900LikeLedger:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
+window.EFC_FINANCE_UI_V13=Object.freeze({ready:true,ledgerBaseRendererExported:true,expenseActionAboveControls:true,incomeExpenseProfitSections:true,breakdownPercentages:true,chartHoverValues:true,noFutureChartPoints:true,profitabilitySingleExplorer:true,profitabilityByMethod:true,profitabilityDedicatedPage:true,compactFinanceKpis:true,dailySeparateNameAndStatement:true,dailyPaymentNature:true,dailyIncomeAndExpenses:true,paymentMethodsNoDelete:true,historicalExpenseMethodPreserved:true,certificateLedgerReceiptNavigation:true,rollingFinancialYearsFrom2025:true,financialYearWindowMaxTen:true,expenseReceipts:true,expenseReceiptSourceDeletion:true,expenseReceiptUsesNaturalHeader:true,expenseReceiptMatchesStudentHeader:true,expenseReceiptPdfWaitsForLogo:true,expenseReceiptUsesSharedEmbeddedLogo:true,expenseReceiptPdfSaveAs:true,financePresentationShared:true,chartsRemovedFromFinance:true,dailyDateFilter:true,customDateRangeFilter:true,weeklyBlankFromUsesOldestAvailable:true,currentUnpaidBalanceDebtCard:true,debtCardIgnoresDateFilter:true,monthlySelectedMonth:true,yearlySelectedYear:true,periodScopedRegistrationCount:true,periodScopedExpenseCount:true,financePeriodContextHints:true,financeAverageKpisRemoved:true,incomeHistoryAction:true,incomeHistoryPeriodFilters:true,incomeHistoryFilterMatchesFinance:true,incomeHistoryBlankFromUsesOldestAvailable:true,incomeHistorySourceActions:true,incomeHistoryFilterStatePreserved:true,expenseHistoryActionRed:true,expenseHistoryPeriodFilters:true,expenseHistoryFilterMatchesFinance:true,expenseHistoryBlankFromUsesOldestAvailable:true,expenseHistoryFilterMessage:true,financeDebtKpiActual:true,profitPeriodContextHints:true,profitDetailsActionEmphasized:true,profitabilitySpreadsheetTable:true,profitabilityDetailsTotalProfit:true,expenseReceiptsNumericSequence:true,financeResponsiveLikeLedger:true,financeResponsiveAt900LikeLedger:true,ledgerResponsiveLikeFinance:true,ledgerSummaryMoneyOnly:true,ledgerDailyProfit:true});
 })();
