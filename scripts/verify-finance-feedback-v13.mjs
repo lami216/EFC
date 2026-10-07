@@ -57,6 +57,8 @@ for(const [token,label] of [
   ['id="incomeHistoryBranchV13"','income history branch filter'],
   ['id="incomeHistorySpecV13"','income history course filter'],
   ['id="incomeHistoryMessageV13"','income history dynamic filter/result message'],
+  ['id="incomeHistoryTotalV53"','income history shows the filter-matched amount'],
+  ['incomeHistoryFilteredTotal:true','income history filtered total marker'],
   ['function incomeHistoryOldestDate()','income history resolves oldest income date'],
   ["const rawFrom=String(state.from||'').trim()",'income history supports a blank week start'],
   ['deleteStudentPaymentSource','income history deletion routes to the payment source'],
@@ -72,6 +74,8 @@ for(const [token,label] of [
   ['id="expenseHistoryBranchV13"','expense history branch filter'],
   ['id="expenseHistorySpecV13"','expense history course filter'],
   ['id="expenseHistoryMessageV13"','expense history dynamic filter/result message'],
+  ['id="expenseHistoryTotalV53"','expense history shows the filter-matched amount'],
+  ['expenseHistoryFilteredTotal:true','expense history filtered total marker'],
   ['function expenseHistoryOldestDate()','expense history resolves oldest expense date'],
   ["const rawFrom=String(state.from||'').trim()",'expense history supports blank week start'],
   ["expenseMatches(row,{from:r.from,to:effectiveTo,branch,specialty})",'expense history rows follow the selected filters'],
@@ -86,7 +90,11 @@ for(const [token,label] of [
   ['function financeOldestAvailableDate()','finance can resolve the oldest available record for blank week starts'],
   ['function studentRegistrationDate(student)','registration date resolver'],
   ['registered=students.filter','period registration filter'],
-  ['finance-kpis-three-v23','three-card income and expense KPI layout'],
+  ['finance-kpis-three-v23','three-card income KPI layout'],
+  ['finance-expense-kpis-v53','two-card expense KPI layout'],
+  ['expenseKpisTwoCards:true','expense KPI two-card marker'],
+  ['expenseKpisRed:true','expense KPI red presentation marker'],
+  ['receiptDateReadable:true','expense receipt date readability marker'],
   ['finance-expense-history-action-v23','red expense-history action'],
   ['expenseReceiptMatchesStudentHeader:true','expense receipt uses the same receipt header language'],
   ['expenseReceiptPdfWaitsForLogo:true','expense PDF waits for the center logo'],
@@ -137,6 +145,7 @@ forbidFinance('<div class=\"card chart-card\">${chart(series(costs','expense cha
 forbidFinance('صافي الربح التراكمي','profit chart must stay removed');
 forbidFinance('<small>متوسط الدفعة</small>','average payment KPI must stay removed');
 forbidFinance('<small>متوسط المصروف</small>','average expense KPI must stay removed');
+forbidFinance('<small>أكبر مصروف</small>','largest expense KPI must stay removed');
 
 const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
