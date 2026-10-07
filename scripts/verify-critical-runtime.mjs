@@ -295,6 +295,7 @@ requireText(receiptsUi,'nonRefundNoteAllStudentReceipts:true','non-refund note i
 requireText(receiptsUi,'nonRefundNoteRegistrationReceipt:true','registration receipt includes the non-refund note');
 requireText(receiptsUi,'nonRefundNoteMonthlyReceipts:true','monthly and aggregate student receipts include the non-refund note');
 requireText(receiptsUi,'nonRefundNoteAtBottom:true','non-refund note stays at the bottom of student receipts');
+requireText(receiptsUi,'${scheduleHtml(model)}${commonNote(model)}`','regular student receipts render the non-refund note after the schedule block');
 requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111715!important','non-refund note remains visible in PDF raster output');
 requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111!important}.actions12{display:none}','non-refund note remains visible in browser print output');
 const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
