@@ -51,6 +51,7 @@ for(const [token,label] of [
   ['incomeHistoryBlankFromUsesOldestAvailable:true','income history blank week start uses oldest income'],
   ['incomeHistorySourceActions:true','income history exposes source-safe receipt actions'],
   ['incomeHistoryFilterStatePreserved:true','income history keeps its selected filters across redraws'],
+  ['if(deleted)renderIncomeHistory()','income history returns with the same filter state after source deletion'],
   ['id="viewIncomeHistoryV13"','income history action button'],
   ['id="incomeHistoryModeV13"','income history period switch'],
   ['id="incomeHistoryBranchV13"','income history branch filter'],
