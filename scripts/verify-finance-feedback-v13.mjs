@@ -58,7 +58,10 @@ for(const [token,label] of [
   ['id="incomeHistorySpecV13"','income history course filter'],
   ['id="incomeHistoryMessageV13"','income history dynamic filter/result message'],
   ['id="incomeHistoryTotalV53"','income history shows the filter-matched amount'],
+  ['id="incomeHistoryTotalContextV54"','income history amount uses a contextual finance-card description'],
+  ['history-primary-summary-card-v54','income and expense history use a dedicated certificate-finance-style amount card'],
   ['incomeHistoryFilteredTotal:true','income history filtered total marker'],
+  ['historyAmountUsesCertificateFinanceCard:true','history amount placement/style parity marker'],
   ['function incomeHistoryOldestDate()','income history resolves oldest income date'],
   ["const rawFrom=String(state.from||'').trim()",'income history supports a blank week start'],
   ['deleteStudentPaymentSource','income history deletion routes to the payment source'],
@@ -75,6 +78,7 @@ for(const [token,label] of [
   ['id="expenseHistorySpecV13"','expense history course filter'],
   ['id="expenseHistoryMessageV13"','expense history dynamic filter/result message'],
   ['id="expenseHistoryTotalV53"','expense history shows the filter-matched amount'],
+  ['id="expenseHistoryTotalContextV54"','expense history amount uses a contextual finance-card description'],
   ['expenseHistoryFilteredTotal:true','expense history filtered total marker'],
   ['function expenseHistoryOldestDate()','expense history resolves oldest expense date'],
   ["const rawFrom=String(state.from||'').trim()",'expense history supports blank week start'],
@@ -146,6 +150,7 @@ forbidFinance('صافي الربح التراكمي','profit chart must stay rem
 forbidFinance('<small>متوسط الدفعة</small>','average payment KPI must stay removed');
 forbidFinance('<small>متوسط المصروف</small>','average expense KPI must stay removed');
 forbidFinance('<small>أكبر مصروف</small>','largest expense KPI must stay removed');
+forbidFinance('المبلغ حسب الفلتر:','literal filter-amount badge wording must not return');
 
 const topbarPos=finance.indexOf('finance-topbar-v13');
 const switchPos=finance.indexOf('finance-switch-v13');
