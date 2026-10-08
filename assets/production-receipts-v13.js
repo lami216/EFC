@@ -43,11 +43,12 @@ function receiptScheduleCourse(model){
   const selectedId=String(schedule.specialtyId||'');
   const stored=Array.isArray(schedule.courses)?schedule.courses:[];
   const storedCourse=stored.find(course=>(!selectedId||!course?.specialtyId||String(course?.specialtyId)===selectedId)&&Array.isArray(course?.days))||null;
-  const sourceDays=Array.isArray(storedCourse?.days)?storedCourse.days:Array.isArray(schedule.days)?schedule.days:emptyScheduleDays();
+  const sourceDays=Number(schedule.version)>=4&&Array.isArray(schedule.days)?schedule.days:Array.isArray(storedCourse?.days)?storedCourse.days:Array.isArray(schedule.days)?schedule.days:emptyScheduleDays();
   const byKey=new Map(sourceDays.map(day=>[String(day?.key||''),day]));
   return{
     specialtyName:String(storedCourse?.specialtyName||schedule.specialtyName||model.specialty||'الدورة'),
-    days:scheduleDays.map(day=>{const item=byKey.get(day.key)||{};return{...day,selected:Boolean(item.selected),time:String(item.time||'')};})
+    preferredDeviceNumber:Math.max(0,Math.floor(Number(schedule.preferredDeviceNumber)||0)),
+    days:scheduleDays.map(day=>{const item=byKey.get(day.key)||{};return{...day,selected:Boolean(item.selected),time:String(item.time||''),deviceNumber:Math.max(0,Math.floor(Number(item.deviceNumber)||0))};})
   };
 }
 
@@ -93,7 +94,9 @@ function scheduleHtml(model){
   const header=scheduleDays.map(day=>`<th><b>${day.ar}</b><small>${day.fr}</small></th>`).join('');
   const timeCells=scheduleDays.map(day=>{const item=byKey.get(day.key)||{};return`<td>${item.selected&&item.time?`<b>${esc(item.time)}</b>`:'<span class="efcScheduleDash22">—</span>'}</td>`;}).join('');
   const marks=scheduleDays.map(day=>{const item=byKey.get(day.key)||{};return`<td><span class="efcScheduleBox22 ${item.selected?'is-checked':''}"></span></td>`;}).join('');
-  return`<section class="studentSchedule12"><h3 class="efcScheduleTitle22">جدول الطالب الأسبوعي</h3><table class="efcScheduleGrid22"><thead><tr><th>الدورة</th>${header}</tr></thead><tbody><tr class="efcScheduleTimeRow22"><th>الوقت</th>${timeCells}</tr><tr class="efcScheduleCourseRow22"><th>${esc(course.specialtyName)}</th>${marks}</tr></tbody></table></section>`;
+  const hasDevices=course.preferredDeviceNumber||course.days.some(day=>day.selected&&day.deviceNumber);
+  const deviceRow=hasDevices?`<tr class="efcScheduleDeviceRow57"><th>الجهاز</th>${scheduleDays.map(day=>{const item=byKey.get(day.key)||{};return`<td>${item.selected&&item.deviceNumber?'جهاز '+esc(item.deviceNumber):'—'}</td>`;}).join('')}</tr>`:'';
+  return`<section class="studentSchedule12"><h3 class="efcScheduleTitle22">جدول الطالب الأسبوعي${course.preferredDeviceNumber?' · الجهاز المختار: جهاز '+esc(course.preferredDeviceNumber):''}</h3><table class="efcScheduleGrid22"><thead><tr><th>الدورة</th>${header}</tr></thead><tbody><tr class="efcScheduleTimeRow22"><th>الوقت</th>${timeCells}</tr><tr class="efcScheduleCourseRow22"><th>${esc(course.specialtyName)}</th>${marks}</tr>${deviceRow}</tbody></table></section>`;
 }
 function debtNote(model){return model?.remaining>0&&model?.debtDueDate?`<p class="debtNote12">موعد سداد المبلغ المتبقي: ${fmtDateV3(model.debtDueDate)}</p>`:'';}
 function commonNote(){return`<p class="note12">ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.</p>`;}

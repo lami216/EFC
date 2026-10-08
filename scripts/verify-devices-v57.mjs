@@ -18,6 +18,7 @@ execFileSync(process.execPath,['scripts/verify-devices-behavior-v57.mjs'],{stdio
 
 for(const [token,label] of [
   ['chosenDeviceAppliesToSchedule:true','chosen device applies to all selected days'],
+  ['guidedConflictChoices:true','availability appears after choosing same device or day'],
   ['singleSelectedDeviceGrid:true','one device grid at a time'],
   ['conflictOnlyAssignmentDetails:true','only conflicts show detailed controls'],
   ['manualDeviceAssignmentOnly:true','device choice stays manual'],

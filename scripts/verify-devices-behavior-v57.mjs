@@ -109,4 +109,15 @@ for(const file of ['assets/production-registration-schedule-v13.js','assets/prod
 }
 assert.equal(read('assets/production-registration-schedule-matrix-v17.js').includes('created.schedule=snapshot'),false,'no post-save device patch');
 assert.ok(read('assets/production-monthly-prepayment-domain-v14.js').includes('validateStudentDraft(draft'));
+// Render the owning receipt template with canonical device days and stale legacy course days.
+const receiptContext={window:{EFC_FOUNDATION_V13:{ready:true}},document:{createElement:()=>({}),head:{appendChild(){}}}};
+vm.createContext(receiptContext);
+vm.runInContext(read('assets/production-receipts-v13.js').replace(/\}\)\(\);\s*$/,'window.__scheduleHtml=scheduleHtml;})();'),receiptContext);
+const receiptSchedule={version:4,preferredDeviceNumber:1,days:[{key:'monday',selected:true,time:'08:00',deviceNumber:2}],courses:[{days:[{key:'monday',selected:true,time:'10:00',deviceNumber:3}]}]};
+const rendered=receiptContext.window.__scheduleHtml({registrationReceipt:true,specialty:'دورة أ',schedule:receiptSchedule});
+assert.ok(rendered.includes('الجهاز المختار: جهاز 1'));
+assert.ok(rendered.includes('جهاز 2'),'receipt renders actual per-day exception');
+assert.equal(rendered.includes('جهاز 3'),false,'stale course copy cannot replace canonical device days');
+assert.equal(receiptContext.window.__scheduleHtml({registrationReceipt:false,schedule:receiptSchedule}),'','monthly receipts stay unchanged');
+assert.equal(receiptContext.window.__scheduleHtml({registrationReceipt:true,schedule:{days:[]}}).includes('efcScheduleDeviceRow57'),false,'non-device schedules have no device row');
 console.log('Device behaviors passed: manual drafts, cross-course conflicts, stable identities, release, weekly/live availability, full persistence and atomic restore rejection.');
