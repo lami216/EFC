@@ -180,6 +180,15 @@ function updateStudentRegistration(student,changes={}){
   draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
   draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:shape.durationValue,durationUnit:shape.durationUnit};
   if(changes.schedule){draft.schedule=clone(changes.schedule);draft.schedule.specialtyId=String(item.id);draft.schedule.specialtyName=String(item.name||'');}
+  const devices=window.EFC_DEVICES_V57;
+  if(devices){
+    if(!devices.requiresDevice(item)&&draft.schedule)draft.schedule=devices.clearScheduleDevices(draft.schedule);
+    else{
+      if(scopeChanged&&!changes.schedule)draft.schedule=devices.clearScheduleDevices(draft.schedule);
+      const validation=devices.validateStudentDraft(draft,{excludeStudentId:String(student.id||''),requireComplete:Boolean(changes.schedule||scopeChanged||start!==String(student.start))});
+      if(!validation.ok)throw new Error(validation.message);
+    }
+  }
   draft.payments=Array.isArray(draft.payments)?draft.payments.map(payment=>Array.isArray(payment)?[...payment]:[]):[];
   const rawIndex=changes.paymentIndex,index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);
   if(index!==null&&(!Number.isInteger(index)||index<0||!draft.payments[index]))throw new Error('الدفعة المرتبطة بالروسي غير موجودة.');

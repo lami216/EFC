@@ -61,6 +61,10 @@ function openCourseEditor(id=null){
     event.preventDefault();const data=new FormData(form),courseType=String(data.get('type')),count=Math.max(1,Number(data.get('days')||1)),name=String(data.get('name')||'').trim();if(!name)return;
     const item={...(existing||{}),id:existing?.id||D.uid('sp'),name,courseType,billing:courseType==='normal'?'monthly':'one_time',durationUnit:courseType==='normal'?'month':'day',durationValue:courseType==='normal'?1:count,quickDays:courseType==='quick'?count:null,requiresDevice:String(data.get('requiresDevice')||'no')==='yes'};delete item.fee;
     if(existing)specialties=specialties.map(value=>value.id===id?item:value);else specialties.push(item);
+    if(existing&&Boolean(existing.requiresDevice)!==item.requiresDevice){
+      students.filter(student=>String(student.specialty)===String(item.id)&&student.schedule).forEach(student=>{student.schedule=window.EFC_DEVICES_V57.clearScheduleDevices(student.schedule);student.updatedAt=Date.now();});
+      D.saveStudents();
+    }
     D.saveSpecs();modal.remove();renderSpecialties();
   };
 }

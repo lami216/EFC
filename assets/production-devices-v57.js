@@ -8,11 +8,17 @@ const DAYS=[{key:'monday',ar:'الاثنين'},{key:'tuesday',ar:'الثلاثا
 const DAY_BY_JS=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
 const ALLOWED_HOURS=[8,10,12,14,16,17,18,19,20].map(hour=>String(hour).padStart(2,'0')+':00');
 const formStates=new WeakMap();
-function int(value){return Math.max(0,Math.floor(Number(value||0)));}
+function int(value){const number=Number(value||0);return Number.isSafeInteger(number)&&number>0?number:0;}
 function courseOf(value){return typeof value==='object'&&value?value:window.spec?.(String(value||''));}
 function requiresDevice(value){return courseOf(value)?.requiresDevice===true;}
 function centerOf(id){return (window.branches||[]).find(item=>String(item.id)===String(id))||null;}
 function deviceCountForCenter(id){return int(centerOf(id)?.deviceCount);}
+function deviceIdFor(branch,number){return centerOf(branch)?.devices?.find(device=>device.number===int(number))?.id||`${branch}:device:${int(number)}`;}
+function deviceNumberFor(branch,item){
+  const number=int(item?.deviceNumber),id=String(item?.deviceId||'');
+  if(!number||number>deviceCountForCenter(branch))return 0;
+  return !id||id===deviceIdFor(branch,number)?number:0;
+}
 function dayLabel(key){return DAYS.find(day=>day.key===key)?.ar||key||'—';}
 function deviceLabel(value){return int(value)>0?'جهاز '+int(value):'غير محدد';}
 function addDaysIso(value,days){
@@ -21,10 +27,13 @@ function addDaysIso(value,days){
   d.setDate(d.getDate()+Number(days||0));
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
-function candidateEnd(start,specialtyId){
+function candidateEnd(start,specialtyId,student=null){
   const item=courseOf(specialtyId);
-  if(!item||D.courseTypeOf(item)==='normal')return'';
-  return addDaysIso(start,Math.max(1,Number(item.quickDays||item.durationValue||1)));
+  const historical=student&&String(student.specialty)===String(specialtyId)?student.snapshot:null;
+  const historicalType=historical?.courseType|| (historical?.billing==='monthly'?'normal':historical?.billing==='one_time'?'quick':'');
+  const monthly=(historicalType||D.courseTypeOf(item))==='normal';
+  if(!item||monthly)return'';
+  return D.addDuration(start,Math.max(1,Number(historical?.durationValue||item.quickDays||item.durationValue||1)),historical?.durationUnit||'day');
 }
 function periodsOverlap(aStart,aEnd,bStart,bEnd){
   const as=String(aStart||''),ae=String(aEnd||''),bs=String(bStart||''),be=String(bEnd||'');
@@ -50,7 +59,7 @@ function slotBookings({branch,day,time,deviceNumber,start,end,excludeStudentId='
       if(String(student.end||'')&&d>String(student.end))return false;
     }else if(!periodsOverlap(start,end,student.start,student.end))return false;
     const item=scheduleDay(student,day);
-    return Boolean(item?.selected&&String(item.time||'')===String(time)&&int(item.deviceNumber)===targetDevice);
+    return Boolean(item?.selected&&String(item.time||'')===String(time)&&deviceNumberFor(branch,item)===targetDevice);
   });
 }
 function isDeviceAvailable(args){return slotBookings(args).length===0;}
@@ -64,15 +73,12 @@ function sameDeviceAlternateTimes(args){
   if(!device)return[];
   return ALLOWED_HOURS.filter(time=>time!==String(args.time||'')&&isDeviceAvailable({...args,time,deviceNumber:device}));
 }
-function sameDayAlternatives(args){
-  return ALLOWED_HOURS.filter(time=>time!==String(args.time||'')).map(time=>({time,devices:availableDevices({...args,time})})).filter(item=>item.devices.length);
-}
 function currentEditStudent(){return window.EFC_REGISTRATION_EDIT_V17?.current?.()?.student||null;}
 function contextFor(form,student=null){
-  const specialtyId=String(form?.elements?.specialty?.value||student?.specialty||'');
-  const branch=String(form?.elements?.branch?.value||student?.branch||'');
+  const specialtyId=String(form?.elements?.specialty?.value??student?.specialty??'');
+  const branch=String(form?.elements?.branch?.value??student?.branch??'');
   const start=String(form?.elements?.start?.value||student?.start||D.today());
-  return{branch,specialtyId,start,end:candidateEnd(start,specialtyId),studentId:String(student?.id||'')};
+  return{branch,specialtyId,start,end:candidateEnd(start,specialtyId,student),studentId:String(student?.id||'')};
 }
 function selectedRows(form,scheduleRoot){
   const specialtyId=String(form?.elements?.specialty?.value||'');
@@ -85,8 +91,8 @@ function selectedRows(form,scheduleRoot){
 }
 function initialState(student){
   const schedule=student?.schedule||{},assignments={};
-  (Array.isArray(schedule.days)?schedule.days:[]).forEach(day=>{const device=int(day?.deviceNumber);if(device)assignments[String(day.key||'')]=device;});
-  return{preferred:int(schedule.preferredDeviceNumber),assignments,lastBranch:String(student?.branch||''),lastSpecialty:String(student?.specialty||'')};
+  (Array.isArray(schedule.days)?schedule.days:[]).forEach(day=>{const device=deviceNumberFor(student?.branch,day);if(device)assignments[String(day.key||'')]=device;});
+  return{preferred:deviceNumberFor(student?.branch,{deviceNumber:schedule.preferredDeviceNumber,deviceId:schedule.preferredDeviceId}),assignments,lastBranch:String(student?.branch||''),lastSpecialty:String(student?.specialty||'')};
 }
 function registrationState(form){
   let state=formStates.get(form);if(state)return state;
@@ -110,20 +116,22 @@ function renderRegistrationPanel(form,scheduleRoot){
   const preferredOptions=Array.from({length:count},(_,i)=>i+1).map(device=>`<option value="${device}"${state.preferred===device?' selected':''}>${esc(deviceLabel(device))}</option>`).join('');
   const rowHtml=rows.map(row=>{
     const args=availabilityArgs(ctx,row),available=availableDevices(args);
-    if(state.preferred&&!state.assignments[row.key]&&available.includes(state.preferred))state.assignments[row.key]=state.preferred;
     const assigned=int(state.assignments[row.key]),assignedAvailable=assigned>0&&available.includes(assigned),preferredAvailable=state.preferred>0&&available.includes(state.preferred);
     const alternates=state.preferred?sameDeviceAlternateTimes({...args,deviceNumber:state.preferred}):[];
-    const general=!available.length?sameDayAlternatives(args).slice(0,4):[];
     const status=assigned&&assignedAvailable?(assigned===state.preferred?'الجهاز الأساسي متاح':'جهاز بديل لهذا اليوم'):(assigned?'الجهاز المحدد أصبح متعارضًا':'لم يحدد جهاز لهذا اليوم');
     const deviceSelect=state.preferred?`<select data-device-day-v57="${row.key}"><option value="">اختر جهاز هذا اليوم</option>${optionList(available,assigned)}</select>`:'<select disabled><option>اختر الجهاز الأساسي أولًا</option></select>';
-    const sameTime=state.preferred&&available.length?`<div class="device-hint-v57"><b>نفس الوقت:</b> ${available.map(device=>esc(deviceLabel(device))).join('، ')}</div>`:'';
+    const sameTime=state.preferred&&!preferredAvailable?`<div class="device-suggestions-v57"><b>نفس الوقت مع جهاز آخر:</b>${available.length?available.map(device=>`<button type="button" data-device-alternative-v57="${row.key}" data-number-v57="${device}">${esc(deviceLabel(device))}</button>`).join(''):' لا يوجد جهاز متاح.'}</div>`:'';
     const sameDevice=state.preferred&&!preferredAvailable&&alternates.length?`<div class="device-suggestions-v57"><b>${esc(deviceLabel(state.preferred))} متاح في نفس اليوم:</b>${alternates.map(time=>`<button type="button" data-device-time-v57="${row.key}" data-time-v57="${time}">${time}</button>`).join('')}</div>`:'';
-    const anyTime=!available.length&&general.length?`<div class="device-hint-v57 warning"><b>أوقات فيها أجهزة متاحة:</b> ${general.map(item=>`${item.time} (${item.devices.map(device=>esc(deviceLabel(device))).join('، ')})`).join(' · ')}</div>`:'';
-    return`<article class="device-day-v57 ${assigned&&assignedAvailable?'ok':'needs'}"><div class="device-day-name-v57"><b>${row.ar}</b><span>${row.time}</span></div><div class="device-day-choice-v57">${deviceSelect}<small>${esc(status)}</small></div><div class="device-day-help-v57">${sameTime}${sameDevice}${anyTime}</div></article>`;
+    return`<article class="device-day-v57 ${assigned&&assignedAvailable?'ok':'needs'}"><div class="device-day-name-v57"><b>${row.ar}</b><span>${row.time}</span></div><div class="device-day-choice-v57">${deviceSelect}<small>${esc(status)}</small></div><div class="device-day-help-v57">${sameTime}${sameDevice}</div></article>`;
   }).join('');
-  panel.innerHTML=`<div class="device-assignment-head-v57"><div><small>الأجهزة</small><h3>تخصيص جهاز الطالب</h3></div><span>${esc(center?.name||ctx.branch)} · ${count} جهاز</span></div><div class="device-preferred-v57"><label><span>الجهاز الأساسي المفضل</span><select id="devicePreferredV57"><option value="">اختر الجهاز</option>${preferredOptions}</select></label><p>اختيار الجهاز يدوي. يطبق الجهاز الذي تختاره على الأيام المتاحة فقط، ولا يختار النظام جهازًا بديلًا من نفسه.</p></div>${rows.length?`<div class="device-days-v57">${rowHtml}</div>`:'<div class="device-warning-v57">حدد أيام الطالب وساعاته أولًا، ثم اختر الجهاز.</div>'}`;
+  panel.innerHTML=`<div class="device-assignment-head-v57"><div><small>الأجهزة</small><h3>تخصيص جهاز الطالب</h3></div><span>${esc(center?.name||ctx.branch)} · ${count} جهاز</span></div><div class="device-preferred-v57"><label><span>الجهاز الأساسي المفضل</span><select id="devicePreferredV57"><option value="">اختر الجهاز</option>${preferredOptions}</select></label><div><p>حدد الجهاز المفضل، ثم اختر جهاز كل موعد يدويًا أو اضغط «استخدام المفضل في المواعيد المتاحة». لا تحجز الأجهزة إلا بعد الحفظ.</p><button type="button" class="button secondary" id="deviceUsePreferredV57" ${state.preferred?'':'disabled'}>استخدام المفضل في المواعيد المتاحة</button></div></div>${rows.length?`<div class="device-days-v57">${rowHtml}</div>`:'<div class="device-warning-v57">حدد أيام الطالب وساعاته أولًا، ثم اختر الجهاز.</div>'}`;
   const preferred=panel.querySelector('#devicePreferredV57');
-  if(preferred)preferred.onchange=()=>{state.preferred=int(preferred.value);state.assignments={};renderRegistrationPanel(form,scheduleRoot);};
+  if(preferred)preferred.onchange=()=>{state.preferred=int(preferred.value);renderRegistrationPanel(form,scheduleRoot);};
+  panel.querySelector('#deviceUsePreferredV57').onclick=()=>{
+    rows.forEach(row=>{if(isDeviceAvailable({...availabilityArgs(ctx,row),deviceNumber:state.preferred}))state.assignments[row.key]=state.preferred;});
+    renderRegistrationPanel(form,scheduleRoot);
+  };
+  panel.querySelectorAll('[data-device-alternative-v57]').forEach(button=>button.onclick=()=>{state.assignments[button.dataset.deviceAlternativeV57]=int(button.dataset.numberV57);renderRegistrationPanel(form,scheduleRoot);});
   panel.querySelectorAll('[data-device-day-v57]').forEach(select=>select.onchange=()=>{const key=String(select.dataset.deviceDayV57||''),value=int(select.value);if(value)state.assignments[key]=value;else delete state.assignments[key];renderRegistrationPanel(form,scheduleRoot);});
   panel.querySelectorAll('[data-device-time-v57]').forEach(button=>button.onclick=()=>{
     const key=String(button.dataset.deviceTimeV57||''),time=String(button.dataset.timeV57||''),timeSelect=scheduleRoot.querySelector(`[data-schedule-day-time="${key}"]`);
@@ -141,7 +149,7 @@ function mountRegistration(form,scheduleRoot){
   const state=registrationState(form),ctx=contextFor(form,currentEditStudent());state.lastBranch=ctx.branch;state.lastSpecialty=ctx.specialtyId;
   if(form.dataset.deviceBindingsV57!=='1'){
     form.dataset.deviceBindingsV57='1';
-    ['branch','specialty'].forEach(name=>form.elements[name]?.addEventListener('change',()=>{
+    ['branch','specialty','start'].forEach(name=>form.elements[name]?.addEventListener('change',()=>{
       const next=contextFor(form,currentEditStudent());
       if(next.branch!==state.lastBranch||next.specialtyId!==state.lastSpecialty){state.preferred=0;state.assignments={};state.lastBranch=next.branch;state.lastSpecialty=next.specialtyId;}
       renderRegistrationPanel(form,scheduleRoot);
@@ -153,37 +161,69 @@ function mountRegistration(form,scheduleRoot){
 }
 function augmentScheduleSnapshot(snapshot,{form,student=null}={}){
   const item=courseOf(snapshot?.specialtyId),baseDays=Array.isArray(snapshot?.days)?snapshot.days:[];
-  if(!requiresDevice(item))return{...snapshot,version:4,preferredDeviceNumber:null,days:baseDays.map(day=>({...day,deviceNumber:null}))};
+  if(!requiresDevice(item))return clearScheduleDevices(snapshot);
   const state=form?registrationState(form):initialState(student),preferred=int(state.preferred);
-  return{...snapshot,version:4,preferredDeviceNumber:preferred||null,days:baseDays.map(day=>({...day,deviceNumber:day.selected&&day.time?(int(state.assignments?.[day.key])||null):null}))};
+  const branch=String(form?.elements?.branch?.value||student?.branch||'');
+  return{...snapshot,version:4,preferredDeviceNumber:preferred||null,preferredDeviceId:preferred?deviceIdFor(branch,preferred):null,days:baseDays.map(day=>{
+    const number=day.selected&&day.time?int(state.assignments?.[day.key]):0;
+    return{...day,deviceNumber:number||null,deviceId:number?deviceIdFor(branch,number):null};
+  })};
 }
+function clearScheduleDevices(snapshot){return{...snapshot,version:4,preferredDeviceNumber:null,preferredDeviceId:null,days:(snapshot?.days||[]).map(day=>({...day,deviceNumber:null,deviceId:null}))};}
 function validateRegistration({form,snapshot,studentId=''}) {
-  const specialtyId=String(form?.elements?.specialty?.value||snapshot?.specialtyId||''),course=courseOf(specialtyId);
-  if(!requiresDevice(course))return{ok:true};
-  const branch=String(form?.elements?.branch?.value||''),start=String(form?.elements?.start?.value||D.today()),end=candidateEnd(start,specialtyId),count=deviceCountForCenter(branch);
+  const specialty=String(form?.elements?.specialty?.value||snapshot?.specialtyId||''),start=String(form?.elements?.start?.value||D.today());
+  const student=(window.students||[]).find(item=>String(item.id)===String(studentId));
+  return validateStudentDraft({specialty,branch:String(form?.elements?.branch?.value||''),start,end:candidateEnd(start,specialty,student),schedule:snapshot},{excludeStudentId:studentId});
+}
+function validateStudentDraft(student,{excludeStudentId='',requireComplete=true}={}){
+  if(!requiresDevice(student.specialty)||D.isInactive?.(student))return{ok:true};
+  const {branch,start,end}=student,snapshot=student.schedule,count=deviceCountForCenter(branch);
   if(!count)return{ok:false,message:'هذه الدورة تحتاج جهازًا، لكن المركز المحدد لا يحتوي أجهزة معرفة.'};
   const days=(Array.isArray(snapshot?.days)?snapshot.days:[]).filter(day=>day?.selected&&day?.time);
-  if(!days.length)return{ok:false,message:'هذه الدورة تحتاج جهازًا. حدد يومًا ووقتًا واحدًا على الأقل في جدول الطالب.'};
-  const preferred=int(snapshot?.preferredDeviceNumber);
-  if(!preferred||preferred>count)return{ok:false,message:'اختر الجهاز الأساسي للطالب قبل حفظ التسجيل.'};
+  if(!days.length)return requireComplete?{ok:false,message:'هذه الدورة تحتاج جهازًا. حدد يومًا ووقتًا واحدًا على الأقل في جدول الطالب.'}:{ok:true};
+  const preferred=deviceNumberFor(branch,{deviceNumber:snapshot?.preferredDeviceNumber,deviceId:snapshot?.preferredDeviceId});
+  if(requireComplete&&!preferred)return{ok:false,message:'اختر الجهاز الأساسي للطالب قبل حفظ التسجيل.'};
+  const seen=new Set();
   for(const day of days){
-    const device=int(day.deviceNumber);
-    if(!device||device>count)return{ok:false,message:`حدد جهاز يوم ${dayLabel(day.key)} الساعة ${day.time} قبل الحفظ.`};
-    if(!isDeviceAvailable({branch,day:day.key,time:day.time,deviceNumber:device,start,end,excludeStudentId:String(studentId||'')}))return{ok:false,message:`${deviceLabel(device)} لم يعد متاحًا يوم ${dayLabel(day.key)} الساعة ${day.time}. اختر جهازًا أو وقتًا آخر.`};
+    if(!DAYS.some(item=>item.key===day.key)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(day.time)||seen.has(day.key))return{ok:false,message:'جدول الطالب يحتوي يومًا مكررًا أو موعدًا غير صالح.'};
+    seen.add(day.key);
+    const device=deviceNumberFor(branch,day);
+    if(!device){if(!requireComplete&&!day.deviceNumber&&!day.deviceId)continue;return{ok:false,message:`حدد جهاز يوم ${dayLabel(day.key)} الساعة ${day.time} قبل الحفظ.`};}
+    if(!isDeviceAvailable({branch,day:day.key,time:day.time,deviceNumber:device,start,end,excludeStudentId:String(excludeStudentId||'')}))return{ok:false,message:`${deviceLabel(device)} لم يعد متاحًا يوم ${dayLabel(day.key)} الساعة ${day.time}. اختر جهازًا أو وقتًا آخر.`};
   }
   return{ok:true};
 }
 function missingDeviceDays(student){
   if(!studentActiveForDevices(student))return[];
-  const count=deviceCountForCenter(student.branch),days=(Array.isArray(student.schedule?.days)?student.schedule.days:[]).filter(day=>day?.selected&&day?.time);
+  const days=(Array.isArray(student.schedule?.days)?student.schedule.days:[]).filter(day=>day?.selected&&day?.time);
   if(!days.length)return[{key:'schedule',ar:'الجدول',time:'',deviceNumber:null}];
-  return days.filter(day=>{const device=int(day.deviceNumber);return!device||device>count;});
+  return days.filter(day=>!deviceNumberFor(student.branch,day));
 }
 function validateCenterDeviceCount(branchId,nextCount){
   const count=int(nextCount),affected=(window.students||[]).filter(student=>studentActiveForDevices(student)&&String(student.branch)===String(branchId)&&(Array.isArray(student.schedule?.days)?student.schedule.days:[]).some(day=>day?.selected&&int(day.deviceNumber)>count));
   if(!affected.length)return{ok:true};
   const names=affected.slice(0,5).map(student=>String(student.name||'طالب')).join('، '),more=affected.length>5?' و'+(affected.length-5)+' آخرين':'';
   return{ok:false,message:`لا يمكن تقليل الأجهزة إلى ${count} لأن هناك حجوزات على أجهزة أعلى من هذا الرقم للطلاب: ${names}${more}. عدّل أجهزة هؤلاء الطلاب أولًا.`,affected};
+}
+function validateRestoredState(state){
+  const centers=window.EFC_REGISTRATION_SCHEDULE_V13.centersForRestore(state.branches||[]),byCenter=new Map(centers.map(center=>[String(center.id),center]));
+  const courses=new Map((state.specialties||[]).map(course=>[String(course.id),course])),slots=new Map();
+  for(const student of state.students||[]){
+    if(D.isInactive?.(student)||courses.get(String(student.specialty))?.requiresDevice!==true)continue;
+    const center=byCenter.get(String(student.branch)),seenDays=new Set();
+    for(const day of student.schedule?.days||[]){
+      if(!day.selected||!day.time||(!day.deviceNumber&&!day.deviceId))continue;
+      if(seenDays.has(day.key)||!DAYS.some(item=>item.key===day.key)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(day.time))throw new Error(`تعذر استعادة النسخة: جدول غير صالح للطالب ${student.name||''}.`);
+      seenDays.add(day.key);
+      const number=int(day.deviceNumber),record=center?.devices.find(device=>device.number===number);
+      if(!record||number>center.deviceCount||(day.deviceId&&day.deviceId!==record.id))throw new Error(`تعذر استعادة النسخة: جهاز غير صالح للطالب ${student.name||''}. راجع أجهزة المركز في النسخة.`);
+      const key=JSON.stringify([student.branch,day.key,day.time,record.id]),previous=slots.get(key)||[];
+      const conflict=previous.find(other=>periodsOverlap(student.start,student.end,other.start,other.end));
+      if(conflict)throw new Error(`تعذر دمج النسخة: ${deviceLabel(number)} يوم ${dayLabel(day.key)} ${day.time} محجوز للطالبين ${conflict.name||''} و${student.name||''}. لم تحفظ أي تغييرات؛ عدّل الحجوزات قبل الاستعادة.`);
+      previous.push(student);slots.set(key,previous);
+    }
+  }
+  return true;
 }
 function studentDeviceSummaryHtml(student){
   const course=courseOf(student?.specialty);if(!requiresDevice(course))return'';
@@ -202,33 +242,62 @@ function bookingsForDate(branch,date){
     if(!studentActiveForDevices(student)||String(student.branch)!==String(branch))return;
     if(String(student.start||'')&&date<String(student.start))return;
     if(String(student.end||'')&&date>String(student.end))return;
-    const item=scheduleDay(student,day),device=int(item?.deviceNumber);
+    const item=scheduleDay(student,day),device=deviceNumberFor(branch,item);
     if(item?.selected&&item.time&&device)rows.push({student,time:String(item.time),device,course:courseOf(student.specialty)});
   });
   return rows;
 }
+function liveAvailability(branch,now=new Date()){
+  const date=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const minutes=now.getHours()*60+now.getMinutes();
+  // The existing timetable defines start slots, with the last slot ending at 21:00.
+  const time=ALLOWED_HOURS.find((value,index)=>{
+    const start=Number(value.slice(0,2))*60,end=index+1<ALLOWED_HOURS.length?Number(ALLOWED_HOURS[index+1].slice(0,2))*60:21*60;
+    return minutes>=start&&minutes<end;
+  })||'';
+  const busy=new Set(bookingsForDate(branch,date).filter(item=>item.time===time).map(item=>item.device)).size;
+  return{date,time,total:deviceCountForCenter(branch),busy,free:Math.max(0,deviceCountForCenter(branch)-busy)};
+}
+function weekDates(date){
+  const index=DAYS.findIndex(day=>day.key===dayKeyForDate(date));
+  const start=addDaysIso(date,-Math.max(0,index));
+  return DAYS.map((day,offset)=>({...day,date:addDaysIso(start,offset)}));
+}
+let deviceRefreshTimer=null;
 function renderDevicesPage(){
+  clearInterval(deviceRefreshTimer);
   window.currentPage='devices';
   if(!(window.branches||[]).length){window.shell(window.pageTitle('التشغيل','الأجهزة','إدارة أجهزة المراكز وجداول استخدامها.')+'<div class="card production-empty-config"><h2>لا توجد مراكز</h2><p>أضف مركزًا أولًا من صفحة الدورات و المراكز.</p></div>');return;}
   const today=D.today(),defaultBranch=String(window.branches[0]?.id||'');
-  window.shell(`<section class="devices-hero-v57"><h1>الأجهزة</h1><p>اعرف المتاح والمشغول، ومن يستخدم كل جهاز، وحدد التاريخ والمركز.</p></section><div class="card devices-controls-v57"><label>المركز<select id="devicesBranchV57">${window.opts(window.branches,x=>x.id,x=>x.name)}</select></label><label>التاريخ<input class="input" id="devicesDateV57" type="date" value="${today}"></label><div id="devicesDayV57"></div></div><div id="devicesBodyV57"></div>`);
+  window.shell(`<section class="devices-hero-v57"><h1>الأجهزة</h1><p>اعرف المتاح الآن، وراجع أسبوع كل جهاز والطلاب الذين يحتاجون تحديد جهاز.</p></section><div class="card devices-controls-v57"><label>المركز<select id="devicesBranchV57">${window.opts(window.branches,x=>x.id,x=>x.name)}</select></label><label>تاريخ ضمن الأسبوع<input class="input" id="devicesDateV57" type="date" value="${today}"></label><div id="devicesDayV57"></div></div><div id="devicesBodyV57"></div>`);
   const branchSelect=document.getElementById('devicesBranchV57'),dateInput=document.getElementById('devicesDateV57');branchSelect.value=defaultBranch;
   const draw=()=>{
-    const branch=String(branchSelect.value||defaultBranch),date=String(dateInput.value||today),center=centerOf(branch),count=deviceCountForCenter(branch),bookings=bookingsForDate(branch,date),day=dayKeyForDate(date);
-    const missing=(window.students||[]).filter(student=>studentActiveForDevices(student)&&String(student.branch)===branch&&missingDeviceDays(student).length),body=document.getElementById('devicesBodyV57');
-    document.getElementById('devicesDayV57').textContent=dayLabel(day)+' · '+showDate(date);
-    if(!count){body.innerHTML=`<div class="devices-kpis-v57"><div><small>عدد الأجهزة</small><b>0</b></div><div><small>حجوزات اليوم</small><b>0</b></div><div class="warn"><small>طلاب بحاجة لتحديد جهاز</small><b>${missing.length}</b></div></div><div class="card device-empty-page-v57">لا توجد أجهزة معرفة في ${esc(center?.name||'هذا المركز')}. عدّل المركز وأدخل عدد الأجهزة أولًا.</div>`;return;}
+    const body=document.getElementById('devicesBodyV57');
+    if(!body||!branchSelect.isConnected){clearInterval(deviceRefreshTimer);return;}
+    const branch=String(branchSelect.value||defaultBranch),date=String(dateInput.value||today),center=centerOf(branch),count=deviceCountForCenter(branch),week=weekDates(date),live=liveAvailability(branch);
+    const canOpen=window.EFC_AUTH_V13?.canView?.('students')??true;
+    const bookings=week.flatMap(day=>bookingsForDate(branch,day.date).map(item=>({...item,day:day.key,date:day.date})));
+    const missing=(window.students||[]).filter(student=>studentActiveForDevices(student)&&String(student.branch)===branch&&missingDeviceDays(student).length);
+    document.getElementById('devicesDayV57').textContent=showDate(week[0].date)+' — '+showDate(week[6].date);
     const times=[...new Set([...ALLOWED_HOURS,...bookings.map(item=>item.time)])].sort((a,b)=>a.localeCompare(b)),cells=new Map();
-    bookings.forEach(item=>{const key=item.time+'|'+item.device,list=cells.get(key)||[];list.push(item);cells.set(key,list);});
-    const head=Array.from({length:count},(_,i)=>`<th>جهاز ${i+1}</th>`).join('');
-    const rows=times.map(time=>`<tr><th>${time}</th>${Array.from({length:count},(_,i)=>{const device=i+1,list=cells.get(time+'|'+device)||[];if(!list.length)return'<td class="device-free-v57">متاح</td>';const first=list[0],collision=list.length>1;return`<td class="device-busy-v57 ${collision?'collision':''}" data-device-student-v57="${esc(String(first.student.id||''))}"><b>${esc(first.student.name||'طالب')}</b><small>${esc(first.course?.name||first.student.specialty||'الدورة')}</small>${collision?`<em>تعارض ${list.length}</em>`:''}</td>`;}).join('')}</tr>`).join('');
-    const missingRows=missing.length?missing.map(student=>`<button type="button" data-device-open-student-v57="${esc(String(student.id||''))}"><span><b>${esc(student.name||'طالب')}</b><small>${esc(courseOf(student.specialty)?.name||student.specialty||'الدورة')}</small></span><em>${missingDeviceDays(student).length} موعد يحتاج جهاز</em></button>`).join(''):'<div class="devices-none-v57">كل الطلاب مربوطون بأجهزة صالحة.</div>';
-    body.innerHTML=`<div class="devices-kpis-v57"><div><small>عدد الأجهزة</small><b>${count}</b></div><div><small>حجوزات اليوم</small><b>${bookings.length}</b></div><div class="${missing.length?'warn':''}"><small>طلاب بحاجة لتحديد جهاز</small><b>${missing.length}</b></div></div><section class="card devices-grid-card-v57"><div class="devices-grid-head-v57"><h2>جدول الأجهزة</h2><span>${esc(center?.name||branch)} · ${esc(dayLabel(day))}</span></div><div class="devices-table-wrap-v57"><table><thead><tr><th>الوقت</th>${head}</tr></thead><tbody>${rows}</tbody></table></div></section><section class="card devices-missing-v57"><div><h2>طلاب بحاجة لتحديد جهاز</h2><p>طلاب في دورات تحتاج أجهزة ولم يكتمل ربط مواعيدهم.</p></div><div class="devices-missing-list-v57">${missingRows}</div></section>`;
+    bookings.forEach(item=>{const key=item.day+'|'+item.time+'|'+item.device,list=cells.get(key)||[];list.push(item);cells.set(key,list);});
+    const head=week.map(day=>`<th>${esc(day.ar)}<small>${esc(showDate(day.date))}</small></th>`).join('');
+    const grids=Array.from({length:count},(_,index)=>{
+      const device=index+1;
+      const rows=times.map(time=>`<tr><th>${esc(time)}</th>${week.map(day=>{
+        const list=cells.get(day.key+'|'+time+'|'+device)||[];
+        if(!list.length)return'<td class="device-free-v57">متاح</td>';
+        return`<td class="device-busy-v57 ${list.length>1?'collision':''}">${list.map(item=>`<button type="button" class="device-booking-v57" data-device-student-v57="${esc(String(item.student.id||''))}" ${canOpen?'':'disabled'}><b>${esc(item.student.name||'طالب')}</b><small>${esc(item.course?.name||item.student.specialty||'الدورة')}</small><small>${esc(day.ar)} · ${esc(time)}</small></button>`).join('')}${list.length>1?`<em>تعارض ${list.length}</em>`:''}</td>`;
+      }).join('')}</tr>`).join('');
+      return`<section class="card devices-grid-card-v57"><div class="devices-grid-head-v57"><h2>${esc(deviceLabel(device))} — الجدول الأسبوعي</h2><span>${esc(center?.name||branch)}</span></div><div class="devices-table-wrap-v57"><table><thead><tr><th>الوقت</th>${head}</tr></thead><tbody>${rows}</tbody></table></div></section>`;
+    }).join('');
+    const missingRows=missing.length?missing.map(student=>`<button type="button" data-device-open-student-v57="${esc(String(student.id||''))}" ${canOpen?'':'disabled'}><span><b>${esc(student.name||'طالب')}</b><small>${esc(courseOf(student.specialty)?.name||student.specialty||'الدورة')}</small><small>${missingDeviceDays(student).map(day=>esc(dayLabel(day.key))+(day.time?' '+esc(day.time):'')).join('، ')}</small></span><em>${missingDeviceDays(student).length} موعد يحتاج جهاز</em></button>`).join(''):'<div class="devices-none-v57">كل الطلاب مربوطون بأجهزة صالحة.</div>';
+    body.innerHTML=`<div class="devices-kpis-v57"><div><small>إجمالي الأجهزة</small><b>${count}</b></div><div><small>المتاح الآن</small><b>${live.free}</b></div><div><small>المشغول الآن</small><b>${live.busy}</b></div><div class="${missing.length?'warn':''}"><small>طلاب بحاجة لتحديد جهاز</small><b>${missing.length}</b></div></div><p class="devices-now-note-v57">الآن ${esc(showDate(live.date))} · ${live.time?'الفترة التي تبدأ '+esc(live.time):'خارج فترات الجدول'}؛ المؤشرات مستقلة عن الأسبوع المعروض. تستمر الفترة حتى بداية الموعد التالي، وآخر فترة حتى 21:00.</p>${count?grids:`<div class="card device-empty-page-v57">لا توجد أجهزة معرفة في ${esc(center?.name||'هذا المركز')}. عدّل المركز وأدخل عدد الأجهزة أولًا.</div>`}<section class="card devices-missing-v57"><div><h2>طلاب بحاجة لتحديد جهاز</h2><p>حدد أجهزة الطلاب يدويًا من ملفاتهم. تشغيل خيار الأجهزة في الدورة لا يخصص لهم أجهزة.</p></div><div class="devices-missing-list-v57">${missingRows}</div></section>`;
     body.querySelectorAll('[data-device-student-v57],[data-device-open-student-v57]').forEach(element=>element.onclick=()=>window.openStudent?.(element.dataset.deviceStudentV57||element.dataset.deviceOpenStudentV57,'profile'));
   };
-  branchSelect.onchange=draw;dateInput.onchange=draw;draw();window.EFC_SYNC_SELECTS_V19?.(document);
+  branchSelect.onchange=draw;dateInput.onchange=draw;draw();deviceRefreshTimer=setInterval(draw,60000);window.EFC_SYNC_SELECTS_V19?.(document);
 }
-const style=document.createElement('style');style.id='efc-devices-style-v57';style.textContent="\n.device-assignment-v57{grid-column:2;min-width:0;padding:16px;border:1.5px solid #9bcfc0;background:linear-gradient(180deg,#f8fffc,#eefaf5);border-radius:15px;box-shadow:0 10px 24px rgba(9,94,69,.06)}\n.device-assignment-v57[hidden]{display:none!important}.device-assignment-head-v57{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.device-assignment-head-v57 small{display:block;color:#628078;font-size:9px;font-weight:800}.device-assignment-head-v57 h3{margin:2px 0 0;font-size:18px;color:#123e33}.device-assignment-head-v57>span{padding:7px 10px;border-radius:8px;background:#e1f3ec;color:#174f40;font-size:10px;font-weight:800}\n.device-preferred-v57{display:grid;grid-template-columns:minmax(210px,280px) 1fr;gap:12px;align-items:end;padding:11px;border:1px solid #c8e2d9;border-radius:11px;background:#fff}.device-preferred-v57 label{display:grid;gap:6px}.device-preferred-v57 label>span{font-size:10px;font-weight:850;color:#244a40}.device-preferred-v57 select{height:42px;border:1px solid #bfcfca;border-radius:9px;background:#fff;padding:0 10px}.device-preferred-v57 p{margin:0;color:#657a73;font-size:9.5px;line-height:1.65}\n.device-days-v57{display:grid;gap:8px;margin-top:10px}.device-day-v57{display:grid;grid-template-columns:105px 210px minmax(0,1fr);gap:10px;align-items:center;padding:9px 10px;border:1px solid #d7e5e0;border-radius:10px;background:#fff}.device-day-v57.needs{border-color:#e4c67e;background:#fffdf6}.device-day-name-v57,.device-day-choice-v57,.device-day-help-v57{display:grid;gap:4px}.device-day-name-v57 b{font-size:12px;color:#153f34}.device-day-name-v57 span{font-size:10px;color:#657a73}.device-day-choice-v57 select{height:38px;border:1px solid #c8d5d1;border-radius:8px;background:#fff;padding:0 8px}.device-day-choice-v57 small,.device-hint-v57,.device-suggestions-v57{font-size:8.8px;color:#5b716a;line-height:1.5}.device-hint-v57.warning{color:#8a5a17}.device-suggestions-v57{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.device-suggestions-v57 button{border:1px solid #9dcbbd;border-radius:7px;background:#edf9f5;color:#145643;padding:5px 8px;font:750 9px inherit;cursor:pointer}.device-warning-v57,.device-empty-v57{padding:12px;border:1px solid #e1c985;border-radius:10px;background:#fff9e8;color:#795b1b;font-size:10px;line-height:1.7}\n.student-device-summary-v57{margin:14px 0;padding:14px;border:1px solid #b9dcd1;border-radius:12px;background:#f7fcfa}.student-device-summary-v57.needs{border-color:#e4c67e;background:#fffaf0}.student-device-summary-head-v57{display:flex;align-items:center;justify-content:space-between;gap:12px}.student-device-summary-head-v57 h3{margin:2px 0 0;font-size:13px}.student-device-summary-head-v57 small{font-size:8px;color:#6c817a}.student-device-summary-head-v57>b{font-size:12px;color:#0a654e}.student-device-days-v57{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.student-device-days-v57 span{padding:6px 8px;border:1px solid #d5e5df;border-radius:8px;background:#fff;font-size:9px}.student-device-summary-v57 p{font-size:9px;color:#805e1d}.student-device-summary-v57 .edit-student-device-v57{margin-top:10px}\n.content:has(.devices-hero-v57){width:min(1120px,calc(100% - 32px));max-width:1120px;margin:0 auto;padding:18px 0 36px}.devices-hero-v57{width:min(520px,100%);margin:0 auto 16px;padding:15px 20px;border-radius:16px;background:linear-gradient(135deg,#e4f8f0,#d4efe5);text-align:center}.devices-hero-v57 h1{margin:0;font-size:30px;color:#073f35}.devices-hero-v57 p{margin:5px 0 0;font-size:9px;color:#58756c}\n.devices-controls-v57{display:grid;grid-template-columns:240px 190px 1fr;gap:12px;align-items:end;padding:14px;margin-bottom:12px}.devices-controls-v57 label{display:grid;gap:5px;font-size:10px;font-weight:800}.devices-controls-v57 select,.devices-controls-v57 input{height:40px}.devices-controls-v57>div{justify-self:end;padding:8px 11px;border-radius:8px;background:#edf7f3;color:#28564a;font-size:10px;font-weight:800}\n.devices-kpis-v57{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}.devices-kpis-v57>div{min-height:72px;padding:12px 14px;border:1px solid #bedfd4;border-radius:11px;background:#f1faf7;display:flex;align-items:center;justify-content:space-between}.devices-kpis-v57 small{font-size:10px;color:#395d53;font-weight:800}.devices-kpis-v57 b{font-size:22px;color:#0b654f}.devices-kpis-v57 .warn{border-color:#e4c67e;background:#fff9ea}.devices-kpis-v57 .warn b{color:#9a6514}\n.devices-grid-card-v57{padding:14px}.devices-grid-head-v57{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.devices-grid-head-v57 h2,.devices-missing-v57 h2{margin:0;font-size:15px}.devices-grid-head-v57 span{font-size:9px;color:#62766f}.devices-table-wrap-v57{overflow:auto;border:1px solid #cbdad5;border-radius:10px}.devices-table-wrap-v57 table{width:100%;min-width:760px;border-collapse:collapse}.devices-table-wrap-v57 th,.devices-table-wrap-v57 td{height:58px;padding:6px;border:1px solid #d5e1dd;text-align:center}.devices-table-wrap-v57 thead th{height:42px;background:#075d4c;color:#fff;font-size:10px}.devices-table-wrap-v57 tbody>tr>th{background:#eef4f1;font-size:10px}.device-free-v57{background:#effaf5;color:#22805f;font-size:9px;font-weight:800}.device-busy-v57{background:#fff4cf;cursor:pointer}.device-busy-v57 b,.device-busy-v57 small,.device-busy-v57 em{display:block}.device-busy-v57 b{font-size:9.5px}.device-busy-v57 small,.device-busy-v57 em{margin-top:3px;font-size:8px}.device-busy-v57.collision{background:#ffe7e3}\n.devices-missing-v57{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-top:12px;padding:14px}.devices-missing-v57 p{margin:5px 0 0;font-size:9px;color:#667a73}.devices-missing-list-v57{display:grid;gap:6px}.devices-missing-list-v57 button{width:100%;min-height:47px;border:1px solid #d6e2de;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:space-between;text-align:right;padding:7px 10px;cursor:pointer}.devices-missing-list-v57 button b,.devices-missing-list-v57 button small{display:block}.devices-missing-list-v57 button b{font-size:10px}.devices-missing-list-v57 button small,.devices-missing-list-v57 button em{font-size:8px;color:#74867f}.devices-missing-list-v57 button em{font-style:normal;color:#9a6514}.devices-none-v57,.device-empty-page-v57{padding:22px;text-align:center;color:#667a73;font-size:10px}\n@media(max-width:1000px){.device-day-v57{grid-template-columns:90px 190px minmax(0,1fr)}.devices-missing-v57{grid-template-columns:1fr}.devices-controls-v57{grid-template-columns:1fr 1fr}.devices-controls-v57>div{grid-column:1/-1;justify-self:start}}\n@media(max-width:900px){.device-assignment-v57{grid-column:1}.device-day-v57,.device-preferred-v57{grid-template-columns:1fr}.devices-kpis-v57{grid-template-columns:1fr}.content:has(.devices-hero-v57){width:calc(100% - 20px)}}\n";document.head.appendChild(style);
+const style=document.createElement('style');style.id='efc-devices-style-v57';style.textContent="\n.device-assignment-v57{grid-column:2;min-width:0;padding:16px;border:1.5px solid #9bcfc0;background:linear-gradient(180deg,#f8fffc,#eefaf5);border-radius:15px;box-shadow:0 10px 24px rgba(9,94,69,.06)}\n.device-assignment-v57[hidden]{display:none!important}.device-assignment-head-v57{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.device-assignment-head-v57 small{display:block;color:#628078;font-size:9px;font-weight:800}.device-assignment-head-v57 h3{margin:2px 0 0;font-size:18px;color:#123e33}.device-assignment-head-v57>span{padding:7px 10px;border-radius:8px;background:#e1f3ec;color:#174f40;font-size:10px;font-weight:800}\n.device-preferred-v57{display:grid;grid-template-columns:minmax(210px,280px) 1fr;gap:12px;align-items:end;padding:11px;border:1px solid #c8e2d9;border-radius:11px;background:#fff}.device-preferred-v57 label{display:grid;gap:6px}.device-preferred-v57 label>span{font-size:10px;font-weight:850;color:#244a40}.device-preferred-v57 select{height:42px;border:1px solid #bfcfca;border-radius:9px;background:#fff;padding:0 10px}.device-preferred-v57 p{margin:0;color:#657a73;font-size:9.5px;line-height:1.65}\n.device-days-v57{display:grid;gap:8px;margin-top:10px}.device-day-v57{display:grid;grid-template-columns:105px 210px minmax(0,1fr);gap:10px;align-items:center;padding:9px 10px;border:1px solid #d7e5e0;border-radius:10px;background:#fff}.device-day-v57.needs{border-color:#e4c67e;background:#fffdf6}.device-day-name-v57,.device-day-choice-v57,.device-day-help-v57{display:grid;gap:4px}.device-day-name-v57 b{font-size:12px;color:#153f34}.device-day-name-v57 span{font-size:10px;color:#657a73}.device-day-choice-v57 select{height:38px;border:1px solid #c8d5d1;border-radius:8px;background:#fff;padding:0 8px}.device-day-choice-v57 small,.device-hint-v57,.device-suggestions-v57{font-size:8.8px;color:#5b716a;line-height:1.5}.device-hint-v57.warning{color:#8a5a17}.device-suggestions-v57{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.device-suggestions-v57 button{border:1px solid #9dcbbd;border-radius:7px;background:#edf9f5;color:#145643;padding:5px 8px;font:750 9px inherit;cursor:pointer}.device-warning-v57,.device-empty-v57{padding:12px;border:1px solid #e1c985;border-radius:10px;background:#fff9e8;color:#795b1b;font-size:10px;line-height:1.7}\n.student-device-summary-v57{margin:14px 0;padding:14px;border:1px solid #b9dcd1;border-radius:12px;background:#f7fcfa}.student-device-summary-v57.needs{border-color:#e4c67e;background:#fffaf0}.student-device-summary-head-v57{display:flex;align-items:center;justify-content:space-between;gap:12px}.student-device-summary-head-v57 h3{margin:2px 0 0;font-size:13px}.student-device-summary-head-v57 small{font-size:8px;color:#6c817a}.student-device-summary-head-v57>b{font-size:12px;color:#0a654e}.student-device-days-v57{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.student-device-days-v57 span{padding:6px 8px;border:1px solid #d5e5df;border-radius:8px;background:#fff;font-size:9px}.student-device-summary-v57 p{font-size:9px;color:#805e1d}.student-device-summary-v57 .edit-student-device-v57{margin-top:10px}\n.content:has(.devices-hero-v57){width:min(1120px,calc(100% - 32px));max-width:1120px;margin:0 auto;padding:18px 0 36px}.devices-hero-v57{width:min(520px,100%);margin:0 auto 16px;padding:15px 20px;border-radius:16px;background:linear-gradient(135deg,#e4f8f0,#d4efe5);text-align:center}.devices-hero-v57 h1{margin:0;font-size:30px;color:#073f35}.devices-hero-v57 p{margin:5px 0 0;font-size:9px;color:#58756c}\n.devices-controls-v57{display:grid;grid-template-columns:240px 190px 1fr;gap:12px;align-items:end;padding:14px;margin-bottom:12px}.devices-controls-v57 label{display:grid;gap:5px;font-size:10px;font-weight:800}.devices-controls-v57 select,.devices-controls-v57 input{height:40px}.devices-controls-v57>div{justify-self:end;padding:8px 11px;border-radius:8px;background:#edf7f3;color:#28564a;font-size:10px;font-weight:800}\n.devices-kpis-v57{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.devices-kpis-v57>div{min-height:72px;padding:12px 14px;border:1px solid #bedfd4;border-radius:11px;background:#f1faf7;display:flex;align-items:center;justify-content:space-between}.devices-kpis-v57 small{font-size:10px;color:#395d53;font-weight:800}.devices-kpis-v57 b{font-size:22px;color:#0b654f}.devices-kpis-v57 .warn{border-color:#e4c67e;background:#fff9ea}.devices-kpis-v57 .warn b{color:#9a6514}\n.devices-now-note-v57{font-size:11px;line-height:1.7;color:#526e64}.device-booking-v57{display:block;width:100%;border:0;background:transparent;color:inherit;padding:6px;cursor:pointer;font:inherit}.device-booking-v57:disabled{cursor:default}.devices-table-wrap-v57 thead small{display:block;margin-top:4px;font-size:9px}.device-preferred-v57 .button{margin-top:8px;font-size:11px}.devices-grid-card-v57{padding:14px;margin-bottom:12px}.devices-grid-head-v57{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.devices-grid-head-v57 h2,.devices-missing-v57 h2{margin:0;font-size:15px}.devices-grid-head-v57 span{font-size:9px;color:#62766f}.devices-table-wrap-v57{overflow:auto;border:1px solid #cbdad5;border-radius:10px}.devices-table-wrap-v57 table{width:100%;min-width:760px;border-collapse:collapse}.devices-table-wrap-v57 th,.devices-table-wrap-v57 td{height:58px;padding:6px;border:1px solid #d5e1dd;text-align:center}.devices-table-wrap-v57 thead th{height:42px;background:#075d4c;color:#fff;font-size:10px}.devices-table-wrap-v57 tbody>tr>th{background:#eef4f1;font-size:10px}.device-free-v57{background:#effaf5;color:#22805f;font-size:9px;font-weight:800}.device-busy-v57{background:#fff4cf;cursor:pointer}.device-busy-v57 b,.device-busy-v57 small,.device-busy-v57 em{display:block}.device-busy-v57 b{font-size:9.5px}.device-busy-v57 small,.device-busy-v57 em{margin-top:3px;font-size:8px}.device-busy-v57.collision{background:#ffe7e3}\n.devices-missing-v57{display:grid;grid-template-columns:240px 1fr;gap:14px;margin-top:12px;padding:14px}.devices-missing-v57 p{margin:5px 0 0;font-size:9px;color:#667a73}.devices-missing-list-v57{display:grid;gap:6px}.devices-missing-list-v57 button{width:100%;min-height:47px;border:1px solid #d6e2de;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:space-between;text-align:right;padding:7px 10px;cursor:pointer}.devices-missing-list-v57 button b,.devices-missing-list-v57 button small{display:block}.devices-missing-list-v57 button b{font-size:10px}.devices-missing-list-v57 button small,.devices-missing-list-v57 button em{font-size:8px;color:#74867f}.devices-missing-list-v57 button em{font-style:normal;color:#9a6514}.devices-none-v57,.device-empty-page-v57{padding:22px;text-align:center;color:#667a73;font-size:10px}\n@media(max-width:1000px){.device-day-v57{grid-template-columns:90px 190px minmax(0,1fr)}.devices-missing-v57{grid-template-columns:1fr}.devices-controls-v57{grid-template-columns:1fr 1fr}.devices-controls-v57>div{grid-column:1/-1;justify-self:start}}\n@media(max-width:900px){.device-assignment-v57{grid-column:1}.device-day-v57,.device-preferred-v57{grid-template-columns:1fr}.devices-kpis-v57{grid-template-columns:1fr}.content:has(.devices-hero-v57){width:calc(100% - 20px)}}\n";document.head.appendChild(style);
 window.EFC_RENDER_DEVICES_V57=renderDevicesPage;
-window.EFC_DEVICES_V57=Object.freeze({ready:true,requiresDevice,deviceCountForCenter,isDeviceAvailable,availableDevices,sameDeviceAlternateTimes,sameDayAlternatives,mountRegistration,augmentScheduleSnapshot,validateRegistration,validateCenterDeviceCount,missingDeviceDays,studentDeviceSummaryHtml,bindStudentModal,renderDevicesPage,manualDeviceAssignmentOnly:true,noAutomaticDeviceSelection:true,preferredDeviceWithPerDayExceptions:true,sameDeviceDifferentTimeSuggestions:true,sameTimeDifferentDeviceSuggestions:true,crossCourseConflictProtection:true,existingStudentsRequireManualAssignment:true,devicePageDateAvailability:true,centerDeviceCountPersisted:true,courseDeviceOptInDefaultFalse:true,allAssignmentsEditable:true});
+window.EFC_DEVICES_V57=Object.freeze({ready:true,requiresDevice,deviceCountForCenter,deviceIdFor,deviceNumberFor,clearScheduleDevices,validateStudentDraft,validateRestoredState,liveAvailability,weekDates,isDeviceAvailable,availableDevices,sameDeviceAlternateTimes,mountRegistration,augmentScheduleSnapshot,validateRegistration,validateCenterDeviceCount,missingDeviceDays,studentDeviceSummaryHtml,bindStudentModal,renderDevicesPage,manualDeviceAssignmentOnly:true,noAutomaticDeviceSelection:true,preferredDeviceWithPerDayExceptions:true,sameDeviceDifferentTimeSuggestions:true,sameTimeDifferentDeviceSuggestions:true,crossCourseConflictProtection:true,existingStudentsRequireManualAssignment:true,devicePageDateAvailability:true,weeklyDeviceSchedule:true,stableDeviceIdentities:true,atomicSchedulePersistence:true,centerDeviceCountPersisted:true,courseDeviceOptInDefaultFalse:true,allAssignmentsEditable:true});
 })();

@@ -208,15 +208,6 @@ function fillMatrix(scheduleRoot,form,schedule){
   });
 }
 
-function existingScheduleMatches(schedule,snapshot){
-  return Boolean(
-    schedule&&snapshot&&
-    String(schedule.specialtyId||'')===String(snapshot.specialtyId||'')&&
-    Number(schedule.version||0)===Number(snapshot.version||0)&&
-    Array.isArray(schedule.days)&&schedule.days.length===DAYS.length
-  );
-}
-
 function attachSubmitCapture(form,scheduleRoot){
   if(form.dataset.efcScheduleMatrixV17==='1'||currentEditSession())return;
   form.dataset.efcScheduleMatrixV17='1';
@@ -227,10 +218,6 @@ function attachSubmitCapture(form,scheduleRoot){
     queueMicrotask(()=>{
       const created=students.find(student=>!before.has(String(student.id)));
       if(!created)return;
-      if(!existingScheduleMatches(created.schedule,snapshot)){
-        created.schedule=snapshot;
-        try{D.saveStudents();}catch(error){console.error('EFC v17 schedule save failed.',error);}
-      }
       resetMatrix(scheduleRoot);
       renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true});
     });
@@ -588,7 +575,7 @@ body.efc-registration-editing-v17 .registration-cancel-edit-v17{background:#eef3
 document.head.appendChild(style);
 
 window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
-  ready:true,
+  ready:true,captureSchedule:scheduleSnapshot,
   canonicalRegistrationRenderer:true,
   singleRegistrationRenderOwner:true,
   noRenderWrapperChain:true,

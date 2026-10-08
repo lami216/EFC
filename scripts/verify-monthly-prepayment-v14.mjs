@@ -136,4 +136,30 @@ let saveRejected=false;try{D.updateStudentRegistration(rollbackStudent,{name:'sh
 if(!saveRejected)throw new Error('Forced persistence failure did not reject the edit.');
 if(snapshot(rollbackStudent)!==rollbackBefore)throw new Error('Persistence failure left an in-memory partial edit behind.');
 
-console.log('Monthly prepayment v14 verified: prepayment allocation, timing, student-scoped receipt edits, historical course snapshots, register collision protection, zero-payment receipt upgrades, revision metadata, rollback safety, protected identifiers, monthly reallocation, and quick-course balance validation are consistent.');
+// Device validation belongs to the atomic student update, not just its UI.
+context.document={createElement:()=>({}),head:{appendChild(){}}};
+Object.assign(context.window,{students,specialties,branches:[{id:'device-center',deviceCount:2},{id:'device-other',deviceCount:2}],spec:context.spec,EFC_REGISTRATION_SCHEDULE_MATRIX_V17:{ready:true},EFC_COURSES_CENTERS_REDESIGN_V23:{ready:true}});
+vm.runInContext(readFileSync('assets/production-devices-v57.js','utf8'),context);
+const devices=context.window.EFC_DEVICES_V57;
+specialties.find(item=>item.id==='normal').requiresDevice=true;specialties.find(item=>item.id==='quick').requiresDevice=true;
+specialties.push({id:'plain',name:'لا تحتاج جهازًا',courseType:'normal',billing:'monthly',durationUnit:'month',durationValue:1});
+const deviceSchedule=(number=1,branch='device-center',time='08:00')=>({version:4,specialtyId:'normal',preferredDeviceNumber:number,preferredDeviceId:devices.deviceIdFor(branch,number),days:[{key:'monday',selected:true,time,deviceNumber:number,deviceId:devices.deviceIdFor(branch,number)}]});
+const booked=makeStudent('booked'),editing=makeStudent('editing','quick',1000);booked.reg=501;editing.reg=502;booked.branch=editing.branch='device-center';booked.schedule=deviceSchedule();editing.schedule=deviceSchedule(2);students.push(booked,editing);
+const bookedBefore=snapshot(booked),editingBefore=snapshot(editing);
+assertDeviceReject(()=>D.updateStudentRegistration(editing,{schedule:deviceSchedule(1)}),'cross-course conflict');
+if(snapshot(editing)!==editingBefore||snapshot(booked)!==bookedBefore)throw new Error('Device rejection changed saved registrations.');
+D.updateStudentRegistration(editing,{schedule:deviceSchedule(2,'device-center','10:00')});
+if(!devices.isDeviceAvailable({branch:'device-center',day:'monday',time:'08:00',deviceNumber:2}))throw new Error('Editing timetable did not release old device slot.');
+D.updateStudentRegistration(editing,{branch:'device-other',schedule:deviceSchedule(1,'device-other')});
+if(!devices.isDeviceAvailable({branch:'device-center',day:'monday',time:'10:00',deviceNumber:2}))throw new Error('Changing center left an orphan booking.');
+D.updateStudentRegistration(editing,{specialty:'plain'});
+if(editing.schedule.days[0].deviceNumber!==null||editing.schedule.days[0].deviceId!==null)throw new Error('Non-device course kept old assignments.');
+assertDeviceReject(()=>D.updateStudentRegistration(editing,{specialty:'normal'}),'course move requires manual assignment');
+const bookArgs={branch:'device-center',day:'monday',time:'08:00',deviceNumber:1};
+D.stopStudent(booked,'توقف');if(!devices.isDeviceAvailable(bookArgs))throw new Error('Stopping student did not release device.');
+const savedEditing=snapshot(editing);context.saveStudents=()=>{throw new Error('forced device persistence failure');};
+assertDeviceReject(()=>D.updateStudentRegistration(editing,{specialty:'normal',schedule:deviceSchedule(1,'device-other')}),'save failure');context.saveStudents=saveStudentsOk;
+if(snapshot(editing)!==savedEditing)throw new Error('Persistence failure left a changed device assignment.');
+function assertDeviceReject(action,label){let rejected=false;try{action();}catch{rejected=true;}if(!rejected)throw new Error('Device update accepted '+label);}
+
+console.log('Monthly prepayment v14 verified, including atomic device conflicts, editable assignments, center/course releases and persistence rollback.');
