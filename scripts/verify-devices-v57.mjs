@@ -17,6 +17,9 @@ const build=read('scripts/build-production.mjs');
 execFileSync(process.execPath,['scripts/verify-devices-behavior-v57.mjs'],{stdio:'inherit'});
 
 for(const [token,label] of [
+  ['chosenDeviceAppliesToSchedule:true','chosen device applies to all selected days'],
+  ['singleSelectedDeviceGrid:true','one device grid at a time'],
+  ['conflictOnlyAssignmentDetails:true','only conflicts show detailed controls'],
   ['manualDeviceAssignmentOnly:true','device choice stays manual'],
   ['noAutomaticDeviceSelection:true','no automatic device picker'],
   ['preferredDeviceWithPerDayExceptions:true','preferred device allows per-day exceptions'],
