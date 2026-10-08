@@ -35,7 +35,7 @@ document.addEventListener('click',event=>{const input=event.target instanceof HT
 
 function normalizeCenters(items){
   const seen=new Set();
-  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim()})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
+  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim(),deviceCount:Math.max(0,Math.floor(Number(item?.deviceCount||0)))})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
 }
 function applyCenters(items,{write=true}={}){
   const next=normalizeCenters(items);
@@ -59,7 +59,7 @@ async function persistCentersNow(){
   return typeof window.EFC_FORCE_PERSIST==='function'?window.EFC_FORCE_PERSIST():{};
 }
 function contributeCenters(state){
-  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name)}));
+  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name),deviceCount:Math.max(0,Math.floor(Number(item.deviceCount||0)))}));
   return state;
 }
 function saveCenters(){
@@ -76,14 +76,14 @@ if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async i
 function openCenterEditor(id=null){
   const existing=id?branches.find(item=>item.id===id):null;
   const modal=document.createElement('div');modal.className='modal';
-  modal.innerHTML=`<div class="modal-card narrow"><div class="modal-head"><div><p>إدارة المراكز</p><h2>${existing?'تعديل المركز':'إضافة مركز'}</h2></div><button class="x" type="button">×</button></div><form id="centerFormV13" autocomplete="off"><label>اسم المركز<input class="input" name="name" value="${esc(existing?.name||'')}" autocomplete="off" required></label><div class="modal-actions"><button class="button secondary cancel" type="button">إلغاء</button><button class="button" type="submit">حفظ</button></div></form></div>`;
+  modal.innerHTML=`<div class="modal-card narrow"><div class="modal-head"><div><p>إدارة المراكز</p><h2>${existing?'تعديل المركز':'إضافة مركز'}</h2></div><button class="x" type="button">×</button></div><form id="centerFormV13" autocomplete="off"><label>اسم المركز<input class="input" name="name" value="${esc(existing?.name||'')}" autocomplete="off" required></label><label>عدد الأجهزة المتوفرة<input class="input" name="deviceCount" type="number" min="0" step="1" value="${Math.max(0,Math.floor(Number(existing?.deviceCount||0)))}" autocomplete="off" required></label><div class="modal-actions"><button class="button secondary cancel" type="button">إلغاء</button><button class="button" type="submit">حفظ</button></div></form></div>`;
   document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('.x').onclick=close;modal.querySelector('.cancel').onclick=close;
   const form=modal.querySelector('form');window.EFC_AUTOCOMPLETE_OFF_V13?.(form);form.elements.name.focus();
   form.onsubmit=event=>{
-    event.preventDefault();const name=String(new FormData(form).get('name')||'').trim();if(!name)return;
+    event.preventDefault();const data=new FormData(form),name=String(data.get('name')||'').trim(),deviceCount=Math.max(0,Math.floor(Number(data.get('deviceCount')||0)));if(!name)return;
     const duplicate=branches.some(item=>item.id!==existing?.id&&item.name.trim().toLowerCase()===name.toLowerCase());if(duplicate)return alert('هذا المركز موجود بالفعل.');
-    if(existing)existing.name=name;else branches.push({id:D.uid('center'),name});
+    if(existing){const validation=window.EFC_DEVICES_V57?.validateCenterDeviceCount?.(existing.id,deviceCount);if(validation&&validation.ok===false)return alert(validation.message||'لا يمكن تقليل عدد الأجهزة قبل تعديل الحجوزات الحالية.');existing.name=name;existing.deviceCount=deviceCount;}else branches.push({id:D.uid('center'),name,deviceCount});
     saveCenters();close();window.renderSpecialties();
   };
 }

@@ -339,6 +339,7 @@ if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))
 
 const deterministicPostLicenseRuntime=[
   'production-courses-centers-redesign-v23.js',
+  'production-devices-v57.js',
   'production-period-search-redesign-v28.js',
   'production-sidebar-lock-v30.js',
   'production-student-search-redesign-v31.js'
@@ -352,11 +353,13 @@ for(const file of deterministicPostLicenseRuntime){
   lastRuntimeIndex=current;
 }
 requireText(licenseGate,"await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin()",'canonical login completes before heavy app runtime');
+requireText(licenseGate,"loadStage('./assets/production-devices-v57.js'",'devices feature is loaded as a deterministic post-login runtime');
 requireText(licenseGate,"loadStage('./assets/production-security-ui-v13.js'",'security UI remains the final routed app layer');
 forbidText(licenseGate,'production-login-ui-v13.js','obsolete post-security login layer');
 
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
+requireText(runtimeBlock,'production-devices-v57.js','devices runtime is copied into production dist');
 for(const obsolete of [
   'production-certificates-redesign-v35.js',
   'production-certificates-workspace-v36.js',

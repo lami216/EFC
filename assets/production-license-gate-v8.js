@@ -21,6 +21,7 @@ const RUNTIME=[
   './assets/production-registration-redesign-v15.js',
   './assets/production-registration-schedule-matrix-v17.js',
   './assets/production-courses-centers-redesign-v23.js',
+  './assets/production-devices-v57.js',
   './assets/production-period-search-redesign-v28.js',
   './assets/production-sidebar-lock-v30.js',
   './assets/production-student-search-redesign-v31.js',
@@ -30,7 +31,7 @@ const RUNTIME=[
 ];
 const BOOTSTRAP_RUNTIME=RUNTIME.slice(0,2);
 const APP_RUNTIME=RUNTIME.slice(2);
-const RUNTIME_VERSION='20261008-ledger-operation-counts-v56-1';
+const RUNTIME_VERSION='20261008-device-scheduling-v57-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -77,6 +78,7 @@ async function startApplication(){
     await loadStage('./assets/production-registration-redesign-v15.js','التصميم النهائي لتسجيل الطالب',()=>window.EFC_REGISTRATION_REDESIGN_V15?.ready);
     await loadStage('./assets/production-registration-schedule-matrix-v17.js','جدول الدورات في تسجيل الطالب',()=>window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready);
     await loadStage('./assets/production-courses-centers-redesign-v23.js','تصميم الدورات والمراكز',()=>window.EFC_COURSES_CENTERS_REDESIGN_V23?.ready);
+    await loadStage('./assets/production-devices-v57.js','إدارة الأجهزة والجداول',()=>window.EFC_DEVICES_V57?.ready);
     await loadStage('./assets/production-period-search-redesign-v28.js','تصميم آلية البحث',()=>window.EFC_PERIOD_SEARCH_REDESIGN_V28?.ready);
     await loadStage('./assets/production-sidebar-lock-v30.js','توحيد الشريط الجانبي',()=>window.EFC_SIDEBAR_LOCK_V30?.ready);
     await loadStage('./assets/production-student-search-redesign-v31.js','تصميم البحث عن طالب',()=>window.EFC_STUDENT_SEARCH_REDESIGN_V31?.ready);
