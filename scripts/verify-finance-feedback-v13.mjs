@@ -123,7 +123,11 @@ for(const [token,label] of [
   ['ledgerResponsiveLikeFinance:true','ledger adapts on narrower screens'],
   ['@media(max-width:1180px)','ledger responsive breakpoint'],
   ['min-width:760px!important','ledger table scrolls instead of clipping'],
-  ['ledgerSummaryMoneyOnly:true','ledger summary cards show monetary totals only'],
+  ['ledgerSummaryMoneyOnly:true','ledger summary keeps income/expense monetary totals as the primary values'],
+  ['ledgerIncomeExpenseOperationCounts:true','daily ledger income and expense totals expose their operation counts'],
+  ['ledger-summary-copy-v56','daily ledger renders operation counts as secondary supporting text'],
+  ['${income.length} عملية','daily income card shows the number of income operations'],
+  ['${costs.length} عملية','daily expense card shows the number of expense operations'],
   ['ledgerDailyProfit:true','daily profit marker'],
   ['<small>ربحية اليومية</small>','daily profit label']
 ])requireFinance(token,label);

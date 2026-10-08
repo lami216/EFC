@@ -193,6 +193,8 @@ requireText(financeUi,'ledger-hero-v13','daily ledger uses the shared mint hero 
 requireText(financeUi,'height:min(390px,calc(100dvh - 315px))!important','daily ledger keeps a bounded internal-scroll transaction list');
 requireText(financeUi,'efc-ledger-redesign-v13','daily ledger styling is consolidated in the finance source');
 requireText(financeUi,'.ledger-summary-v13 small{font-size:10.5px!important','daily ledger KPI labels remain readable');
+requireText(financeUi,'ledgerIncomeExpenseOperationCounts:true','daily ledger exposes separate income and expense operation counts');
+requireText(financeUi,'ledger-summary-copy-v56','daily ledger operation counts use secondary supporting text');
 requireText(financeUi,'.ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:10px!important','daily ledger records use the established table text size');
 requireText(financeUi,'.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important','expense history records match the established table text size');
 requireText(financeUi,'.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important','finance KPI labels remain readable');
