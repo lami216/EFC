@@ -35,7 +35,25 @@ document.addEventListener('click',event=>{const input=event.target instanceof HT
 
 function normalizeCenters(items){
   const seen=new Set();
-  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim()})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
+  return (Array.isArray(items)?items:[]).map(item=>{
+    const center={id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim(),deviceCount:Math.max(0,Math.floor(Number(item?.deviceCount||0)))};
+    if(!Number.isSafeInteger(center.deviceCount))center.deviceCount=0;
+    // Retired device records remain in backups; changing a count never renumbers devices.
+    const records=Array.isArray(item?.devices)?item.devices:[],numbers=new Set();
+    center.devices=records.filter(device=>Number.isSafeInteger(device?.number)&&device.number>0&&!numbers.has(device.number)&&(numbers.add(device.number),true)).map(device=>({id:String(device.id||`${center.id}:device:${device.number}`),number:device.number}));
+    for(let number=1;number<=center.deviceCount;number+=1)if(!numbers.has(number))center.devices.push({id:`${center.id}:device:${number}`,number});
+    center.devices.sort((a,b)=>a.number-b.number);
+    return center;
+  }).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
+}
+function centersForRestore(incoming){
+  const merged=new Map(branches.map(center=>[String(center.id),center]));
+  for(const center of normalizeCenters(incoming)){
+    const existing=merged.get(center.id),records=new Map((existing?.devices||[]).map(device=>[device.number,device]));
+    for(const device of center.devices)if(!records.has(device.number))records.set(device.number,device);
+    merged.set(center.id,{...center,devices:[...records.values()]});
+  }
+  return normalizeCenters([...merged.values()]);
 }
 function applyCenters(items,{write=true}={}){
   const next=normalizeCenters(items);
@@ -59,7 +77,7 @@ async function persistCentersNow(){
   return typeof window.EFC_FORCE_PERSIST==='function'?window.EFC_FORCE_PERSIST():{};
 }
 function contributeCenters(state){
-  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name)}));
+  state.branches=normalizeCenters(branches);
   return state;
 }
 function saveCenters(){
@@ -69,21 +87,22 @@ function saveCenters(){
 window.EFC_REGISTER_STATE_CONTRIBUTOR?.('centers',contributeCenters);
 if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async incoming=>{
   const result=await baseApplyRestored(incoming);
-  if(Array.isArray(incoming?.branches))applyCenters(incoming.branches);
+  if(Array.isArray(incoming?.branches))applyCenters(centersForRestore(incoming.branches));
+  await persistCentersNow();
   return result;
 };
 
 function openCenterEditor(id=null){
   const existing=id?branches.find(item=>item.id===id):null;
   const modal=document.createElement('div');modal.className='modal';
-  modal.innerHTML=`<div class="modal-card narrow"><div class="modal-head"><div><p>إدارة المراكز</p><h2>${existing?'تعديل المركز':'إضافة مركز'}</h2></div><button class="x" type="button">×</button></div><form id="centerFormV13" autocomplete="off"><label>اسم المركز<input class="input" name="name" value="${esc(existing?.name||'')}" autocomplete="off" required></label><div class="modal-actions"><button class="button secondary cancel" type="button">إلغاء</button><button class="button" type="submit">حفظ</button></div></form></div>`;
+  modal.innerHTML=`<div class="modal-card narrow"><div class="modal-head"><div><p>إدارة المراكز</p><h2>${existing?'تعديل المركز':'إضافة مركز'}</h2></div><button class="x" type="button">×</button></div><form id="centerFormV13" autocomplete="off"><label>اسم المركز<input class="input" name="name" value="${esc(existing?.name||'')}" autocomplete="off" required></label><label>عدد الأجهزة المتوفرة<input class="input" name="deviceCount" type="number" min="0" step="1" value="${Math.max(0,Math.floor(Number(existing?.deviceCount||0)))}" autocomplete="off" required></label><div class="modal-actions"><button class="button secondary cancel" type="button">إلغاء</button><button class="button" type="submit">حفظ</button></div></form></div>`;
   document.body.appendChild(modal);
   const close=()=>modal.remove();modal.querySelector('.x').onclick=close;modal.querySelector('.cancel').onclick=close;
   const form=modal.querySelector('form');window.EFC_AUTOCOMPLETE_OFF_V13?.(form);form.elements.name.focus();
   form.onsubmit=event=>{
-    event.preventDefault();const name=String(new FormData(form).get('name')||'').trim();if(!name)return;
+    event.preventDefault();const data=new FormData(form),name=String(data.get('name')||'').trim(),deviceCount=Math.max(0,Math.floor(Number(data.get('deviceCount')||0)));if(!name)return;
     const duplicate=branches.some(item=>item.id!==existing?.id&&item.name.trim().toLowerCase()===name.toLowerCase());if(duplicate)return alert('هذا المركز موجود بالفعل.');
-    if(existing)existing.name=name;else branches.push({id:D.uid('center'),name});
+    if(existing){const validation=window.EFC_DEVICES_V57?.validateCenterDeviceCount?.(existing.id,deviceCount);if(validation&&validation.ok===false)return alert(validation.message||'لا يمكن تقليل عدد الأجهزة قبل تعديل الحجوزات الحالية.');Object.assign(existing,normalizeCenters([{...existing,name,deviceCount}])[0]);}else branches.push(normalizeCenters([{id:D.uid('center'),name,deviceCount}])[0]);
     saveCenters();close();window.renderSpecialties();
   };
 }
@@ -97,7 +116,11 @@ function enhanceSpecialtiesWithCenters(){
   const courseGrid=document.querySelector('.spec-grid');if(courseGrid&&!document.querySelector('.centers-section-v13')){courseGrid.insertAdjacentHTML('beforebegin',centersMarkup());const section=courseGrid.previousElementSibling;section.querySelector('#addCenterV13')?.addEventListener('click',()=>openCenterEditor());section.querySelectorAll('.edit-center-v13').forEach(button=>button.onclick=()=>openCenterEditor(button.dataset.id));}
 }
 
-function readSchedule(root,item){return{version:1,specialtyId:String(item?.id||''),specialtyName:String(item?.name||''),days:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:Boolean(root.querySelector(`[data-day-check="${day.key}"]`)?.checked),time:String(root.querySelector(`[data-day-time="${day.key}"]`)?.value||'')}))};}
+function readSchedule(root,item){
+  const form=document.getElementById('regFormV13');
+  if(window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.captureSchedule)return window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17.captureSchedule(form,root);
+  return{version:1,specialtyId:String(item?.id||''),specialtyName:String(item?.name||''),days:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,selected:Boolean(root.querySelector(`[data-day-check="${day.key}"]`)?.checked),time:String(root.querySelector(`[data-day-time="${day.key}"]`)?.value||'')}))};
+}
 function scheduleMarkup(){return`<section class="registration-schedule-card-v13" aria-label="جدول الطالب"><div class="schedule-title-v13"><div><small>تنظيم الحصص</small><h2>جدول الطالب الأسبوعي</h2></div><span>الأيام والوقت</span></div><p class="schedule-top-note-v13">${esc(noteTop)}</p><div class="schedule-table-wrap-v13"><table class="schedule-table-v13"><thead><tr><th class="schedule-course-head-v13">الدورة</th>${DAYS.map(day=>`<th data-schedule-day-column="${day.key}"><b>${day.ar}</b><small>${day.fr}</small></th>`).join('')}</tr></thead><tbody><tr class="schedule-time-row-v13"><th>الوقت</th>${DAYS.map(day=>`<td data-schedule-day-column="${day.key}"><select class="schedule-hour-select-v13" data-day-time="${day.key}" aria-label="ساعة ${day.ar}">${hourOptions()}</select></td>`).join('')}</tr><tr class="schedule-course-row-v13"><th id="scheduleCourseNameV13">اختر الدورة</th>${DAYS.map(day=>`<td data-schedule-day-column="${day.key}"><label class="schedule-check-v13" title="${day.ar}"><input type="checkbox" data-day-check="${day.key}" disabled><span></span></label></td>`).join('')}</tr></tbody></table></div><div class="schedule-notes-v13"><p>${esc(noteOne)}</p></div></section>`;}
 
 function renderRegistrationBaseV13(){
@@ -125,7 +148,9 @@ function renderRegistrationBaseV13(){
     event.preventDefault();setDebtVisibility();const data=new FormData(form),item=spec(data.get('specialty'));if(!item)return;
     const type=courseTypeOf(item),fee=Math.max(1,Number(data.get('price')||0)),paidNow=Math.max(0,Math.min(fee,Number(data.get('paid')||0))),debtDate=String(data.get('debtDate')||'');
     if(paidNow>0&&paidNow<fee&&!debtDate)return alert('حدد موعد سداد المتبقي.');
-    const branch=String(data.get('branch')),related=students.filter(student=>student.branch===branch&&student.specialty===item.id),fallbackReg=Math.max(0,...related.map(student=>Number(student.reg||0)))+1,reg=window.EFC_RECEIPT_SEQUENCES_V10?.allocateRegistrationNumber?.(branch,item.id)||fallbackReg,start=String(data.get('start')),monthly=type==='normal',days=Math.max(1,Number(item.quickDays||item.durationValue||1)),schedule=readSchedule(scheduleRoot,item);
+    const schedule=readSchedule(scheduleRoot,item),validation=window.EFC_DEVICES_V57?.validateRegistration?.({form,snapshot:schedule});
+    if(validation?.ok===false)return alert(validation.message);
+    const branch=String(data.get('branch')),related=students.filter(student=>student.branch===branch&&student.specialty===item.id),fallbackReg=Math.max(0,...related.map(student=>Number(student.reg||0)))+1,reg=window.EFC_RECEIPT_SEQUENCES_V10?.allocateRegistrationNumber?.(branch,item.id)||fallbackReg,start=String(data.get('start')),monthly=type==='normal',days=Math.max(1,Number(item.quickDays||item.durationValue||1));
     const student={id:D.uid('student'),name:String(data.get('name')||'').trim(),phone:String(data.get('phone')||''),branch,specialty:item.id,reg,start,end:monthly?'':addDuration(start,days,'day'),required:fee,paid:0,active:true,status:'active',debtDueDates:{},schedule,snapshot:{centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:monthly?1:days,durationUnit:monthly?'month':'day'},payments:[]};
     students.unshift(student);window.EFC_CODES?.ensureStudentRecord?.(student);window.EFC_RECEIPT_SEQUENCES_V10?.noteRegistrationNumber?.(branch,item.id,reg);let paymentIndex=null;
     try{if(paidNow>0)paymentIndex=appendPayment(student,{amount:paidNow,method:String(data.get('method')||''),date:start,time:nowTime(),description:monthly?'دفعة الشهر 1':'دفعة تسجيل',targetMonth:monthly?1:null,debtDueDate:paidNow<fee?debtDate:null,persist:false});D.saveStudents();}
@@ -138,5 +163,5 @@ window.EFC_REGISTRATION_BASE_V13=Object.freeze({render:renderRegistrationBaseV13
 const style=document.createElement('style');style.textContent=`
 .registration-schedule-layout-v13{display:grid;grid-template-columns:minmax(0,470px) minmax(0,1fr);gap:14px;align-items:start;direction:rtl;width:100%;max-width:none}.registration-form-compact-v13{width:100%;max-width:470px;padding:18px;border-radius:16px}.registration-fields-v13{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px}.registration-fields-v13 label{margin:0;min-width:0}.registration-fields-v13 .input,.registration-fields-v13 select{width:100%;min-width:0;height:36px}.registration-inline-summary-v13{margin-top:10px;grid-template-columns:repeat(4,minmax(0,1fr));padding:9px;gap:6px}.registration-inline-summary-v13[hidden]{display:none!important}.registration-submit-v13{width:100%;margin-top:10px}.registration-schedule-card-v13{background:#fff1a8;border:1.5px solid #18201d;border-radius:16px;padding:10px 8px;box-shadow:0 8px 24px #18231f12;min-width:0;max-width:none;width:100%}.schedule-title-v13{display:flex;justify-content:space-between;align-items:end;gap:10px;margin:0 4px 5px}.schedule-title-v13 h2{margin:2px 0 0;font-size:14px;line-height:1.25}.schedule-title-v13 h2:before{content:'▦';color:var(--primary);font-size:16px;margin-inline-end:6px}.schedule-title-v13 small,.schedule-title-v13 span{font-size:7px;color:#4d5a55}.schedule-top-note-v13{margin:0 4px 7px;text-align:center;font-size:8px;font-weight:800}.schedule-table-wrap-v13{overflow:hidden;border:1px solid #18201d;border-radius:8px;background:#fff0a0}.schedule-table-v13{width:100%;min-width:0;border-collapse:collapse;table-layout:fixed;direction:rtl}.schedule-table-v13 [data-schedule-day-column="sunday"]{display:none!important}.schedule-table-v13 th,.schedule-table-v13 td{border:1px solid #18201d;text-align:center;padding:4px 3px;height:35px}.schedule-table-v13 thead th{background:#f7e58a}.schedule-table-v13 thead th b,.schedule-table-v13 thead th small{display:block;white-space:nowrap}.schedule-table-v13 thead th b{font-size:8px}.schedule-table-v13 thead th small{font-size:7px;margin-top:1px}.schedule-course-head-v13,.schedule-table-v13 tbody th{width:70px;min-width:70px}.schedule-time-row-v13 th{font-size:8px;background:#fbefaa}.schedule-time-row-v13 .schedule-hour-select-v13{width:100%;min-width:0;height:27px;border:1px solid #7c817f;border-radius:5px;background:#fff;padding:1px 3px;font:700 9px Tahoma;text-align:center;cursor:pointer}.schedule-course-row-v13 th{font-size:8px;background:#f7e58a;white-space:normal;line-height:1.35}.schedule-check-v13{display:inline-grid;place-items:center;cursor:pointer}.schedule-check-v13 input{position:absolute;opacity:0;pointer-events:none}.schedule-check-v13 span{width:20px;height:20px;border:2px solid #18201d;border-radius:4px;background:#fff;display:block}.schedule-check-v13 input:checked+span{background:#111}.schedule-check-v13 input:disabled+span{opacity:.38;cursor:not-allowed}.schedule-notes-v13{border-top:1px solid #18201d;margin:8px 4px 0;padding-top:6px;font-size:7px;line-height:1.7}.schedule-notes-v13 p{margin:1px 0}.debt-slot-v13{min-height:67px}.debt-slot-v13.debt-slot-hidden{visibility:hidden;pointer-events:none}input[type=date],input[type=time]{cursor:pointer}input[type=date]::-webkit-calendar-picker-indicator,input[type=time]::-webkit-calendar-picker-indicator{opacity:0;width:0;height:0;margin:0;padding:0;pointer-events:none}.centers-section-v13{margin:0 0 16px}.centers-head-v13{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}.centers-head-v13 h2{margin:0 0 3px}.centers-head-v13 p{margin:0;color:#72827c;font-size:10px}.centers-grid-v13{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}.center-card-v13{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px}.center-card-v13 h3{margin:2px 0 4px;font-size:14px}.center-card-v13 small,.center-card-v13 span{font-size:9px;color:#72827c}.centers-empty-v13{font-size:10px;color:#72827c;padding:14px}@media(max-width:1120px){.registration-schedule-layout-v13{grid-template-columns:minmax(0,430px) minmax(0,1fr)}.registration-form-compact-v13{max-width:430px}}@media(max-width:900px){.registration-schedule-layout-v13{grid-template-columns:1fr}.registration-form-compact-v13{max-width:none}.registration-schedule-card-v13{order:2}.centers-head-v13{align-items:flex-start;flex-direction:column}}
 `;document.head.appendChild(style);
-window.EFC_REGISTRATION_SCHEDULE_V13=Object.freeze({ready:true,baseRegistrationRenderer:true,finalRegistrationRendererOwnedByMatrix:true,registrationPaymentRecordedAsTransaction:true,noLegacyStudentRegistrationRenderer:true,scheduleStoredWithStudent:true,receiptScheduleData:true,compactRegistrationCard:true,compactTimetable:true,noHorizontalTimetableOverflow:true,noSideSummary:true,notesFromPaper:true,twoColumnRegistration:true,wholeInputDateTimePicker:true,courseTerminology:true,nativeCourseTerminology:true,noCourseTermShellWrapper:true,noDelayedModalTerminologyPatch:true,expandedTimetable:true,financialSummaryOnly:true,centersManagedInUi:true,enhanceSpecialties:enhanceSpecialtiesWithCenters,noSpecialtiesWrapper:true,centersPersisted:true,coursesAndCenters:true,hourOnlyScheduleTime:true,fixedMinuteZero:true,extraEveningHours:true,sundayHiddenFromRegistrationView:true,sevenDayScheduleDataPreserved:true,singleScheduleBottomNote:true,registrationSequenceHighWaterMark:true,hourOptions});
+window.EFC_REGISTRATION_SCHEDULE_V13=Object.freeze({ready:true,baseRegistrationRenderer:true,finalRegistrationRendererOwnedByMatrix:true,registrationPaymentRecordedAsTransaction:true,noLegacyStudentRegistrationRenderer:true,scheduleStoredWithStudent:true,receiptScheduleData:true,compactRegistrationCard:true,compactTimetable:true,noHorizontalTimetableOverflow:true,noSideSummary:true,notesFromPaper:true,twoColumnRegistration:true,wholeInputDateTimePicker:true,courseTerminology:true,nativeCourseTerminology:true,noCourseTermShellWrapper:true,noDelayedModalTerminologyPatch:true,expandedTimetable:true,financialSummaryOnly:true,centersManagedInUi:true,normalizeCenters,centersForRestore,enhanceSpecialties:enhanceSpecialtiesWithCenters,noSpecialtiesWrapper:true,centersPersisted:true,coursesAndCenters:true,hourOnlyScheduleTime:true,fixedMinuteZero:true,extraEveningHours:true,sundayHiddenFromRegistrationView:true,sevenDayScheduleDataPreserved:true,singleScheduleBottomNote:true,registrationSequenceHighWaterMark:true,hourOptions});
 })();

@@ -2,7 +2,7 @@ name: Build EFC Windows Setup
 
 on:
   push:
-    branches: [main, redesign/efc-ui-2026, refactor/legacy-extraction-v13, fix/v13-user-feedback-2026-09-09, feature/fiscal-year-current-v14, fix/student-lifecycle-numbering-v20, fix/accounting-integrity-v21, feature/certificate-manager-receipt-bank-v22]
+    branches: [main, redesign/efc-ui-2026, refactor/legacy-extraction-v13, fix/v13-user-feedback-2026-09-09, feature/fiscal-year-current-v14, fix/student-lifecycle-numbering-v20, fix/accounting-integrity-v21, feature/certificate-manager-receipt-bank-v22, feature/certificate-external-branch-delete-v1]
   workflow_dispatch:
 
 permissions:
@@ -55,7 +55,23 @@ jobs:
           }
 
       - name: Build Windows installer
-        run: npm run tauri build -- --bundles nsis
+        shell: pwsh
+        run: |
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Tauri NSIS build attempt $attempt of $maxAttempts"
+            npm run tauri build -- --bundles nsis
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Windows installer build succeeded on attempt $attempt."
+              exit 0
+            }
+            if ($attempt -eq $maxAttempts) {
+              throw "Windows installer build failed after $maxAttempts attempts."
+            }
+            $delay = 15 * $attempt
+            Write-Warning "Installer bundling failed. Retrying in $delay seconds; this also covers transient Microsoft/WebView2 download disconnects."
+            Start-Sleep -Seconds $delay
+          }
 
       - name: Smoke-test release startup
         shell: pwsh

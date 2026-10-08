@@ -5,6 +5,7 @@ on:
     branches:
       - fix/accounting-integrity-v21
       - feature/certificate-manager-receipt-bank-v22
+      - feature/certificate-external-branch-delete-v1
   workflow_dispatch:
 
 permissions:
@@ -30,6 +31,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm install --no-audit --no-fund --package-lock=false
+
+      - name: Verify production source
+        run: npm run check
 
       - name: Build browser preview
         run: npm run build

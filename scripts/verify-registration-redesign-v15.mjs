@@ -98,7 +98,7 @@ for(const [token,label] of [
   ['longCourseNamesWrapInMatrix:true','long selected course names wrap inside registration timetable'],
   ['overflow-wrap:anywhere!important','registration timetable can wrap unusually long course names'],
   ['directRegistrationSchedulePreferred:true','synchronous registration schedule is not overwritten by a later layer'],
-  ['existingScheduleMatches','post-submit compatibility capture respects the already saved schedule'],
+  ['captureSchedule:scheduleSnapshot','canonical registration captures the complete schedule before saving'],
   ['singleBottomNotice:true','registration timetable keeps only the first lower notice'],
   ['paragraphs.slice(1).forEach','second and later lower notices are removed from the registration timetable'],
   ['largerScheduleNotices:true','registration timetable notice sizing marker'],
@@ -175,7 +175,7 @@ for(const [token,label] of [
   ['sharedDayTimeCapture:true','matrix captures the active shared day-time values'],
   ['directSavedSchedulePreferred:true','matrix preserves an already saved registration schedule'],
   ['hourOnlyTimeValues:true','matrix preserves canonical HH:00 timetable values'],
-  ['existingScheduleMatches','matrix does not replace a valid schedule'],
+  ['captureSchedule:scheduleSnapshot','matrix supplies the canonical saved schedule'],
   ['receiptRenderingOwnedByBase:true','matrix delegates receipt rendering to the base receipt service'],
   ['noReceiptWindowOverride:true','matrix advertises no receipt-window override'],
   ['noReceiptDomPatch:true','matrix advertises no receipt DOM post-patching']

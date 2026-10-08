@@ -180,6 +180,15 @@ function updateStudentRegistration(student,changes={}){
   draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
   draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:shape.durationValue,durationUnit:shape.durationUnit};
   if(changes.schedule){draft.schedule=clone(changes.schedule);draft.schedule.specialtyId=String(item.id);draft.schedule.specialtyName=String(item.name||'');}
+  const devices=window.EFC_DEVICES_V57;
+  if(devices){
+    if(!devices.requiresDevice(item)&&draft.schedule)draft.schedule=devices.clearScheduleDevices(draft.schedule);
+    else{
+      if(scopeChanged&&!changes.schedule)draft.schedule=devices.clearScheduleDevices(draft.schedule);
+      const validation=devices.validateStudentDraft(draft,{excludeStudentId:String(student.id||''),requireComplete:Boolean(changes.schedule||scopeChanged||start!==String(student.start))});
+      if(!validation.ok)throw new Error(validation.message);
+    }
+  }
   draft.payments=Array.isArray(draft.payments)?draft.payments.map(payment=>Array.isArray(payment)?[...payment]:[]):[];
   const rawIndex=changes.paymentIndex,index=rawIndex===null||rawIndex===undefined||rawIndex===''?null:Number(rawIndex);
   if(index!==null&&(!Number.isInteger(index)||index<0||!draft.payments[index]))throw new Error('الدفعة المرتبطة بالروسي غير موجودة.');
@@ -225,9 +234,10 @@ function updateStudentRegistration(student,changes={}){
     draft.debtDueDates=remaining>0&&due?{course:String(due)}:{};
     if(!remaining)draft.payments.forEach(payment=>{payment[9]=null;});
   }
+  const scopeRetarget=scopeChanged&&typeof window.EFC_ACCOUNTING_INTEGRITY_V21?.retargetStudentPaymentScopes==='function'?window.EFC_ACCOUNTING_INTEGRITY_V21.retargetStudentPaymentScopes(draft):{updated:0,skippedClosed:0};
   reconcileStudent(draft);draft.updatedAt=editStamp;
   const history=Array.isArray(draft.registrationEditHistory)?draft.registrationEditHistory:[];
-  history.push({at:editStamp,paymentIndex:effectiveIndex,transactionCode:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[6]||''):null,receipt:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[8]||draft.registrationReceiptNo||''):String(draft.registrationReceiptNo||'')});
+  history.push({at:editStamp,paymentIndex:effectiveIndex,transactionCode:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[6]||''):null,receipt:effectiveIndex!==null?String(draft.payments[effectiveIndex]?.[8]||draft.registrationReceiptNo||''):String(draft.registrationReceiptNo||''),fromBranch:String(student.branch||''),toBranch:String(draft.branch||''),fromSpecialty:String(student.specialty||''),toSpecialty:String(draft.specialty||''),retargetedPaymentScopes:Number(scopeRetarget?.updated||0),preservedClosedPaymentScopes:Number(scopeRetarget?.skippedClosed||0)});
   draft.registrationEditHistory=history.slice(-50);
   const before=clone(student);Object.assign(student,draft);reconcileStudent(student);
   try{saveStudentsClean();}catch(error){Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,before);reconcileStudent(student);throw error;}
@@ -313,7 +323,7 @@ allocV4=function(student,paymentIndex){
 financialStatus=financialStatusV14;
 monthBadgeV3=function(student,asOf=today(),paidOverride=null){const focus=monthlyFocus(student,asOf,paidOverride);if(!focus)return'';const cls=focus.state==='complete'?'good':focus.state==='overdue'?'bad':focus.state==='upcoming'?'neutral':'warn';return`<span class="badge ${cls}">${B.esc(focus.label)}</span>`;};
 
-const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyCoverageEnd,monthlyPrepayment:true,monthlyCoverageEndForSearch:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyRenewalWarningDays:RENEWAL_WARNING_DAYS});
+const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyCoverageEnd,monthlyPrepayment:true,monthlyCoverageEndForSearch:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationScopeEditRetargetsFinance:true,registrationScopeEditRetargetsDailyLedger:true,closedPaymentScopeHistoryPreserved:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyRenewalWarningDays:RENEWAL_WARNING_DAYS});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();
