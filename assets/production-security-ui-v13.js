@@ -4,7 +4,7 @@ if(window.EFC_SECURITY_UI_V13?.ready)return;
 const D=window.EFC_DOMAIN_V13,Auth=window.EFC_AUTH_BOOTSTRAP_V13;if(!D?.ready||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_FINANCE_UI_V13?.ready||!window.EFC_BANK_V22?.ready||!Auth?.ready)throw new Error('Security UI v13 loaded before v13 domain/UI/auth layers.');
 const {OFFICIAL_NAME,STORAGE,esc,normalize,uid,currentNotifications,today,cash,showDate}=D;
 const invoke=window.__TAURI__?.core?.invoke;
-const SECTIONS=[['register','تسجيل الطلاب'],['specialties','الدورات'],['period','آلية البحث'],['students','ملفات الطلاب'],['certificates','الشهادات'],['finance','المالية والمصاريف'],['ledger','اليومية'],['bank','البنك'],['settings','الإعدادات']];
+const SECTIONS=[['register','تسجيل الطلاب'],['specialties','الدورات'],['devices','الأجهزة'],['period','آلية البحث'],['students','ملفات الطلاب'],['certificates','الشهادات'],['finance','المالية والمصاريف'],['ledger','اليومية'],['bank','البنك'],['settings','الإعدادات']];
 const HOME_ID='home';
 const HOME_ICON='<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-7 9 7"/><path d="M5.5 9.5V20h13V9.5M9.5 20v-6h5v6"/></g></svg>';
 if(Array.isArray(window.navItems)&&!window.navItems.some(item=>item?.[0]===HOME_ID))window.navItems.unshift([HOME_ID,HOME_ICON,'الصفحة الرئيسية']);
@@ -160,6 +160,7 @@ window.renderCurrentV13=function(){
     if(page===HOME_ID)renderHome();
     else if(page==='register')renderRegister();
     else if(page==='specialties')renderSpecialties();
+    else if(page==='devices')window.EFC_RENDER_DEVICES_V57?.();
     else if(page==='period')renderPeriod();
     else if(page==='students')renderStudents();
     else if(page==='finance')renderFinance();
@@ -179,6 +180,6 @@ const style=document.createElement('style');style.textContent=`
 `;document.head.appendChild(style);
 
 renderCurrentV13();
-window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,reminderUsesSharedEmbeddedLogo:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,noSettingsPostRenderEnhancement:true,directCanonicalRouteRender:true,noRouteConcealment:true,noShellRenderWrapper:true});
+window.EFC_SECURITY_UI_V13=Object.freeze({ready:true,usersAndPermissions:true,adminRecoveryEncrypted:true,adminRecoverySigned:true,recoveryDeviceBound:true,recoveryOneTime:true,loginAttemptThrottle:true,notificationBell:true,reminderPdf:true,reminderPreview:true,reminderUsesSharedEmbeddedLogo:true,receiptStyleReminderHeader:true,structuredReminderDocument:true,pinMasked:true,homePage:true,officialName:OFFICIAL_NAME,allPagesFinalRenderBeforeReveal:true,canonicalLoginOwnedByAuth:true,noLegacyLoginRenderer:true,canonicalSettingsRenderer:true,singleSettingsRenderOwner:true,devicesRouteV57:true,noSettingsPostRenderEnhancement:true,directCanonicalRouteRender:true,noRouteConcealment:true,noShellRenderWrapper:true});
 window.EFC_CENTER_OPS_V13=Object.freeze({ready:true,cleanDomain:true,cleanStudentUi:true,cleanFinanceUi:true,cleanSecurityUi:true,noMutationObserver:true,noWindowOpenPatch:true,autocompleteRemoved:true,quickDaysConditional:true,debtDateDebounced:true,paymentsCanonical:true,expenseActionInHeader:true,finalRouterOwnsV13Pages:true,settingsOwnedByFinalRouter:true,certificatesOwnedByFinalRouter:true,bankOwnedByFinalRouter:true,legacyPaymentsRedirect:true,permissionMutationGuards:true,activeSubviewNavigationReset:true,homePageV35:true,bootRevealDeferredToGate:true,directCanonicalRoutes:true,noDeferredRouteRender:true,globalSelectHoverSync:true,noRouteRenderStaging:true,memoizedRouteReconcile:true,memoizedNotifications:true,singleAfterRenderPerRoute:true,earlyAuthBootstrap:true,noLegacyLoginLayer:true,routerOwnsVisualPageClasses:true});
 })();

@@ -28,6 +28,7 @@ const runtimeFiles = [
   'assets/production-registration-redesign-v15.js',
   'assets/production-registration-schedule-matrix-v17.js',
   'assets/production-courses-centers-redesign-v23.js',
+  'assets/production-devices-v57.js',
   'assets/production-period-search-redesign-v28.js',
   'assets/production-sidebar-lock-v30.js',
   'assets/production-student-search-redesign-v31.js',

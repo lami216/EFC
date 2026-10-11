@@ -72,7 +72,15 @@ const ready=(async()=>{
   };
   window.EFC_FORCE_PERSIST=()=>{clearTimeout(persistTimer);persistTimer=null;return enqueueCurrentPersist();};
   window.EFC_CORE_CHANGED=()=>{markLocalChange();scheduleCurrentPersist();};
-  window.EFC_MERGE_IMPORTED_STATE=async incoming=>{const current=stateFromLocalStorage(),{state:merged,stats}=mergeStates(current,incoming),applied=applyState(merged,{freshTimestamp:true});await persistCoreNow(applied);for(const restore of restoreContributors.values())await restore(incoming);return{state:applied,stats};};
+  window.EFC_MERGE_IMPORTED_STATE=async incoming=>{
+    const current=stateFromLocalStorage(),{state:merged,stats}=mergeStates(current,incoming);
+    window.EFC_DEVICES_V57?.validateRestoredState?.({...merged,branches:incoming?.branches});
+    const applied=applyState(merged,{freshTimestamp:true}),payload={...await currentSnapshot(),...applied};
+    if(Array.isArray(incoming?.branches)&&window.EFC_REGISTRATION_SCHEDULE_V13?.centersForRestore)payload.branches=window.EFC_REGISTRATION_SCHEDULE_V13.centersForRestore(incoming.branches);
+    await persistCoreNow(payload);
+    for(const restore of restoreContributors.values())await restore(incoming);
+    return{state:applied,stats};
+  };
   window.EFC_APPLY_RESTORED_STATE=window.EFC_MERGE_IMPORTED_STATE;
   window.EFC_CORE_STORAGE_V13=Object.freeze({ready:true,explicitPersistence:true,serializedNativeWrites:true,stateContributors:true,restoreContributors:true,noStoragePrototypePatch:true,noRuntimeScriptChain:true,revisionAwareStudentMerge:true,revisionAwarePaymentMerge:true,installationId:activeState.installationId,sourceCenters:activeState.sourceCenters?.length||1});
   return window.EFC_CORE_STORAGE_V13;

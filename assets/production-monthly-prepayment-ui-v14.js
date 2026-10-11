@@ -26,6 +26,8 @@ function coverageText(amount,fee,startMonth=1){
   return parts.join(' + ');
 }
 function readSchedule(root,item){
+  const form=document.getElementById('regFormV13');
+  if(window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.captureSchedule)return window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17.captureSchedule(form,root);
   const specialtyId=String(item?.id||'');
   const days=DAYS.map(key=>{
     const matrixCheck=root.querySelector(`[data-matrix-day="${key}"]`);
@@ -48,7 +50,9 @@ function enhanceRegistrationV14(){
     event.preventDefault();const data=new FormData(form),item=spec(data.get('specialty'));if(!item)return;
     const type=courseTypeOf(item),monthly=type==='normal',fee=Math.max(1,Number(data.get('price')||0)),rawPaid=Math.max(0,Number(data.get('paid')||0)),paidNow=monthly?rawPaid:Math.min(fee,rawPaid),debtDate=String(data.get('debtDate')||'');
     if(paidNow>0&&paidNow<fee&&!debtDate)return alert('حدد موعد سداد المتبقي.');
-    const branch=String(data.get('branch')),related=students.filter(student=>student.branch===branch&&student.specialty===item.id),reg=Math.max(0,...related.map(student=>Number(student.reg||0)))+1,start=String(data.get('start')),days=Math.max(1,Number(item.quickDays||item.durationValue||1)),schedule=readSchedule(scheduleRoot,item);
+    const schedule=readSchedule(scheduleRoot,item),validation=window.EFC_DEVICES_V57?.validateRegistration?.({form,snapshot:schedule});
+    if(validation?.ok===false)return alert(validation.message);
+    const branch=String(data.get('branch')),related=students.filter(student=>student.branch===branch&&student.specialty===item.id),reg=window.EFC_RECEIPT_SEQUENCES_V10?.allocateRegistrationNumber?.(branch,item.id)||Math.max(0,...related.map(student=>Number(student.reg||0)))+1,start=String(data.get('start')),days=Math.max(1,Number(item.quickDays||item.durationValue||1));
     const student={id:D.uid('student'),name:String(data.get('name')||'').trim(),phone:String(data.get('phone')||''),branch,specialty:item.id,reg,start,end:monthly?'':addDuration(start,days,'day'),required:fee,paid:0,active:true,status:'active',debtDueDates:{},schedule,snapshot:{centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:monthly?1:days,durationUnit:monthly?'month':'day'},payments:[]};
     students.unshift(student);window.EFC_CODES?.ensureStudentRecord?.(student);let paymentIndex=null;
     try{if(paidNow>0)paymentIndex=appendPayment(student,{amount:paidNow,method:String(data.get('method')||''),date:start,time:nowTime(),description:monthly?'دفعة تسجيل شهرية':'دفعة تسجيل',targetMonth:monthly?1:null,debtDueDate:paidNow<fee?debtDate:null,persist:false});D.saveStudents();}

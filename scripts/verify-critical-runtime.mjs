@@ -73,6 +73,60 @@ for(const token of ['selectStudent(id)','clearStudentSelection()','renderStudent
 requireText(certificates,'state.certificateReceipts=state.certificateReceipts.filter','certificate issue rollback after persistence failure');
 requireText(certificates,"'\"':'&quot;'",'certificate HTML quote escaping');
 forbidText(certificates,'persist().then(renderCertificates)','certificate branch add rerendering and discarding the external form draft');
+requireText(certificates,'externalCertificateBranchDelete:true','external certificate branches can be deleted');
+requireText(certificates,'deletedCertificateBranchHistoryPreserved:true','deleted certificate branches preserve historical receipt text without remaining selectable');
+requireText(certificates,'certificateBranchFiltersRequireLiveReceipt:true','certificate branch filters only exist while a live certificate receipt needs them');
+requireText(certificates,'certificateBranchFiltersRequireLiveSource:true','certificate branch filters cannot resurrect branches removed from their primary source');
+requireText(certificates,'certificateBranchDisplayResolvesCurrentSource:true','certificate displays resolve live branch names by branch identity');
+requireText(certificates,'certificateBranchStoredNameFallback:true','certificate displays preserve stored branch text only when the source identity is gone');
+requireText(certificates,'function certificateBranchDisplayName(receipt)','certificate branch display has one canonical resolver');
+requireText(certificates,"const current=(Array.isArray(branches)?branches:[]).find(item=>id&&String(item?.id||'')===id)",'internal certificate branches resolve their current source name by id');
+requireText(certificates,'<td>${esc(certificateBranchDisplayName(receipt))}</td>','certificate history does not render stale receipt branchName snapshots directly');
+requireText(certificates,'label=certificateBranchDisplayName(receipt)','certificate filter labels use the same canonical branch display resolver');
+requireText(certificates,'externalCertificateBranchReactivation:true','re-adding a deleted branch reactivates the same branch identity');
+requireText(certificates,'function activeCertificateBranches()','certificate issue dropdown excludes deleted branches');
+requireText(certificates,'function deleteBranch()','certificate branch delete controller');
+requireText(certificates,"branch.deletedAt=Date.now();branch.updatedAt=branch.deletedAt",'certificate branch delete is archived instead of destroying history identity');
+requireText(certificates,'function certificateBranchSourceIsActive(receipt)','certificate filters validate each receipt branch against its live primary source');
+requireText(certificates,'if(!certificateBranchSourceIsActive(receipt))return;','deleted or orphaned branches cannot remain in certificate filter lists');
+requireText(certificates,"state.certificateReceipts.forEach(receipt=>{if(!certificateBranchSourceIsActive(receipt))return;const key=certificateBranchKey(receipt)",'certificate filter branch list remains receipt-driven without stale primary-source entries');
+requireText(certificates,'id="certDeleteBranchV13"','external certificate branch delete button');
+requireText(certificates,'certificateRegisteredIssuanceRemoved:true','registered-student certificate issuance is removed');
+requireText(certificates,'certificateManualReceiptOnly:true','certificate issuance uses the manual receipt form only');
+requireText(certificates,'cert-single-mode-v51','certificate workspace exposes one receipt mode instead of registered/external choices');
+requireText(certificates,'id="certEditBranchV13"','certificate branch rename button exists');
+requireText(certificates,'async function renameBranch()','certificate branch rename preserves the branch identity');
+requireText(certificates,'certificateExternalBranchRename:true','certificate branch rename feature marker');
+requireText(certificates,'certificateManagerReceiptMultiBranch:true','certificate manager receipt supports multiple branches');
+requireText(certificates,'certificateManagerReceiptBranchChips:true','certificate manager receipt shows removable selected-branch chips');
+requireText(certificates,'id="certManagerBranchChipsV52"','certificate manager branch chips container exists');
+requireText(certificates,'const range=certificateManagerCurrentRange(),branchOptions=certificateFinanceBranches(),branchNames=new Map(branchOptions),specialtyOptions=certificateFinanceSpecialties(),selectedBranches=new Set()','certificate manager starts with an empty multi-branch selection meaning all branches');
+requireText(certificates,'branches:branchKeys,branchLabels','selected branch set is passed into the manager receipt model');
+forbidText(certificates,'>طالب مسجل</button>','registered-student issuance mode must not be visible');
+forbidText(certificates,'>طالب خارجي</button>','old external-student issuance mode label must be removed');
+for(const [token,label] of [
+  ['certificateHistoryIdentitySearch:true','certificate history exposes one identity search control'],
+  ['certificateHistorySearchMatchesStudentIdentityRules:true','certificate history search follows the student identity rules'],
+  ['function certificateHistorySearchMatches(receipt,query)','certificate history has a dedicated name/phone/register matcher'],
+  ["certificateHistorySearchDigits(receipt?.phone).includes(digits)||certificateHistoryDisplayRecord(receipt?.reg).includes(digits)",'certificate history numeric search matches phone or displayed register number'],
+  ['id="certRecordsSearchV50"','certificate history search banner input'],
+  ['placeholder="ابحث بالاسم أو الهاتف أو رقم السجل"','certificate history search wording matches the existing search pages'],
+  ["document.getElementById('certRecordsSearchV50')?.addEventListener('input',drawCertificateHistory)",'certificate history search redraws results while typing'],
+  ['certificateHistorySearchMatches(receipt,query)&&certificateFilterMatches','certificate history identity search composes with existing filters']
+])requireText(certificates,token,label);
+requireText(certificates,'certificateHistoryFilterByDeliveryStatus:true','certificate history filters by delivery status instead of specialty');
+requireText(certificates,'certificateHistoryBlankFromUsesOldestAvailable:true','certificate history blank week start uses oldest record');
+requireText(certificates,'certificateFinanceBlankFromUsesOldestAvailable:true','certificate finance blank week start uses oldest record');
+requireText(certificates,'function certificateOldestAvailableDate()','certificate views share an oldest-record resolver');
+requireText(certificates,"from=document.getElementById('certRecordsFromV48')?.value||''",'certificate history preserves a blank week start');
+requireText(certificates,"from=document.getElementById('certFinanceFromV48')?.value||''",'certificate finance preserves a blank week start');
+requireText(certificates,'id="certRecordsDeliveryV51"','certificate history exposes a delivery-status filter');
+requireText(certificates,'<option value="received">مستلمة</option>','certificate history can show received certificates only');
+requireText(certificates,'<option value="pending">غير مستلمة</option>','certificate history can show pending certificates only');
+requireText(certificates,"certificateFilterMatches(receipt,{branch,method,delivery:deliveryStatus})",'delivery status composes with records search/date/branch/payment filters');
+forbidText(certificates,'certRecordsSpecialtyV48','certificate records no longer expose the specialty filter');
+forbidText(certificates,'الفلترة الخاصة بها ستبقى محفوظة','deleted external branches must not remain as filter options');
+
 forbidText(certificates,'new MutationObserver(','certificate renderer observer');
 forbidText(certificates,'activeStudentId','duplicate certificate student state');
 forbidText(certificates,'.click();','visible certificate control forwarding to a hidden control');
@@ -99,14 +153,48 @@ const financeUi=read('assets/production-finance-ui-v13.js');
 requireText(financeUi,'finance-hero-v13','finance page uses the shared mint hero language');
 requireText(financeUi,'height=235','finance chart keeps a larger readable workspace');
 requireText(financeUi,'#financeModeV13 button.active','finance period buttons have an explicit active visual state');
+requireText(financeUi,'customDateRangeFilter:true','finance page exposes a custom date-range filter');
+requireText(financeUi,'weeklyBlankFromUsesOldestAvailable:true','blank finance week start uses oldest available data');
+requireText(financeUi,'currentUnpaidBalanceDebtCard:true','finance debt card sums current unpaid balances');
+requireText(financeUi,'debtCardIgnoresDateFilter:true','finance debt card ignores date period filters');
+requireText(financeUi,'function financeOldestAvailableDate()','finance has an oldest-record resolver');
+requireText(financeUi,"from=document.getElementById('fromV13').value||''",'finance keeps a blank week start blank');
+requireText(financeUi,'إجمالي المبالغ غير المدفوعة حاليًا','finance debt caption explains current unpaid balance');
+requireText(financeUi,'data-mode="weekly">أسبوع</button>','finance custom period mode uses the same week label as certificate finance');
+requireText(financeUi,'id="fromV13"','finance custom period has a start date');
+requireText(financeUi,'id="toV13"','finance custom period has an end date');
+requireText(financeUi,"mode==='weekly'?(from?(from<=to?{from,to}:{from:to,to:from}):{from:financeOldestAvailableDate()<=to?financeOldestAvailableDate():to,to})",'profitability details preserve explicit week dates and use oldest data when start is blank');
+requireText(financeUi,"['dayV13','fromV13','toV13','monthV13','yearV13','branchV13','specV13']", 'finance redraws when either custom-period date changes');
+requireText(financeUi,"controlsRoot.dataset.mode=mode",'finance controls expose their selected period for certificate-matched geometry');
+requireText(financeUi,'.finance-controls-v13[data-mode="weekly"]{grid-template-columns:148px 124px 124px 102px 140px!important','general finance week geometry matches certificate finance without its payment-method column');
+requireText(financeUi,'#financeModeV13{width:100%!important;max-width:100%!important;min-width:0!important;height:34px!important','general finance period switch matches certificate finance height');
+requireText(financeUi,'grid-template-columns:repeat(4,minmax(0,1fr))!important','general finance period switch uses the certificate four-button geometry');
+requireText(financeUi,'button[data-mode="weekly"]{background:linear-gradient(180deg,#f7f4ff,#f0ecfb)!important','general finance week button uses the certificate finance color');
+requireText(financeUi,'EFC_DELETE_EXPENSE_RECEIPT_V13','expense receipt exposes source deletion');
+requireText(financeUi,'expenseReceiptSourceDeletion:true','expense receipt deletion feature marker');
+requireText(financeUi,'viewIncomeHistoryV13','finance income exposes a dedicated history action');
+requireText(financeUi,'incomeHistoryPeriodFilters:true','income history exposes finance-style period filters');
+requireText(financeUi,'incomeHistoryFilterMatchesFinance:true','income history filters branch/course like finance');
+requireText(financeUi,'incomeHistoryBlankFromUsesOldestAvailable:true','income history week filter accepts an empty start');
+requireText(financeUi,'incomeHistorySourceActions:true','income history actions route to original student payment sources');
+requireText(financeUi,'id="incomeHistoryModeV13"','income history has daily/week/month/year controls');
+requireText(financeUi,'id="incomeHistoryMessageV13"','income history shows the selected filter scope and result count');
+requireText(financeUi,'deleteStudentPaymentSource','income history deletion uses the accounting source-delete route');
 requireText(financeUi,'viewExpenseHistoryV13','finance expenses expose a dedicated history action');
 requireText(financeUi,'delete-expense-v13','expense history supports deleting an expense');
-requireText(financeUi,'height:min(520px,calc(100dvh - 205px))!important','expense history keeps a fixed full-height list frame');
+requireText(financeUi,'expenseHistoryPeriodFilters:true','expense history exposes finance-style period filters');
+requireText(financeUi,'expenseHistoryFilterMatchesFinance:true','expense history filters branch/course like finance');
+requireText(financeUi,'expenseHistoryBlankFromUsesOldestAvailable:true','expense history week filter accepts an empty start');
+requireText(financeUi,'id="expenseHistoryModeV13"','expense history has daily/week/month/year controls');
+requireText(financeUi,'id="expenseHistoryMessageV13"','expense history shows the selected filter scope and result count');
+requireText(financeUi,'height:min(455px,calc(100dvh - 285px))!important','expense history keeps an internal list frame after adding the filter row');
 requireText(financeUi,'scrollbar-gutter:auto!important','expense history only gives space to a scrollbar when it exists');
 requireText(financeUi,'ledger-hero-v13','daily ledger uses the shared mint hero language');
 requireText(financeUi,'height:min(390px,calc(100dvh - 315px))!important','daily ledger keeps a bounded internal-scroll transaction list');
 requireText(financeUi,'efc-ledger-redesign-v13','daily ledger styling is consolidated in the finance source');
 requireText(financeUi,'.ledger-summary-v13 small{font-size:10.5px!important','daily ledger KPI labels remain readable');
+requireText(financeUi,'ledgerIncomeExpenseOperationCounts:true','daily ledger exposes separate income and expense operation counts');
+requireText(financeUi,'ledger-summary-copy-v56','daily ledger operation counts use secondary supporting text');
 requireText(financeUi,'.ledger-scroll-v13 table{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;font-size:10px!important','daily ledger records use the established table text size');
 requireText(financeUi,'.expense-history-v13 table{width:100%!important;border-collapse:collapse!important;font-size:10px!important','expense history records match the established table text size');
 requireText(financeUi,'.finance-kpi-line-v13 small{margin:0!important;font-size:10.5px!important','finance KPI labels remain readable');
@@ -210,6 +298,37 @@ const receiptsUi=read('assets/production-receipts-v13.js');
 requireText(receiptsUi,'registrationReceiptPaidAmountLabel:true','registration receipt labels the paid amount explicitly');
 requireText(receiptsUi,"half('Montant',moneyV3(model.amount),'المبلغ المدفوع')",'registration receipt paid amount wording');
 requireText(receiptsUi,'class=\"official12\">للغات والمعلوماتية','receipt header secondary line without duplicated center name');
+requireText(receiptsUi,'function commonNote(){','non-refund note helper remains present for all student receipts');
+requireText(receiptsUi,'ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','non-refund note text remains in its original receipt scope');
+requireText(receiptsUi,'existingNonRefundNotePreservedInPrintAndPdf:true','existing non-refund note output preservation marker');
+requireText(receiptsUi,'nonRefundNoteAllStudentReceipts:true','non-refund note is shown on every student receipt variant');
+requireText(receiptsUi,'nonRefundNoteRegistrationReceipt:true','registration receipt includes the non-refund note');
+requireText(receiptsUi,'nonRefundNoteMonthlyReceipts:true','monthly and aggregate student receipts include the non-refund note');
+requireText(receiptsUi,'nonRefundNoteAtBottom:true','non-refund note stays at the bottom of student receipts');
+requireText(receiptsUi,'${scheduleHtml(model)}${commonNote(model)}`','regular student receipts render the non-refund note after the schedule block');
+requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111715!important','non-refund note remains visible in PDF raster output');
+requireText(receiptsUi,'.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111!important}.actions12{display:none}','non-refund note remains visible in browser print output');
+const accountingIntegrity=read('assets/production-accounting-integrity-v21.js');
+for(const [token,label] of [
+  ['paymentTombstones','deleted student payments have restore tombstones'],
+  ['paymentRestoreTombstones:true','payment deletion survives backup restore'],
+  ['legacyPaymentScopeAutoMigration:true','legacy live payment scopes migrate automatically'],
+  ['legacyPaymentScopeMigrationIdempotent:true','legacy scope migration remains idempotent'],
+  ['legacyPaymentScopeMigrationAudited:true','legacy scope migration records audit metadata'],
+  ['migrateLegacyPaymentScopeMismatches','legacy scope migration helper is available'],
+  ["reason:'restore'",'restored stale live payment scopes are migrated again'],
+  ['registrationScopeEditRetargetsLivePayments:true','registration scope edits retarget live finance classification'],
+  ['closedPaymentScopeSnapshotsRemainHistorical:true','closed-period payment classification remains historical'],
+  ['function retargetStudentPaymentScopes(student)','accounting runtime exposes payment scope retargeting'],
+  ['paymentReceiptDeletionReversesSource:true','student receipt deletion reverses the payment source'],
+  ['registrationReceiptDeletionRemovesRegistration:true','registration receipt deletion reverses the registration source'],
+  ['studentReceiptDeleteAction:true','student receipt viewer receives a delete action'],
+  ['certificateDeliveryReceiptDeleteAction:true','certificate delivery receipt receives a delete action'],
+  ['certificateDeliveryDeleteReversesSource:true','certificate delivery deletion reverses delivery state'],
+  ['aggregateReportsRemainReadOnly:true','aggregate reports are intentionally not fake-deletable'],
+  ['deleteStudentPaymentSource','student payment source delete implementation'],
+  ['deleteCertificateDeliverySource','certificate delivery source delete implementation']
+])requireText(accountingIntegrity,token,label);
 
 const indexHtml=read('index.html');
 const licenseGate=read('assets/production-license-gate-v8.js');
@@ -220,6 +339,7 @@ if(!indexVersions.length||indexVersions.some(version=>version!==runtimeVersion))
 
 const deterministicPostLicenseRuntime=[
   'production-courses-centers-redesign-v23.js',
+  'production-devices-v57.js',
   'production-period-search-redesign-v28.js',
   'production-sidebar-lock-v30.js',
   'production-student-search-redesign-v31.js'
@@ -233,11 +353,13 @@ for(const file of deterministicPostLicenseRuntime){
   lastRuntimeIndex=current;
 }
 requireText(licenseGate,"await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin()",'canonical login completes before heavy app runtime');
+requireText(licenseGate,"loadStage('./assets/production-devices-v57.js'",'devices feature is loaded as a deterministic post-login runtime');
 requireText(licenseGate,"loadStage('./assets/production-security-ui-v13.js'",'security UI remains the final routed app layer');
 forbidText(licenseGate,'production-login-ui-v13.js','obsolete post-security login layer');
 
 const runtimeManifest=read('scripts/build-production.mjs');
 const runtimeBlock=runtimeManifest.match(/const runtimeFiles\s*=\s*\[([\s\S]*?)\];/)?.[1]||'';
+requireText(runtimeBlock,'production-devices-v57.js','devices runtime is copied into production dist');
 for(const obsolete of [
   'production-certificates-redesign-v35.js',
   'production-certificates-workspace-v36.js',
@@ -247,6 +369,11 @@ for(const obsolete of [
   'production-certificates-student-layout-v40.js'
 ])forbidText(runtimeBlock,obsolete,`obsolete certificate patch ${obsolete}`);
 for(const leftover of ['scripts/apply-reminder-document-polish.mjs','.github/workflows/reminder-document-polish.yml'])requireText(runtimeManifest,leftover,`temporary reminder patch guard ${leftover}`);
+
+const windowsBuild=read('.github/workflows/windows-build.yml');
+requireText(windowsBuild,'$maxAttempts = 3','Windows installer build retries transient bundle/download failures');
+requireText(windowsBuild,'npm run tauri build -- --bundles nsis','Windows installer retry still builds the NSIS bundle');
+requireText(windowsBuild,'Retrying in $delay seconds','Windows installer retry logs the transient retry delay');
 
 await verifyPersistenceCompletes();
 console.log('Critical runtime verification passed: full contributed state persists, registration receipt state cannot leak across operations, compact-screen safeguards are enforced, certificates keep direct state ownership, reminder documents stay consolidated, preview cache versions remain synchronized, and browser/Windows use one deterministic post-license redesign runtime.');

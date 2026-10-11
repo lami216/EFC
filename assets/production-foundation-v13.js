@@ -48,6 +48,7 @@ const icon=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
 window.navItems=[
  ['register',icon('<circle cx="9" cy="8" r="3"/><path d="M3.8 19c.7-3.5 2.4-5.3 5.2-5.3 1.5 0 2.7.5 3.6 1.5M18 8v7M14.5 11.5h7"/>'),'تسجيل طالب'],
  ['specialties',icon('<rect x="3.5" y="4" width="7" height="7" rx="1.2"/><rect x="13.5" y="4" width="7" height="7" rx="1.2"/><rect x="3.5" y="14" width="7" height="6" rx="1.2"/><rect x="13.5" y="14" width="7" height="6" rx="1.2"/>'),'الدورات و المراكز'],
+ ['devices',icon('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 8h10M7 12h4"/>'),'الأجهزة'],
  ['period',icon('<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5M7.8 10.5h5.4M10.5 7.8v5.4"/>'),'آلية البحث'],
  ['students',icon('<circle cx="9" cy="8" r="3"/><path d="M3.5 19c.8-3.6 2.6-5.4 5.5-5.4 2.1 0 3.6.9 4.6 2.7M16.5 14.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm2.6 6.1 2 2"/>'),'البحث عن طالب'],
  ['finance',icon('<path d="M4 19V9M10 19V5M16 19v-7M22 19H2M3.5 7.5 9 3l5 5 6-5"/>'),'المالية'],

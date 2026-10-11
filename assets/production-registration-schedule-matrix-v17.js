@@ -191,14 +191,8 @@ function scheduleSnapshot(form,scheduleRoot){
     return{key:day.key,ar:day.ar,fr:day.fr,selected,time:selected?dayTimes[day.key]:''};
   });
   const selectedCourse={specialtyId:selectedId,specialtyName:String(selectedItem?.name||''),days};
-  return{
-    version:3,
-    specialtyId:selectedId,
-    specialtyName:String(selectedItem?.name||''),
-    dailyTimes:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,time:dayTimes[day.key]})),
-    days,
-    courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]
-  };
+  const snapshot={version:3,specialtyId:selectedId,specialtyName:String(selectedItem?.name||''),dailyTimes:DAYS.map(day=>({key:day.key,ar:day.ar,fr:day.fr,time:dayTimes[day.key]})),days,courses:selectedId&&days.some(day=>day.selected)?[selectedCourse]:[]};
+  return window.EFC_DEVICES_V57?.augmentScheduleSnapshot?.(snapshot,{form,scheduleRoot,student:currentEditSession()?.student||null})||snapshot;
 }
 
 function resetMatrix(scheduleRoot){
@@ -214,27 +208,16 @@ function fillMatrix(scheduleRoot,form,schedule){
   });
 }
 
-function existingScheduleMatches(schedule,snapshot){
-  return Boolean(
-    schedule&&snapshot&&
-    String(schedule.specialtyId||'')===String(snapshot.specialtyId||'')&&
-    Array.isArray(schedule.days)&&schedule.days.length===DAYS.length
-  );
-}
-
 function attachSubmitCapture(form,scheduleRoot){
   if(form.dataset.efcScheduleMatrixV17==='1'||currentEditSession())return;
   form.dataset.efcScheduleMatrixV17='1';
-  form.addEventListener('submit',()=>{
+  form.addEventListener('submit',event=>{
     const before=new Set(students.map(student=>String(student.id)));
-    const snapshot=scheduleSnapshot(form,scheduleRoot);
+    const snapshot=scheduleSnapshot(form,scheduleRoot),validation=window.EFC_DEVICES_V57?.validateRegistration?.({form,scheduleRoot,snapshot,studentId:''});
+    if(validation&&validation.ok===false){event.preventDefault();event.stopImmediatePropagation();alert(validation.message||'راجع تخصيص الأجهزة قبل حفظ التسجيل.');return;}
     queueMicrotask(()=>{
       const created=students.find(student=>!before.has(String(student.id)));
       if(!created)return;
-      if(!existingScheduleMatches(created.schedule,snapshot)){
-        created.schedule=snapshot;
-        try{D.saveStudents();}catch(error){console.error('EFC v17 schedule save failed.',error);}
-      }
       resetMatrix(scheduleRoot);
       renderSelectedCourseRow(form,scheduleRoot,{clearChecks:true});
     });
@@ -274,7 +257,8 @@ function installEditMode(form,scheduleRoot){
     const paymentAmount=editablePayment?Math.max(0,Number(data.get('paid')||0)):null,debtDate=String(data.get('debtDate')||'');
     if(payment&&paymentAmount<=0)return alert('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
     try{
-      D.updateStudentRegistration(active.student,{name:String(data.get('name')||''),phone:String(data.get('phone')||''),branch:String(data.get('branch')||''),specialty:String(data.get('specialty')||''),start:String(data.get('start')||''),fee,schedule:scheduleSnapshot(form,scheduleRoot),paymentIndex:active.paymentIndex,createRegistrationPayment:canCreatePayment,registrationReceiptNo:active.receipt,paymentAmount,paymentMethod:editablePayment?String(data.get('method')||''):undefined,paymentDate:editablePayment?String(data.get('paymentDate')||student.start||''):undefined,paymentDescription:editablePayment?String(data.get('paymentDescription')||''):undefined,debtDueDate:editablePayment?debtDate:undefined});
+      const nextSchedule=scheduleSnapshot(form,scheduleRoot),deviceValidation=window.EFC_DEVICES_V57?.validateRegistration?.({form,scheduleRoot,snapshot:nextSchedule,studentId:String(active.student.id||'')});if(deviceValidation&&deviceValidation.ok===false)throw new Error(deviceValidation.message||'راجع تخصيص الأجهزة قبل حفظ التعديل.');
+      D.updateStudentRegistration(active.student,{name:String(data.get('name')||''),phone:String(data.get('phone')||''),branch:String(data.get('branch')||''),specialty:String(data.get('specialty')||''),start:String(data.get('start')||''),fee,schedule:nextSchedule,paymentIndex:active.paymentIndex,createRegistrationPayment:canCreatePayment,registrationReceiptNo:active.receipt,paymentAmount,paymentMethod:editablePayment?String(data.get('method')||''):undefined,paymentDate:editablePayment?String(data.get('paymentDate')||student.start||''):undefined,paymentDescription:editablePayment?String(data.get('paymentDescription')||''):undefined,debtDueDate:editablePayment?debtDate:undefined});
     }catch(error){alert(String(error?.message||error));return;}
     restoreNormalRegistration();
   };
@@ -292,6 +276,7 @@ function enhanceRegister(){
   installBlankSelection(methodSelect,'اختر وسيلة الدفع',{preserveValue:editing});
   installMatrix(form,scheduleRoot);
   if(editing)installEditMode(form,scheduleRoot);
+  window.EFC_DEVICES_V57?.mountRegistration?.(form,scheduleRoot);
   const syncMethodRequired=()=>{if(methodSelect&&!methodSelect.disabled)methodSelect.required=Number(paidInput?.value||0)>0;};
   paidInput?.addEventListener('input',syncMethodRequired);
   form.addEventListener('reset',()=>queueMicrotask(()=>{
@@ -590,7 +575,7 @@ body.efc-registration-editing-v17 .registration-cancel-edit-v17{background:#eef3
 document.head.appendChild(style);
 
 window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
-  ready:true,
+  ready:true,captureSchedule:scheduleSnapshot,
   canonicalRegistrationRenderer:true,
   singleRegistrationRenderOwner:true,
   noRenderWrapperChain:true,
@@ -656,6 +641,7 @@ window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17=Object.freeze({
   editUsesHiddenDebtSpace:true,
   editRegisterFieldAligned:true,
   editKeepsRegistrationGeometry:true,
+  deviceAssignmentHook:true,deviceScheduleV4:true,deviceValidationBeforeSave:true,
   mainUntouched:true
 });
 })();

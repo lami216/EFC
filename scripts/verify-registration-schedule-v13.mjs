@@ -62,8 +62,8 @@ for(const [token,label] of [
   ["const CENTER_KEY='efc-branches-v13'",'persistent center storage key'],
   ['إضافة مركز','add center action'],
   ['الدورات و المراكز','courses and centers page name'],
-  ['state.branches=branches.map','centers included in persisted app state'],
-  ['if(Array.isArray(incoming?.branches))applyCenters(incoming.branches)','centers restored from backups'],
+  ['state.branches=normalizeCenters(branches)','centers included in persisted app state'],
+  ['if(Array.isArray(incoming?.branches))applyCenters(centersForRestore(incoming.branches))','centers restored from backups'],
   ['noSideSummary:true','redundant side summary removed'],
   ['ملاحظة: لا يسمح تأخر طالب عن 20 دقيقة.','20 minute lateness note'],
   ['ملاحظة 1: لا يمكن استرجاع المبلغ المدفوع للمركز في أي حال من الأحوال.','refund note']

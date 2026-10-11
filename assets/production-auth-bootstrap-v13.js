@@ -117,7 +117,7 @@ const RECOVERY_PREFIX='EFC-ADMIN-RECOVERY-2.';
 const RESET_PREFIX='EFC-ADMIN-RESET-2.';
 const RECOVERY_PUBLIC_SPKI_B64='MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2197SbaF4DP+rcw1WnBSN0zug5WtExTC1QsE3ciHSK7KkQ0RRpu4xxpeP7rBB2qU+dxWJ9LHXPvPyEZxknVdzH3Ctw3/Ya0UYCMuZo96z4OcIuFS6OwUC8erivt3eZ2eupUtmic3hpUoMbphIlA/xshs4alpuISGMZ/owrI8Bc3nKe1DGt1QgArlTpL7J8DhPrr92EgZLQkdERZ7Fga2x8/2LtgjBOJMem5sRWnKCZ8GK23G2s2AB414yXKD1W3NEw2S4AQfMNA9QDxjPN81QEhZPykcMaWar701Q3egnncyRkjHqVTJJ7Lj6fNZt6tCUiNsSld/VK/0iNevzj9IFwIDAQAB';
 const SESSION_KEY='efc-current-user-v13';
-const AUTH_SECTIONS=['register','specialties','period','students','certificates','finance','ledger','bank','settings'];
+const AUTH_SECTIONS=['register','specialties','devices','period','students','certificates','finance','ledger','bank','settings'];
 const invoke=window.__TAURI__?.core?.invoke;
 let securityState={users:[]},activeOverlay=null,loginPromise=null,resolveLogin=null;
 const loginFailures={count:0,blockedUntil:0};
@@ -157,11 +157,13 @@ function currentUser(){
 function canView(section){
   if(section==='home')return true;const user=currentUser();if(!user)return false;if(user.role==='admin')return true;
   if(section==='ledger')return user.permissions?.ledger?.view===true||user.permissions?.register?.view===true||user.permissions?.register?.edit===true;
+  if(section==='devices'){const own=user.permissions?.devices;if(own)return own.view===true||own.edit===true;return user.permissions?.register?.view===true||user.permissions?.register?.edit===true||user.permissions?.students?.view===true||user.permissions?.students?.edit===true;}
   return user.permissions?.[section]?.view===true;
 }
 function canEdit(section){
   if(section==='home')return false;const user=currentUser();if(!user)return false;if(user.role==='admin')return true;
   if(section==='ledger')return user.permissions?.ledger?.edit===true||user.permissions?.register?.edit===true;
+  if(section==='devices'){const own=user.permissions?.devices;if(own)return own.edit===true;return user.permissions?.register?.edit===true||user.permissions?.students?.edit===true;}
   return user.permissions?.[section]?.edit===true;
 }
 const bytesToB64Url=bytes=>{let binary='';for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');};
