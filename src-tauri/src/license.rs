@@ -19,6 +19,7 @@ use std::os::windows::process::CommandExt;
 const LICENSE_SCHEMA: &str = "efc-license";
 const LICENSE_VERSION: u8 = 1;
 const LICENSE_KEY_ID: &str = "efc-license-v3";
+const LICENSE_KEY_ID_V4: &str = "efc-license-v4";
 const LICENSE_ALGORITHM: &str = "ECDSA_P256_SHA256";
 const LICENSE_FILE_NAME: &str = "license.efc-license";
 const STATE_FILE_NAME: &str = "state-v1.json";
@@ -28,6 +29,16 @@ const REGISTRY_VALUE: &str = "State";
 const ROLLBACK_TOLERANCE_MS: u64 = 120_000;
 const MAX_LICENSE_BYTES: usize = 64 * 1024;
 const PUBLIC_KEY_SEC1_B64: &str = "BDDLo6mYqhmQbaUyS_xmMkebb3Nz28ZmWU3bF6alhqeXt7mxLrk_pxDc4vaz9RXV5mICatMtADIQvkF4EdLM8LY";
+const PUBLIC_KEY_SEC1_B64_V4: &str = "BICIVPhMUah31PZbwJpE3_mkJ4DYbp6cvDeZK_10DmB0PB2t3gasCf55xgtvhkFOc5ic8wpJkvgXteXXtEXgmQE";
+
+// Continue accepting already-issued v3 licenses while trusting the new v4 issuer.
+fn public_key_for(key_id: &str) -> Option<&'static str> {
+    match key_id {
+        LICENSE_KEY_ID => Some(PUBLIC_KEY_SEC1_B64),
+        LICENSE_KEY_ID_V4 => Some(PUBLIC_KEY_SEC1_B64_V4),
+        _ => None,
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -243,14 +254,15 @@ fn parse_and_verify(content: &[u8], current_device: &str) -> Result<LicenseDocum
         .map_err(|_| "ملف التفعيل غير مدعوم.".to_string())?;
     if doc.schema != LICENSE_SCHEMA
         || doc.version != LICENSE_VERSION
-        || doc.key_id != LICENSE_KEY_ID
         || doc.algorithm != LICENSE_ALGORITHM
     {
         return Err("ملف التفعيل غير مدعوم.".to_string());
     }
+    let public_key = public_key_for(&doc.key_id)
+        .ok_or_else(|| "ملف التفعيل غير مدعوم.".to_string())?;
     validate_payload(&doc.payload)?;
     let public_bytes = URL_SAFE_NO_PAD
-        .decode(PUBLIC_KEY_SEC1_B64)
+        .decode(public_key)
         .map_err(|_| "تعذر تحميل مفتاح التحقق.".to_string())?;
     let verifying_key = VerifyingKey::from_sec1_bytes(&public_bytes)
         .map_err(|_| "تعذر تحميل مفتاح التحقق.".to_string())?;
@@ -671,5 +683,19 @@ mod tests {
             .unwrap()
             .replace("Test Center", "Other Center");
         assert!(parse_and_verify(changed.as_bytes(), device).is_err());
+    }
+
+    #[test]
+    fn embedded_owner_v4_signature_verifies_and_cannot_be_reused_for_other_devices() {
+        assert_eq!(public_key_for(LICENSE_KEY_ID), Some(PUBLIC_KEY_SEC1_B64));
+        assert_eq!(public_key_for(LICENSE_KEY_ID_V4), Some(PUBLIC_KEY_SEC1_B64_V4));
+        assert!(public_key_for("efc-license-v999").is_none());
+        // Public signed example; never commit the private signing key.
+        let fixture = r#"{"schema":"efc-license","version":1,"keyId":"efc-license-v4","algorithm":"ECDSA_P256_SHA256","payload":{"licenseId":"EFC-SAMPLE-V4-TEST-ONLY","customerName":"Test Customer","centerName":"Test Centre","deviceId":"EFC-0001-0002-0003-0004-0005","edition":"desktop","type":"perpetual","durationSeconds":null,"activationMode":"single-install","notes":"test fixture only"},"signature":"1AzUa8d5Z_hzv2AfkomPRupr1lSsWvlWQd6PExGt4V83b1708QH-fjRHsG1b9PqFu2O-kMWKN6DYU4d1tCl1eQ"}"#;
+        let device = "EFC-0001-0002-0003-0004-0005";
+        assert!(parse_and_verify(fixture.as_bytes(), device).is_ok());
+        assert!(parse_and_verify(fixture.as_bytes(), "EFC-9999-9999-9999-9999-9999").is_err());
+        assert!(parse_and_verify(fixture.replace("Test Centre", "Tampered Centre").as_bytes(), device).is_err());
+        assert!(parse_and_verify(fixture.replace("efc-license-v4", "efc-license-v3").as_bytes(), device).is_err());
     }
 }
