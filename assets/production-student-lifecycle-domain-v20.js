@@ -175,36 +175,102 @@ function updateStudentRegistration(student,changes={}){
 }
 
 
+
+function cycleRemainingDebt(cycle){
+  if(!cycle)return 0;
+  return Math.max(0,Number(B.remainingAmount(cycle)||0)-Math.max(0,Number(cycle.debtWaiver?.amount||0)));
+}
+function historicalDebtRemaining(student){
+  return (Array.isArray(student?.enrollmentHistory)?student.enrollmentHistory:[])
+    .reduce((sum,cycle)=>sum+cycleRemainingDebt(cycle),0);
+}
 function mayReactivateStudent(student){
   const finished=!B.isInactive(student)&&String(student?.end||'')&&String(student.end)<B.today();
   return Boolean(student&&(B.isInactive(student)||finished));
 }
-function reactivateStudent(student,newStart){
+function validReactivationStart(student,value){
+  const date=String(value||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(new Date(date+'T12:00:00').getTime())
+     ||new Date(date+'T12:00:00').toISOString().slice(0,10)!==date)throw new Error('أدخل تاريخ بداية صحيحًا.');
+  const lastStart=String(student?.start||'');
+  if(date<=lastStart)throw new Error('تاريخ البداية الجديدة يجب أن يكون بعد بداية الفترة السابقة.');
+  const closedAt=String(student?.stoppedAt||(student?.active===false?'':student?.end)||'');
+  if(closedAt&&date<closedAt)throw new Error('تاريخ البداية الجديدة يسبق نهاية/إيقاف الفترة السابقة.');
+  return date;
+}
+function recordDebtPayment(cycle,{amount,method,date,description='سداد دين الفترة السابقة',persist=false}={}){
+  if(!cycle||!Array.isArray(cycle.payments))throw new Error('فترة الدراسة غير موجودة.');
+  if(cycle.debtWaiver?.amount)throw new Error('هذا الدين أُسقط سابقًا ولا يمكن تسجيل دفعة عليه.');
+  const owed=cycleRemainingDebt(cycle),paymentAmount=Number(amount||0);
+  if(!Number.isFinite(paymentAmount)||paymentAmount<=0||paymentAmount>owed+0.000001)
+    throw new Error('مبلغ السداد أكبر من الدين المستحق أو غير صالح.');
+  const methodName=String(method||'').trim(),payDate=String(date||B.today()).trim();
+  if(!methodName)throw new Error('اختر وسيلة دفع حقيقية.');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(payDate)||payDate>B.today())throw new Error('اختر تاريخ دفع صحيحًا غير مستقبلي.');
+  window.EFC_FISCAL_V14?.assertDateOpen?.(payDate,'تاريخ سداد الدين السابق');
+  let left=paymentAmount;const indices=[];
+  const stamp=index=>{
+    const payment=cycle.payments[index];
+    payment[12]={v:1,branch:String(cycle.branch||''),specialty:String(cycle.specialty||''),reg:Number(cycle.reg)||null,capturedAt:now()};
+    indices.push(index);
+  };
+  if(B.isDynamicMonthly(cycle)){
+    const months=B.installmentPlan(cycle).filter(month=>Number(month.remaining||0)>0);
+    for(const month of months){
+      if(left<=0.000001)break;
+      const used=Math.min(left,Number(month.remaining||0));
+      const index=B.appendPayment(cycle,{amount:used,method:methodName,date:payDate,description:description+' — الشهر '+month.number,targetMonth:month.number,persist:false});
+      stamp(index);left-=used;
+    }
+  }else{
+    const index=B.appendPayment(cycle,{amount:paymentAmount,method:methodName,date:payDate,description,persist:false});
+    stamp(index);left=0;
+  }
+  if(left>0.000001)throw new Error('تعذر توزيع مبلغ السداد على مستحقات الفترة السابقة.');
+  cycle.debtActivityAt=now();
+  B.reconcileStudent(cycle);
+  if(persist)B.saveStudents();
+  return indices;
+}
+function payHistoricalDebt(student,cycleId,payment){
+  if(!student||!students.some(item=>String(item.id)===String(student.id)))throw new Error('ملف الطالب غير موجود.');
+  const index=(student.enrollmentHistory||[]).findIndex(cycle=>String(cycle.archivedCycleId||'')===String(cycleId||''));
+  if(index<0)throw new Error('تعذر العثور على فترة الدين السابقة.');
+  const before=clone(student),cycle=student.enrollmentHistory[index];
+  try{
+    const indices=recordDebtPayment(cycle,{...payment,persist:false});
+    student.updatedAt=now();B.saveStudents();return indices;
+  }catch(error){
+    Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,before);B.saveStudents();
+    throw error;
+  }
+}
+function reactivateStudent(student,newStart,{debtAction='keep',paymentMethod='',paymentDate='',waiverReason=''}={}){
   if(!student||!students.some(item=>String(item.id)===String(student.id)))throw new Error('ملف الطالب غير موجود.');
   if(!mayReactivateStudent(student))throw new Error('يمكن بدء فترة جديدة للطالب الموقوف أو الذي انتهت دورته فقط.');
-  const date=String(newStart||'').trim(),lastStart=String(student.start||'');
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime()))
-    throw new Error('أدخل تاريخ بداية صحيحًا.');
-  if(date<=lastStart)throw new Error('تاريخ البداية الجديدة يجب أن يكون بعد بداية الفترة السابقة.');
-  const stopped=String(student.stoppedAt||student.end||'');
-  if(stopped&&date<stopped)throw new Error('تاريخ البداية الجديدة يسبق نهاية/إيقاف الفترة السابقة.');
-  if(date>B.today())throw new Error('لا يمكن بدء فترة جديدة بتاريخ مستقبلي.');
-  // Old unpaid fees remain attached to their original enrollment; never silently
-  // roll them into or hide them inside a new period.
-  const oldDebt=B.remainingAmount(student);
-  if(oldDebt>0)throw new Error('يوجد متبقٍ مالي للفترة السابقة. سوِّ الرصيد القديم أولاً قبل إعادة التنشيط: '+B.cash(oldDebt));
-  const archived=clone(student);
-  delete archived.enrollmentHistory;
-  archived.archivedCycleId='efc-cycle-'+now()+'-'+Math.random().toString(36).slice(2,10);
-  archived.archivedAt=now();
+  const date=validReactivationStart(student,newStart);
+  const action=String(debtAction||'keep');
+  if(!['keep','waive','pay'].includes(action))throw new Error('اختر طريقة التعامل مع دين الفترة السابقة.');
+  const oldDebt=cycleRemainingDebt(student);
+  if(oldDebt>0&&action==='waive'&&!String(waiverReason||'').trim())throw new Error('اكتب سبب إسقاط الدين لأغراض المراجعة.');
+  const archived=clone(student);delete archived.enrollmentHistory;
   const previousHistory=Array.isArray(student.enrollmentHistory)?student.enrollmentHistory.map(clone):[];
   const previous=clone(student);
   try{
+    if(oldDebt>0&&action==='pay'){
+      recordDebtPayment(archived,{amount:oldDebt,method:paymentMethod,date:paymentDate||B.today(),description:'سداد دين الفترة السابقة قبل إعادة التنشيط'});
+    }
+    if(oldDebt>0&&action==='waive'){
+      archived.debtWaiver={amount:oldDebt,reason:String(waiverReason).trim(),createdAt:now(),date:B.today(),
+        actor:String(window.EFC_AUTH_V13?.currentUser?.()?.username||'الإدارة')};
+    }
+    archived.archivedCycleId='efc-cycle-'+now()+'-'+Math.random().toString(36).slice(2,10);
+    archived.archivedAt=now();archived.debtActivityAt=now();
     student.enrollmentHistory=[...previousHistory,archived];
     student.payments=[];
     student.paid=0;
     student.active=true;
-    student.status='active';
+    student.status=date>B.today()?'scheduled':'active';
     student.start=date;
     student.stoppedAt='';
     student.stopReason='';
@@ -224,8 +290,7 @@ function reactivateStudent(student,newStart){
     B.saveStudents();
     return student;
   }catch(error){
-    Object.keys(student).forEach(key=>delete student[key]);
-    Object.assign(student,previous);
+    Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,previous);
     try{B.saveStudents();}catch{}
     throw error;
   }
@@ -260,8 +325,17 @@ window.EFC_RECEIPT_SEQUENCES_V10=Object.freeze({...sequenceBase,
   sealRegistrationNumber,
   registrationPolicy
 });
-const next=Object.freeze({...B,updateStudentRegistration,reactivateStudent,mayReactivateStudent,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
+const next=Object.freeze({...B,updateStudentRegistration,reactivateStudent,mayReactivateStudent,cycleRemainingDebt,historicalDebtRemaining,payHistoricalDebt,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
+const previousCourseStatus=window.courseStatus,previousFinancialStatus=window.financialStatus;
+window.courseStatus=function(student){
+  if(!B.isInactive(student)&&String(student?.start||'')>B.today())return 'لم تبدأ بعد';
+  return previousCourseStatus(student);
+};
+window.financialStatus=function(student){
+  if(historicalDebtRemaining(student)>0)return 'دين';
+  return previousFinancialStatus(student);
+};
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
-window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20=Object.freeze({ready:true,version:VERSION,storageKey:STORAGE_KEY,registrationNumberPolicy:'successor-sealed-latest-reusable',latestNumberReusableUntilSuccessor:true,olderNumbersStayReserved:true,automaticNumberOnScopeChange:true,monthlyCoverageEnd,previewRegistrationNumber,registrationNumberWillBeReusable,markRegistrationReleased,sealRegistrationNumber,deleteStudentPermanently,reactivateStudent,mayReactivateStudent,snapshot:()=>clone(state)});
+window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20=Object.freeze({ready:true,version:VERSION,storageKey:STORAGE_KEY,registrationNumberPolicy:'successor-sealed-latest-reusable',latestNumberReusableUntilSuccessor:true,olderNumbersStayReserved:true,automaticNumberOnScopeChange:true,monthlyCoverageEnd,previewRegistrationNumber,registrationNumberWillBeReusable,markRegistrationReleased,sealRegistrationNumber,deleteStudentPermanently,reactivateStudent,mayReactivateStudent,cycleRemainingDebt,historicalDebtRemaining,payHistoricalDebt,snapshot:()=>clone(state)});
 })();
