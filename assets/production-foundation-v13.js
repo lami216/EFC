@@ -69,7 +69,17 @@ window.badge=text=>{let cls='neutral';if(['مدفوع كامل','مدفوع','ن
 window.opts=(items,valueFn=item=>item.id,labelFn=item=>item.name,includeAll='')=>`${includeAll?`<option value="">${esc(includeAll)}</option>`:''}${items.map(item=>`<option value="${esc(valueFn(item))}">${esc(labelFn(item))}</option>`).join('')}`;
 window.pageTitle=(kicker,title,desc,action='')=>`<div class="page-title"><div><p>${esc(kicker)}</p><h1>${esc(title)}</h1><span>${esc(desc)}</span></div>${action}</div>`;
 window.table=(headers,rows)=>`<div class="table-wrap"><table><thead><tr>${headers.map(header=>`<th>${esc(header)}</th>`).join('')}</tr></thead><tbody>${rows||`<tr><td colspan="${headers.length}"><div class="empty">لا توجد نتائج</div></td></tr>`}</tbody></table></div>`;
-window.allPayments=()=>students.flatMap((student,studentIndex)=>(student.payments||[]).map((payment,paymentIndex)=>({student,date:String(payment?.[0]||student.start||''),amount:Number(payment?.[1]||0),method:String(payment?.[2]||''),time:String(payment?.[3]||'00:00'),order:Number(payment?.[4]||0)||studentIndex/1000+paymentIndex/100000,description:String(payment?.[5]||''),transactionCode:String(payment?.[6]||''),paymentIndex,receipt:String(payment?.[8]||'')}))).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.order)-Number(a.order)||b.time.localeCompare(a.time));
+// Historical enrollment cycles share one student identity but keep their own immutable payments.
+window.allPayments=()=>students.flatMap((student,studentIndex)=>{
+  const cycles=[...(Array.isArray(student.enrollmentHistory)?student.enrollmentHistory:[]).map(cycle=>({source:{...cycle,enrollmentHistory:undefined},archivedEnrollment:true})),{source:student,archivedEnrollment:false}];
+  return cycles.flatMap(({source,archivedEnrollment})=>(source.payments||[]).map((payment,paymentIndex)=>({
+    student:source,date:String(payment?.[0]||source.start||''),amount:Number(payment?.[1]||0),
+    method:String(payment?.[2]||''),time:String(payment?.[3]||'00:00'),
+    order:Number(payment?.[4]||0)||studentIndex/1000+paymentIndex/100000,
+    description:String(payment?.[5]||''),transactionCode:String(payment?.[6]||''),
+    paymentIndex,receipt:String(payment?.[8]||''),archivedEnrollment
+  })));
+}).sort((a,b)=>b.date.localeCompare(a.date)||Number(b.order)-Number(a.order)||b.time.localeCompare(a.time));
 
 window.EFC_SYNC_BRAND_V13=()=>{document.querySelectorAll('.shell-v13 .brand b').forEach(node=>{if(node.innerHTML!==BRAND_TITLE_HTML)node.innerHTML=BRAND_TITLE_HTML;});};
 window.shell=content=>{currentPage=location.hash.replace('#','')||currentPage||'register';app.innerHTML=`<div class="shell shell-v13"><aside><div class="brand"><div class="logo"><img src="./efc-logo.svg" alt="EFC"></div><div><b>${BRAND_TITLE_HTML}</b><small>نظام إدارة الطلاب والمالية</small></div></div><nav>${navItems.map(([id,ic,name])=>`<a href="#${id}" class="${currentPage===id?'active':''}"><i>${ic}</i><span>${esc(name)}</span></a>`).join('')}</nav><div class="side-foot"><small class="production-side-note">البيانات محفوظة محليًا على هذا الجهاز</small></div></aside><main><section class="content">${content}</section><div class="efc-taskbar-safe-space-v30" aria-hidden="true"></div></main></div>`;};
