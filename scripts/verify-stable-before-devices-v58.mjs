@@ -132,7 +132,7 @@ assert.equal(settled.debtor.enrollmentHistory[0].payments.length,2,'Actual settl
 assert.equal(settled.debtor.enrollmentHistory[0].payments[1][1],300);
 assert.equal(settled.debtor.payments.length,0);
 const lifecycleUi=read('assets/production-student-lifecycle-ui-v20.js');
-assert.doesNotMatch(lifecycleUi,/max="\$\{D\.today\(\)\}" required><\/label>/,'Study start date must have no today maximum');
+assert.doesNotMatch(lifecycleUi,/name="newStart"[^>]*max=/,'Future study start date must not have a maximum');
 assert.match(lifecycleUi,/min="\$\{minDate\}"/);
 assert.match(lifecycleUi,/name="debtAction"/);
 assert.match(lifecycleUi,/name="paymentDate"/);
