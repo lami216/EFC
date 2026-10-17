@@ -177,7 +177,9 @@ function incomeHistoryReceiptCode(row){
 function incomeHistoryReceiptModel(row){
   if(!row||row.sourceType==='certificate')return null;
   const actual=row.archivedEnrollment?row.student:((typeof students!=='undefined'?students:[]).find(student=>String(student?.id||'')===String(row?.student?.id||''))||row.student);
-  return typeof receiptModelV4==='function'?receiptModelV4(actual,Number(row.paymentIndex),false):null;
+  if(typeof receiptModelV4!=='function')return null;
+  const model=receiptModelV4(actual,Number(row.paymentIndex),false);
+  return row.archivedEnrollment&&model?{...model,editableReceipt:false,sourceEquivalent:false,receiptSource:'archived-enrollment'}:model;
 }
 function openIncomeHistoryReceipt(row){
   if(!row)return;
