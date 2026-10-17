@@ -183,7 +183,7 @@ function reactivateStudent(student,newStart){
   if(!student||!students.some(item=>String(item.id)===String(student.id)))throw new Error('ملف الطالب غير موجود.');
   if(!mayReactivateStudent(student))throw new Error('يمكن بدء فترة جديدة للطالب الموقوف أو الذي انتهت دورته فقط.');
   const date=String(newStart||'').trim(),lastStart=String(student.start||'');
-  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime()))
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime()))
     throw new Error('أدخل تاريخ بداية صحيحًا.');
   if(date<=lastStart)throw new Error('تاريخ البداية الجديدة يجب أن يكون بعد بداية الفترة السابقة.');
   const stopped=String(student.stoppedAt||student.end||'');
