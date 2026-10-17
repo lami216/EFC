@@ -38,7 +38,7 @@ function mergeEnrollmentHistory(a,b){
     if(!cycle||typeof cycle!=='object')continue;
     const key=String(cycle.archivedCycleId||cycle.recordCode+'|'+cycle.start+'|'+cycle.stoppedAt);
     const old=cycles.get(key);
-    if(!old||Number(cycle.archivedAt||0)>=Number(old.archivedAt||0))cycles.set(key,safeClone(cycle));
+    if(!old||Math.max(Number(cycle.debtActivityAt||0),Number(cycle.archivedAt||0))>Math.max(Number(old.debtActivityAt||0),Number(old.archivedAt||0)))cycles.set(key,safeClone(cycle));
   }
   return [...cycles.values()].sort((x,y)=>String(x.start||'').localeCompare(String(y.start||'')));
 }
