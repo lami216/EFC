@@ -33,6 +33,10 @@
     (Array.isArray(items)?items:[]).forEach(student=>{
       const registration=int(student?.registrationReceiptNo);if(registration)numbers.push(registration);
       (Array.isArray(student?.payments)?student.payments:[]).forEach(payment=>{const value=int(payment?.[8]);if(value)numbers.push(value);});
+      (Array.isArray(student?.enrollmentHistory)?student.enrollmentHistory:[]).forEach(cycle=>{
+        const legacyRegistration=int(cycle?.registrationReceiptNo);if(legacyRegistration)numbers.push(legacyRegistration);
+        (Array.isArray(cycle?.payments)?cycle.payments:[]).forEach(payment=>{const value=int(payment?.[8]);if(value)numbers.push(value);});
+      });
     });
     return numbers;
   }
@@ -64,9 +68,15 @@
   function generalEvents(){
     const events=[];
     students.forEach((student,studentIndex)=>{
-      const payments=Array.isArray(student.payments)?student.payments:[];
-      if(!payments.length){events.push({kind:'registration',student,index:null,date:String(student.start||''),time:'00:00',stamp:Number(student.createdAt||0),tie:`${String(student.reg||0).padStart(8,'0')}:${studentIndex}:${student.id||''}`});return;}
-      payments.forEach((payment,index)=>events.push({kind:'payment',student,payment,index,date:String(payment?.[0]||student.start||''),time:String(payment?.[3]||'00:00'),stamp:Number(payment?.[4]||0),tie:`${String(student.reg||0).padStart(8,'0')}:${studentIndex}:${String(index).padStart(6,'0')}:${student.id||''}`}));
+      const cycles=[...(Array.isArray(student.enrollmentHistory)?student.enrollmentHistory:[]),student];
+      cycles.forEach((cycle,cycleIndex)=>{
+        const payments=Array.isArray(cycle.payments)?cycle.payments:[];
+        if(!payments.length){
+          events.push({kind:'registration',student:cycle,index:null,date:String(cycle.start||''),time:'00:00',stamp:Number(cycle.createdAt||0),tie:`${String(cycle.reg||0).padStart(8,'0')}:${studentIndex}:${cycleIndex}:${cycle.id||''}`});
+          return;
+        }
+        payments.forEach((payment,index)=>events.push({kind:'payment',student:cycle,payment,index,date:String(payment?.[0]||cycle.start||''),time:String(payment?.[3]||'00:00'),stamp:Number(payment?.[4]||0),tie:`${String(cycle.reg||0).padStart(8,'0')}:${studentIndex}:${cycleIndex}:${String(index).padStart(6,'0')}:${cycle.id||''}`}));
+      });
     });
     return events.sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time)||a.stamp-b.stamp||a.tie.localeCompare(b.tie));
   }
