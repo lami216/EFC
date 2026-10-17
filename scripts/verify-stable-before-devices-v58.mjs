@@ -24,27 +24,25 @@ assert.ok(!fs.existsSync('assets/production-devices-v57.js'),'Stable branch must
 assert.ok(!read('src-tauri/src/license.rs').includes('LICENSE_KEY_ID_V4'),'Stable branch must preserve v3-only activation');
 
 const part=(source,start,end)=>{const a=source.indexOf(start),b=source.indexOf(end,a+start.length);assert.ok(a>=0&&b>a,'Cannot extract '+start);return source.slice(a,b);};
-const courses=[{id:'a'},{id:'b'},{id:'c',expenseEnabled:true},{id:'d',expenseEnabled:false}];
-const expenseRows=[{id:'expense-old',specialty:'a',amount:200}];
-let saves=0;
-const courseFns=vm.runInNewContext(part(domain,'function hasCourseExpenses(courseId){','function targetRemaining(')+';({migrateCourseExpenseFlags,hasCourseExpenses,courseExpensesEnabled})',{
-  specialties:courses,expenses:expenseRows,GENERAL_EXPENSE:'__expense_general__',
-  saveSpecs:()=>{saves++;},persistExtrasSoon:()=>{}
+// The temporary expense opt-in feature was withdrawn: all courses stay eligible.
+assert.doesNotMatch(domain,/migrateCourseExpenseFlags|courseExpensesEnabled|hasCourseExpenses/);
+assert.doesNotMatch(courseUi,/name="expenseEnabled"/);
+const courseCards=read('assets/production-courses-centers-redesign-v23.js');
+assert.doesNotMatch(courseCards,/efc-course-expense-badge-v58|expenseEnabled/);
+const expenseEditor=part(finance,'function openExpenseEditor(','\\nfunction renderLedgerBaseV13(');
+assert.match(expenseEditor,/specialties\\.map\\(item=>/);
+assert.doesNotMatch(expenseEditor,/courseExpensesEnabled|غير مفعلة للمصاريف/);
+const expenseOps=vm.runInNewContext(part(domain,'function saveExpenses(next){','function saveMethodRecords(')+';({saveExpenses,getExpenses:()=>expenses})',{
+  expenses:[],normalizeExpenses:()=>{},repairExpenseReceiptSequence:()=>{},
+  markExtrasChanged:()=>{},persistExtrasSoon:()=>{}
 });
-assert.equal(courseFns.migrateCourseExpenseFlags(),true);
-assert.deepEqual(courses.map(c=>c.expenseEnabled),[true,false,true,false]);
-assert.equal(courseFns.courseExpensesEnabled('b'),false);
-assert.equal(courseFns.courseExpensesEnabled('__expense_general__'),true);
-assert.equal(saves,1);
-assert.equal(courseFns.migrateCourseExpenseFlags(),false);
-assert.equal(saves,1);
-courses[0].expenseEnabled=false;
-assert.equal(courseFns.migrateCourseExpenseFlags(),true,'Existing expenses cannot be orphaned');
-assert.equal(courses[0].expenseEnabled,true);
-assert.match(courseUi,/name="expenseEnabled"/);
-assert.match(courseUi,/hasCourseExpenses/);
-assert.match(finance,/specialties\.filter\(item=>D\.courseExpensesEnabled/);
-assert.match(finance,/row\.archivedEnrollment/);
+expenseOps.saveExpenses([
+  {id:'one',specialty:'normal-french',amount:300},
+  {id:'two',specialty:'quick-french',amount:100},
+  {id:'general',specialty:'__expense_general__',amount:50}
+]);
+assert.equal(expenseOps.getExpenses().length,3,'Expense entry must accept every course and general expenses');
+assert.match(finance,/row\\.archivedEnrollment/);
 
 const addDays=(date,number)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+number);return d.toISOString().slice(0,10);};
 const student={id:'student-1',recordCode:'reg-1',reg:7,name:'Student',branch:'main',specialty:'a',
@@ -95,5 +93,21 @@ assert.match(receipts,/enrollmentHistory/);
 assert.match(studentsDomain,/cycles\.flatMap\(cycle/);
 assert.match(bank,/وصل حساب البنك لمؤسسة EFC/);
 assert.match(bank,/نوع الحركة:/);
+const bankReceipt=vm.runInNewContext(part(bank,'function receiptBody(entry){','function receiptDocument(')+';receiptBody',{
+  receiptHeader:()=>'',cash:value=>String(value),showDate:value=>String(value),esc:value=>String(value)
+});
+const bankCss=vm.runInNewContext(part(bank,'function receiptCss(){','function receiptHeader(')+';receiptCss',{});
+const sample={date:'2026-10-17',time:'12:00',amount:1500,statement:'test transaction'};
+const incoming=bankReceipt({...sample,type:'in'});
+const outgoing=bankReceipt({...sample,type:'out'});
+assert.match(incoming,/bank-amount-v22 in/);
+assert.match(incoming,/bank-operation-v58 in/);
+assert.match(incoming,/نوع الحركة: <b>دخل<\\/b>/);
+assert.match(outgoing,/bank-amount-v22 out/);
+assert.match(outgoing,/bank-operation-v58 out/);
+assert.match(outgoing,/صرف \\/ سحب/);
+assert.match(bankCss,/\\.bank-amount-v22\\.in \\.bank-track-v22 b\\{color:#087344\\}/);
+assert.match(bankCss,/\\.bank-amount-v22\\.out \\.bank-track-v22 b\\{color:#b4232c\\}/);
+assert.match(bank,/stage\\.innerHTML=`<style>\\$\\{receiptCss\\(\\)\\}<\\/style>/);
 
-console.log('Stable pre-devices v58: expense migration, financial history, reactivation, receipt numbers, and bank title verified.');
+console.log('Stable EFC v58: unrestricted course expenses, enrollment history/reactivation and color-coded bank receipts verified.');
