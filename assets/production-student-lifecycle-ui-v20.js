@@ -68,7 +68,7 @@ function addEnrollmentHistory(modal,student){
     (old.payments||[]).forEach((payment,index)=>{
       const button=document.createElement('button');button.type='button';button.className='mini';
       button.textContent='روسي '+String(payment?.[8]||index+1)+' ('+D.showDate(payment?.[0])+')';
-      button.onclick=()=>{const archived={...old,enrollmentHistory:[]};const model=window.receiptModelV4?.(archived,index,false);if(model)window.receiptWindowV4?.(model);};
+      button.onclick=()=>{const archived={...old,enrollmentHistory:[]};const model=window.receiptModelV4?.(archived,index,false);if(model)window.receiptWindowV4?.({...model,editableReceipt:false,sourceEquivalent:false,receiptSource:'archived-enrollment'});};
       payments.appendChild(button);
     });
     card.appendChild(payments);panel.appendChild(card);
