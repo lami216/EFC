@@ -102,7 +102,7 @@ const oldDebtStudent=()=>({
 });
 function debtorTest(action,date='2026-10-20',additional={}){
  const debtor=oldDebtStudent(),sampleB={...B};
- const scoped=vm.runInNewContext(part(studentsDomain,'function cycleRemainingDebt(cycle){','\\nstate=readLocal();')
+ const scoped=vm.runInNewContext(part(studentsDomain,'function cycleRemainingDebt(cycle){','\nstate=readLocal();')
    +';({reactivateStudent,cycleRemainingDebt,historicalDebtRemaining,payHistoricalDebt})',{
    B:sampleB,students:[debtor],clone:value=>JSON.parse(JSON.stringify(value)),now:()=>20261017001,
    spec:()=>({durationValue:35,durationUnit:'day'}),window:{addDuration:date=>date},Date,Math
@@ -132,13 +132,13 @@ assert.equal(settled.debtor.enrollmentHistory[0].payments.length,2,'Actual settl
 assert.equal(settled.debtor.enrollmentHistory[0].payments[1][1],300);
 assert.equal(settled.debtor.payments.length,0);
 const lifecycleUi=read('assets/production-student-lifecycle-ui-v20.js');
-assert.doesNotMatch(lifecycleUi,/max="\\$\\{D\\.today\\(\\)\\}" required><\\/label>/,'Study start date must have no today maximum');
-assert.match(lifecycleUi,/min="\\$\\{minDate\\}"/);
+assert.doesNotMatch(lifecycleUi,/max="\$\{D\.today\(\)\}" required><\/label>/,'Study start date must have no today maximum');
+assert.match(lifecycleUi,/min="\$\{minDate\}"/);
 assert.match(lifecycleUi,/name="debtAction"/);
 assert.match(lifecycleUi,/name="paymentDate"/);
 assert.match(lifecycleUi,/name="waiverReason"/);
 assert.match(lifecycleUi,/openPastDebtPayment/);
-assert.match(finance,/D\\.cycleRemainingDebt/);
+assert.match(finance,/D\.cycleRemainingDebt/);
 assert.match(read('assets/production-fiscal-year-v14.js'),/historicalDebtRemaining/);
 
 assert.match(loader,/archivedPaymentCodes/);
