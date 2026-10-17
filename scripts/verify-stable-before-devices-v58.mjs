@@ -96,7 +96,7 @@ assert.match(bank,/نوع الحركة:/);
 const bankReceipt=vm.runInNewContext(part(bank,'function receiptBody(entry){','function receiptDocument(')+';receiptBody',{
   receiptHeader:()=>'',cash:value=>String(value),showDate:value=>String(value),esc:value=>String(value)
 });
-const bankCss=vm.runInNewContext(part(bank,'function receiptCss(){','function receiptHeader(')+';receiptCss',{});
+const bankCss=vm.runInNewContext(part(bank,'function receiptCss(){','function receiptHeader(')+';receiptCss()',{});
 const sample={date:'2026-10-17',time:'12:00',amount:1500,statement:'test transaction'};
 const incoming=bankReceipt({...sample,type:'in'});
 const outgoing=bankReceipt({...sample,type:'out'});
