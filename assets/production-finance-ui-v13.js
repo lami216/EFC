@@ -176,7 +176,7 @@ function incomeHistoryReceiptCode(row){
 }
 function incomeHistoryReceiptModel(row){
   if(!row||row.sourceType==='certificate')return null;
-  const actual=(typeof students!=='undefined'?students:[]).find(student=>String(student?.id||'')===String(row?.student?.id||''))||row.student;
+  const actual=row.archivedEnrollment?row.student:((typeof students!=='undefined'?students:[]).find(student=>String(student?.id||'')===String(row?.student?.id||''))||row.student);
   return typeof receiptModelV4==='function'?receiptModelV4(actual,Number(row.paymentIndex),false):null;
 }
 function openIncomeHistoryReceipt(row){
@@ -187,10 +187,12 @@ function openIncomeHistoryReceipt(row){
   const model=incomeHistoryReceiptModel(row);if(model)window.receiptWindowV4?.(model);
 }
 function editIncomeHistoryReceipt(row){
+  if(row?.archivedEnrollment)return false; // sealed earlier enrollment: read-only historical receipt
   const model=incomeHistoryReceiptModel(row);if(!model)return false;
   return Boolean(window.EFC_EDIT_RECEIPT?.(model));
 }
 async function deleteIncomeHistoryReceipt(row){
+  if(row?.archivedEnrollment)throw new Error('روسي الفترة السابقة محفوظ للأرشفة ولا يحذف من الفترة الحالية.');
   const model=incomeHistoryReceiptModel(row),remove=window.EFC_ACCOUNTING_INTEGRITY_V21?.deleteStudentPaymentSource;
   if(!model||typeof remove!=='function')return false;
   try{const deleted=await remove(model);if(deleted)renderIncomeHistory();return Boolean(deleted);}
@@ -229,7 +231,7 @@ function renderIncomeHistory(){
     const branchLabel=branch?branchName(branch):'كل الفروع',specialtyLabel=specialty?(spec(specialty)?.name||specialty):'كل الدورات';
     document.getElementById('incomeHistoryMessageV13').textContent=`${visibleRows.length} عملية · ${r.label} · ${branchLabel} · ${specialtyLabel}`;const filteredTotal=visibleRows.reduce((sum,row)=>sum+Number(row.amount||0),0),title=document.getElementById('incomeHistoryPeriodTitleV54'),total=document.getElementById('incomeHistoryTotalV53'),context=document.getElementById('incomeHistoryTotalContextV54'),periodTitle=state.mode==='daily'?'دخل اليوم':state.mode==='weekly'?'دخل الفترة':state.mode==='monthly'?'دخل شهري':'دخل سنوي',periodDescriptor=state.mode==='daily'?r.label:state.mode==='weekly'?r.label:state.mode==='monthly'?`شهر ${r.label}`:r.label,detailParts=[branch?`من ${branchLabel}`:'',specialty?`في ${specialtyLabel}`:''].filter(Boolean);if(title)title.textContent=periodTitle;if(total)total.textContent=cash(filteredTotal);if(context)context.textContent=`هذا دخل ${periodDescriptor}${detailParts.length?` ${detailParts.join(' ')}`:''}`;
     document.getElementById('incomeHistoryBodyV13').innerHTML=table(['رقم الروسي','التاريخ','الوقت','الاسم','البيان','الفرع','الدورة','الوسيلة','المبلغ','الإجراءات'],visibleRows.map((row,index)=>{
-      const studentSource=row.sourceType!=='certificate',canEditSource=studentSource&&canEdit('register'),canDeleteSource=studentSource&&canEdit('register')&&canEdit('students');
+      const studentSource=row.sourceType!=='certificate',canEditSource=studentSource&&!row.archivedEnrollment&&canEdit('register'),canDeleteSource=studentSource&&!row.archivedEnrollment&&canEdit('register')&&canEdit('students');
       return`<tr><td>${esc(incomeHistoryReceiptCode(row))}</td><td>${showDate(row.date)}</td><td>${esc(row.time||'—')}</td><td>${esc(row.student?.name||'—')}</td><td>${esc(dailyStatement(row))}</td><td>${esc(branchName(row.student?.branch))}</td><td>${esc(spec(row.student?.specialty)?.name||row.student?.specialty||'—')}</td><td>${esc(row.method||'—')}</td><td><b>${cash(row.amount)}</b></td><td><div class="expense-history-actions-v13 income-history-actions-v13"><button class="mini open-income-receipt-v13" data-row="${index}">فتح الروسي</button>${canEditSource?`<button class="mini edit-income-history-v13" data-row="${index}">تعديل</button>`:''}${canDeleteSource?`<button class="mini danger delete-income-history-v13" data-row="${index}">حذف</button>`:''}</div></td></tr>`;
     }).join(''));
     bindRows();
