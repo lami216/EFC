@@ -173,6 +173,63 @@ function updateStudentRegistration(student,changes={}){
   }catch(error){student.reg=oldReg;throw error;}
 }
 
+
+function mayReactivateStudent(student){
+  const finished=!B.isInactive(student)&&String(student?.end||'')&&String(student.end)<B.today();
+  return Boolean(student&&(B.isInactive(student)||finished));
+}
+function reactivateStudent(student,newStart){
+  if(!student||!students.some(item=>String(item.id)===String(student.id)))throw new Error('ملف الطالب غير موجود.');
+  if(!mayReactivateStudent(student))throw new Error('يمكن بدء فترة جديدة للطالب الموقوف أو الذي انتهت دورته فقط.');
+  const date=String(newStart||'').trim(),lastStart=String(student.start||'');
+  if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)||Number.isNaN(new Date(date+'T12:00:00').getTime()))
+    throw new Error('أدخل تاريخ بداية صحيحًا.');
+  if(date<=lastStart)throw new Error('تاريخ البداية الجديدة يجب أن يكون بعد بداية الفترة السابقة.');
+  const stopped=String(student.stoppedAt||student.end||'');
+  if(stopped&&date<stopped)throw new Error('تاريخ البداية الجديدة يسبق نهاية/إيقاف الفترة السابقة.');
+  if(date>B.today())throw new Error('لا يمكن بدء فترة جديدة بتاريخ مستقبلي.');
+  // Old unpaid fees remain attached to their original enrollment; never silently
+  // roll them into or hide them inside a new period.
+  const oldDebt=B.remainingAmount(student);
+  if(oldDebt>0)throw new Error('يوجد متبقٍ مالي للفترة السابقة. سوِّ الرصيد القديم أولاً قبل إعادة التنشيط: '+B.cash(oldDebt));
+  const archived=clone(student);
+  delete archived.enrollmentHistory;
+  archived.archivedCycleId='efc-cycle-'+now()+'-'+Math.random().toString(36).slice(2,10);
+  archived.archivedAt=now();
+  const previousHistory=Array.isArray(student.enrollmentHistory)?student.enrollmentHistory.map(clone):[];
+  const previous=clone(student);
+  try{
+    student.enrollmentHistory=[...previousHistory,archived];
+    student.payments=[];
+    student.paid=0;
+    student.active=true;
+    student.status='active';
+    student.start=date;
+    student.stoppedAt='';
+    student.stopReason='';
+    delete student.frozenMonths;
+    student.debtDueDates={};
+    delete student.registrationReceiptNo;
+    student.updatedAt=now();
+    const course=typeof spec==='function'?spec(student.specialty):null;
+    const durationUnit=String(student.snapshot?.durationUnit||course?.durationUnit||'day');
+    const durationValue=Math.max(1,Number(student.snapshot?.durationValue||course?.durationValue||1));
+    if(!B.isDynamicMonthly(student)&&durationUnit==='day')student.end=B.addDays(date,durationValue-1);
+    else if(durationUnit==='month'&&!B.isDynamicMonthly(student)){
+      const end=window.addDuration?.(date,durationValue,'month')||date;
+      student.end=B.addDays(end,-1);
+    }else if(B.isDynamicMonthly(student))student.end=B.addDays(window.addDuration?.(date,1,'month')||date,-1);
+    B.reconcileStudent(student);
+    B.saveStudents();
+    return student;
+  }catch(error){
+    Object.keys(student).forEach(key=>delete student[key]);
+    Object.assign(student,previous);
+    try{B.saveStudents();}catch{}
+    throw error;
+  }
+}
+
 state=readLocal();
 if(invoke){
   try{const raw=await invoke('load_app_state'),native=raw?JSON.parse(raw):null;if(native?.studentLifecycleV20)state=mergeStates(state,native.studentLifecycleV20);}catch(error){console.warn('EFC lifecycle v20 native hydration kept local policy.',error);}
@@ -202,8 +259,8 @@ window.EFC_RECEIPT_SEQUENCES_V10=Object.freeze({...sequenceBase,
   sealRegistrationNumber,
   registrationPolicy
 });
-const next=Object.freeze({...B,updateStudentRegistration,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
+const next=Object.freeze({...B,updateStudentRegistration,reactivateStudent,mayReactivateStudent,monthlyCoverageMonth,monthlyCoverageEnd,deleteStudentPermanently,registrationNumberWillBeReusable,studentLifecycleV20:true,automaticRegistrationNumberOnScopeChange:true,manualStudentDeletionTombstones:true,closedFiscalStudentDeletionBlocked:true,closedFiscalFinancialIdentityEditBlocked:true});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
-window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20=Object.freeze({ready:true,version:VERSION,storageKey:STORAGE_KEY,registrationNumberPolicy:'successor-sealed-latest-reusable',latestNumberReusableUntilSuccessor:true,olderNumbersStayReserved:true,automaticNumberOnScopeChange:true,monthlyCoverageEnd,previewRegistrationNumber,registrationNumberWillBeReusable,markRegistrationReleased,sealRegistrationNumber,deleteStudentPermanently,snapshot:()=>clone(state)});
+window.EFC_STUDENT_LIFECYCLE_DOMAIN_V20=Object.freeze({ready:true,version:VERSION,storageKey:STORAGE_KEY,registrationNumberPolicy:'successor-sealed-latest-reusable',latestNumberReusableUntilSuccessor:true,olderNumbersStayReserved:true,automaticNumberOnScopeChange:true,monthlyCoverageEnd,previewRegistrationNumber,registrationNumberWillBeReusable,markRegistrationReleased,sealRegistrationNumber,deleteStudentPermanently,reactivateStudent,mayReactivateStudent,snapshot:()=>clone(state)});
 })();
