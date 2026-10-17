@@ -135,7 +135,8 @@ function filterDeletedStudents(incoming){
 }
 function closedStudentDate(student){
   const fiscal=window.EFC_FISCAL_V14;if(!fiscal?.isDateClosed)return'';
-  const dates=[String(student?.start||''),...(Array.isArray(student?.payments)?student.payments.map(payment=>String(payment?.[0]||'')):[])].filter(Boolean);
+  const cycles=[student,...(Array.isArray(student?.enrollmentHistory)?student.enrollmentHistory:[])];
+  const dates=cycles.flatMap(cycle=>[String(cycle?.start||''),...(Array.isArray(cycle?.payments)?cycle.payments.map(payment=>String(payment?.[0]||'')):[])]).filter(Boolean);
   return dates.find(date=>fiscal.isDateClosed(date))||'';
 }
 function protectedFinancialTermsChanged(student,changes,scopeChanged){
