@@ -129,7 +129,7 @@ if(typeof baseApplyRestored==='function')window.EFC_APPLY_RESTORED_STATE=async i
   if(Array.isArray(incoming?.paymentMethodRecords))methodRecords=incoming.paymentMethodRecords;
   if(incoming?.security&&typeof incoming.security==='object')securityState=incoming.security;
   if(!Array.isArray(securityState.users))securityState.users=[];
-  normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);migrateCourseExpenseFlags();markExtrasChanged();persistExtrasSoon();
+  normalizeExpenses();repairExpenseReceiptSequence();syncActiveMethods();writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();
   return result;
 };
 
@@ -246,25 +246,6 @@ function setDebtDate(student,key,value){
   if(value)student.debtDueDates[String(key)]=String(value);else delete student.debtDueDates[String(key)];
 }
 function saveStudentsClean(){reconcileAllStudents();saveStudents();persistExtrasSoon();}
-// A course is opt-in for expenses. Legacy courses are migrated only after
-// the full historical expense ledger has been loaded from Windows/local storage.
-function hasCourseExpenses(courseId){
-  const id=String(courseId||'');
-  return id!==GENERAL_EXPENSE&&expenses.some(row=>String(row?.specialty||'')===id);
-}
-function courseExpensesEnabled(courseId){
-  return courseId===GENERAL_EXPENSE||specialties.some(item=>String(item.id)===String(courseId)&&item.expenseEnabled===true);
-}
-function migrateCourseExpenseFlags(){
-  let changed=false;
-  specialties.forEach(course=>{
-    const historical=hasCourseExpenses(course.id);
-    const enabled=historical||course.expenseEnabled===true;
-    if(course.expenseEnabled!==enabled){course.expenseEnabled=enabled;changed=true;}
-  });
-  if(changed)saveSpecsClean();
-  return changed;
-}
 function saveSpecsClean(){saveSpecs();persistExtrasSoon();}
 function targetRemaining(student,targetMonth=null){
   if(isDynamicMonthly(student)){
@@ -360,19 +341,7 @@ function expenseSpecialtyName(value){return value===GENERAL_EXPENSE?'مصروف 
 function expenseMatches(item,{from,to,branch,specialty,method}={}){return(!from||item.date>=from)&&(!to||item.date<=to)&&(!branch||item.branch===branch)&&(!specialty||item.specialty===specialty)&&(!method||item.method===method);}
 function allocateExpenseReceiptNumber(){repairExpenseReceiptSequence();const number=Math.max(1,Number(expenseReceiptNext||1));expenseReceiptNext=number+1;writeJson(STORAGE.expenseSequence,{version:28,next:expenseReceiptNext});markExtrasChanged();persistExtrasSoon();return number;}
 function expenseReceiptNumberOf(item){const value=Number(item?.receiptNo);return Number.isInteger(value)&&value>0?value:null;}
-function saveExpenses(next){
-  const candidate=Array.isArray(next)?next:expenses;
-  const currentById=new Map(expenses.map(row=>[String(row.id),row]));
-  for(const row of candidate){
-    const previous=currentById.get(String(row.id));
-    if(row.specialty!==GENERAL_EXPENSE
-      && (!previous||String(previous.specialty)!==String(row.specialty))
-      && !courseExpensesEnabled(row.specialty)){
-      throw new Error('هذه الدورة غير مفعلة للمصاريف. فعّلها من الدورات والمراكز أولاً.');
-    }
-  }
-  expenses=candidate;normalizeExpenses();repairExpenseReceiptSequence();markExtrasChanged();persistExtrasSoon();
-}
+function saveExpenses(next){expenses=Array.isArray(next)?next:expenses;normalizeExpenses();repairExpenseReceiptSequence();markExtrasChanged();persistExtrasSoon();}
 function saveMethodRecords(next){methodRecords=Array.isArray(next)?next:methodRecords;syncActiveMethods();markExtrasChanged();persistExtrasSoon();}
 function saveSecurity(next){securityState=next&&typeof next==='object'?next:securityState;if(!Array.isArray(securityState.users))securityState.users=[];writeJson(STORAGE.security,securityState);markExtrasChanged();persistExtrasSoon();}
 
@@ -393,12 +362,11 @@ receiptModelV4=function(student,paymentIndex=null,statement=false){
 };
 
 const ready=hydrateExtrasFromDesktop().then(()=>{
-  migrateCourseExpenseFlags();
   reconcileAllStudents();
   window.EFC_DOMAIN_V13=Object.freeze({
     ready:true,OFFICIAL_NAME,GENERAL_EXPENSE,STORAGE,esc,today,nowTime,cash,showDate,normalize,uid,addDays,courseTypeOf,isDynamicMonthly,isNewModel,isInactive,
     paymentTotal,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,setDebtDate,stopStudent,
-    notificationsForStudent,currentNotifications,expenseSpecialtyName,expenseMatches,hasCourseExpenses,courseExpensesEnabled,migrateCourseExpenseFlags,
+    notificationsForStudent,currentNotifications,expenseSpecialtyName,expenseMatches,
     getExpenses:()=>expenses,getMethodRecords:()=>methodRecords,getSecurity:()=>securityState,
     saveExpenses,allocateExpenseReceiptNumber,expenseReceiptNumberOf,saveMethodRecords,saveSecurity,syncActiveMethods,saveStudents:saveStudentsClean,saveSpecs:saveSpecsClean,persistExtrasNow,persistExtrasSoon,
     expenseReceiptsNumericOnly:true,expenseReceiptsStartAtOne:true,expenseReceiptNumbersNeverReused:true,expenseReceiptSequencePersisted:true,reminderInclusiveSalutation:true,reminderRequiresAdminReconciliation:true
