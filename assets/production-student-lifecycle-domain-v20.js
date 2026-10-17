@@ -252,6 +252,7 @@ function reactivateStudent(student,newStart,{debtAction='keep',paymentMethod='',
   const action=String(debtAction||'keep');
   if(!['keep','waive','pay'].includes(action))throw new Error('اختر طريقة التعامل مع دين الفترة السابقة.');
   const oldDebt=cycleRemainingDebt(student);
+  if(oldDebt>0&&action==='waive'&&window.EFC_AUTH_V13?.currentUser?.()?.role!=='admin'&&window.EFC_AUTH_V13?.currentUser)throw new Error('إسقاط الدين يتطلب صلاحية المدير.');
   if(oldDebt>0&&action==='waive'&&!String(waiverReason||'').trim())throw new Error('اكتب سبب إسقاط الدين لأغراض المراجعة.');
   const archived=clone(student);delete archived.enrollmentHistory;
   const previousHistory=Array.isArray(student.enrollmentHistory)?student.enrollmentHistory.map(clone):[];
