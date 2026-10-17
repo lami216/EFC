@@ -46,12 +46,6 @@ function decorateCourseCards(grid){
     if(title&&!title.querySelector('.efc-card-title-icon-v23'))title.insertAdjacentHTML('afterbegin',`<span class="efc-card-title-icon-v23">${ICONS.course}</span>`);
     const type=card.querySelector('.spec-top span');if(type)type.hidden=true;
     const edit=card.querySelector('.edit-spec-v13');if(edit)edit.textContent='تعديل ✎';
-    const course=window.specialties?.find(item=>String(item.id)===String(edit?.dataset.id||''));
-    if(course&&!card.querySelector('.efc-course-expense-badge-v58')){
-      const badge=document.createElement('span');badge.className='efc-course-expense-badge-v58 '+(course.expenseEnabled===true?'enabled':'disabled');
-      badge.textContent=course.expenseEnabled===true?'المصاريف: نعم':'المصاريف: لا';
-      card.appendChild(badge);
-    }
     const facts=[...card.querySelectorAll('.spec-facts>div')];
     facts.forEach((fact,index)=>fact.classList.toggle('efc-hidden-fact-v23',index===0||index===2));
     if(facts[1]){
@@ -119,7 +113,6 @@ window.renderSpecialties=function(){
 
 
 const style=document.createElement('style');style.id='efc-courses-centers-redesign-style-v23';style.textContent=`
-.efc-course-expense-badge-v58{position:relative;display:inline-flex;margin-top:9px;border:1px solid #d4e2dc;border-radius:999px;padding:5px 11px;font-weight:800;font-size:11px;align-self:flex-start}.efc-course-expense-badge-v58.enabled{background:#e1f7e9;color:#12613e;border-color:#8fcaaa}.efc-course-expense-badge-v58.disabled{background:#f3f5f4;color:#52665e}
 
 .shell-v13 .brand .logo{display:grid!important;place-items:center!important;overflow:hidden!important}
 .shell-v13 .brand .logo img{padding:0!important;width:46px!important;height:46px!important;object-fit:contain!important;transform:none!important}
