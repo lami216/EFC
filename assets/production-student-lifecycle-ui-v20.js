@@ -78,7 +78,7 @@ function showStudentReactivation(student,oldModal){
   <p class="efc-reactivation-note-v58">سيبقى رقم ملف الطالب كما هو، مع حفظ الفترة السابقة ودفعاتها وإيصالاتها. إذا اخترت تاريخًا مستقبليًا، ستظهر الدراسة بحالة «لم تبدأ بعد» حتى يحين موعد البداية.</p>
   <form class="grid two" autocomplete="off"><label class="wide">بداية الفترة الجديدة<input class="input" type="date" name="newStart" value="${proposed}" min="${minDate}" required></label>
   ${oldDebt>0?`<div class="wide efc-reactivation-debt-v59"><strong>دين الفترة التي ستُغلق: ${D.cash(oldDebt)}</strong><small>اختر كيف تتعامل مع هذا الدين. لن تُسجل أي إيرادات تلقائية عند ترحيله أو إسقاطه.</small></div>
-  <label class="wide">التعامل مع الدين السابق<select name="debtAction" id="reactivationDebtActionV59"><option value="keep">الاحتفاظ بالدين وتحويله إلى سجل المستحقات السابقة</option><option value="waive">إسقاط الدين دون تسجيل دخل</option><option value="pay">سداد الدين الآن وتسجيل دفعة حقيقية</option></select></label>
+  <label class="wide">التعامل مع الدين السابق<select name="debtAction" id="reactivationDebtActionV59"><option value="keep">الاحتفاظ بالدين وتحويله إلى سجل المستحقات السابقة</option>${window.EFC_AUTH_V13?.currentUser?.()?.role==='admin'?'<option value="waive">إسقاط الدين دون تسجيل دخل</option>':''}<option value="pay">سداد الدين الآن وتسجيل دفعة حقيقية</option></select></label>
   <label class="wide efc-reactivation-waive-v59" hidden>سبب إسقاط الدين<input class="input" name="waiverReason" placeholder="سبب الإعفاء — يحفظ للمراجعة"></label>
   <div class="wide efc-reactivation-pay-v59" hidden>
   <label>وسيلة الدفع<select name="paymentMethod">${methodChoices()}</select></label>
