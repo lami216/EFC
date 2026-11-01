@@ -6,12 +6,12 @@ const source=readFileSync('assets/production-finance-ui-v13.js','utf8');
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const context={console,URL,Date,Set,Map,Intl,renderFinance:null,renderLedger:null,renderPaymentMethods:null,location:{href:'http://localhost/'},document:{createElement:()=>({}),head:{appendChild(){}}}};
 context.window=context;
-context.EFC_DOMAIN_V13={ready:true,esc,today:()=> '2026-11-15',cash:String,showDate:String,getExpenses:()=>[],getMethodRecords:()=>[]};
+context.EFC_DOMAIN_V13={ready:true,esc,today:()=> '2026-11-15',cash:String,showDate:String,getExpenses:()=>[],getMethodRecords:()=>[],remainingAmount:s=>Math.max(0,Number(s.required||0)-(s.payments||[]).reduce((sum,p)=>sum+Number(p[1]||0),0))};
 vm.createContext(context);
 // Exercise the actual runtime helpers without adding test-only production exports.
-vm.runInContext(source.replace('window.EFC_FINANCE_UI_V13=Object.freeze(',`window.financeTest={studentRegistrationDate,incomeRegistrationPartition,incomePartitionCards,historyReportModel,historyReportAllowed,expenseReceiptHeader,monthBounds,yearBounds};window.EFC_FINANCE_UI_V13=Object.freeze(`),context);
+vm.runInContext(source.replace('window.EFC_FINANCE_UI_V13=Object.freeze(',`window.financeTest={studentRegistrationDate,registrationIsSettled,incomeRegistrationPartition,incomePartitionCards,historyReportModel,historyReportAllowed,expenseReceiptHeader,monthBounds,yearBounds};window.EFC_FINANCE_UI_V13=Object.freeze(`),context);
 const api=context.financeTest,partition=api.incomeRegistrationPartition;
-const student=(id,date,extra={})=>({id,recordCode:`r-${id}`,registeredAt:date,start:'2020-01-01',...extra});
+const student=(id,date,extra={})=>({id,recordCode:`r-${id}`,registeredAt:date,start:'2020-01-01',required:100,payments:[['2026-11-01',100]],...extra});
 const newStudent=student('new','2026-11-01'),old=student('old','2026-10-31'),unpaid=student('unpaid','2026-11-15'),late=student('late','2026-12-01'),unknown={id:'unknown'};
 const row=(student,amount,extra={})=>({student,amount,date:'2026-11-15',...extra});
 const income=[row(newStudent,100),row(newStudent,50),row(old,80),row({...old},20),row({id:'certificate:1'},30,{sourceType:'certificate'}),row(late,12),row(unknown,8)];
@@ -39,6 +39,16 @@ for(const range of [{from:'2026-11-15',to:'2026-11-15'},api.monthBounds(2026,11)
 }
 assert.equal(partition([],[],{from:'2026-11-01',to:'2026-11-15'}).newCount,0);
 assert.equal(partition([row(newStudent,0),row(newStudent,-5)], [newStudent],{from:'2026-11-01',to:'2026-11-15'}).newIncome,-5,'partition must preserve canonical signed/zero amounts');
+const partial=student('partial','2026-10-01',{required:200,payments:[['2026-11-15',50]]}),future=student('future','2026-10-01',{payments:[['2026-11-15',20],['2026-11-16',80]]});
+const scoped={from:'2026-11-01',to:'2026-11-15'},paymentRows=[row(old,80),row({...old},20),row(partial,50),row(future,20)];
+assert.equal(partition(paymentRows,[],scoped).earlierCount,1,'only distinct fully settled earlier students count; partial and future settlement do not');
+assert.equal(partition(paymentRows,[],scoped).earlierIncome,170,'partial amounts still remain in canonical income');
+assert.equal(partition([row(old,0),row(old,-5)],[],scoped).earlierCount,0,'zero or negative rows cannot make a paying student');
+assert.equal(partition(paymentRows,[],{...scoped,to:'2026-11-16'}).earlierCount,2,'a later settlement becomes eligible only when the selected period reaches it');
+const originalFuture=JSON.stringify(future);api.registrationIsSettled(future,'2026-11-15');assert.equal(JSON.stringify(future),originalFuture,'settlement lookup is read-only');
+const cards=api.incomePartitionCards(250,{newIncome:150,earlierIncome:100,certificateIncome:0,unclassifiedIncome:0,newCount:7,earlierCount:3},'نوفمبر');
+assert.equal((cards.match(/data-student-part="new"/g)||[]).length,1,'new registration number has one row');
+assert(cards.indexOf('data-income-part="new"')<cards.indexOf('data-income-part="earlier"')&&cards.indexOf('data-income-part="earlier"')<cards.indexOf('data-income-part="total"'),'income order is new, earlier, then aggregate');
 context.branchName=id=>id||'كل الفروع';context.spec=()=>({name:'دورة'});
 context.EFC_RECEIPT_LOGO_DATA_URI='data:image/jpeg;base64,logo';
 const range={from:'2026-11-01',to:'2026-11-30',effectiveTo:'2026-11-15',label:'نوفمبر 2026'};
@@ -47,6 +57,9 @@ const model=api.historyReportModel('income',sample,range,'الفرع الأول'
 sample[0].amount=999;sample[0].student.name='changed';range.from='2020-01-01';
 assert.equal(model.total,90);assert.equal(model.rows[0][3],'<script>alert(1)</script>');assert.equal(model.range.from,'2026-11-01');
 assert.equal(model.columns.length,9);assert.equal(model.rows[0].length,9);
+assert(Number.isFinite(Date.parse(model.generatedAt)),'report captures a real extraction timestamp');
+assert(/^\d{4}-\d{2}-\d{2}$/.test(model.generatedDate));assert(/^\d{2}:\d{2}:\d{2}$/.test(model.generatedTime));
+const generatedAt=model.generatedAt;context.Date=class extends Date{constructor(...args){super(...(args.length?args:['2030-01-01T01:02:03Z']));}};assert.equal(model.generatedAt,generatedAt,'existing report time remains a snapshot');
 assert(!model.columns.includes('الإجراءات'),'read-only report must omit source mutation controls');
 assert(api.expenseReceiptHeader(null,'سجل المداخيل').includes('Centre EFC'));
 assert(!api.expenseReceiptHeader(null,'سجل المداخيل').includes('Pièce N°'),'report header must not impersonate a numbered source receipt');

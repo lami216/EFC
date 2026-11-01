@@ -1,7 +1,9 @@
-# Finance history and registration partitions
+# Finance history and registration partitions (v58/v59)
 
 Target: `feature/efc-next-development`. Audited baseline:
 `5acee84cc1597780547d10515b2a87a608061e7a`.
+The v59 feedback refinement starts from
+`ca087f4582aec6e3ad83e896672b91c9e64083ed`.
 
 ## Source audit and scope
 
@@ -23,7 +25,9 @@ Target: `feature/efc-next-development`. Audited baseline:
   is inferred from the installment/month being paid.
 - Student counts use `recordCode` (or legacy `id`) once per group. The first count
   includes all matching new registrations, including unpaid ones. The second
-  counts distinct earlier registrations with a canonical payment in the period.
+  counts distinct earlier registrations with a positive canonical payment in the
+  period **and no remaining balance through its effective end**. Partial payers
+  and students settled only by future receipts are excluded from this count.
   Payment amounts retain every real transaction. New + earlier + explicitly
   separate certificate + unclassified amounts always reconcile to the unchanged
   aggregate. Missing or later registration dates appear as unclassified income.
@@ -70,3 +74,26 @@ including a blank beginning, instead of substituting a calendar year.
 
 The runtime cache token is advanced in the loader gate and index together. License
 v3 keys/validation, device scheduling and canceled-student state are unchanged.
+
+## v59 user feedback
+
+The student card shows new registrations once at the top and fully settled earlier
+payers beneath it. Short labels replace the longer explanatory titles. The income
+card now orders `دخل الجدد`, `دخل السابقين`, then `الإجمالي`; the existing aggregate
+is retained at the bottom. Income still includes actual partial payments even
+though their students are excluded from the fully settled count. Settlement reads
+the canonical remaining-balance function with a copy containing receipts through
+the selected effective end; source payments and balances are never edited.
+
+The approved EFC header stays unchanged. Below it, each report page shows a
+prominent title: red for expenses, green for income. Labeled fields show from/to
+dates, extraction date and time, branch, course and the data cutoff. The extraction
+timestamp is captured once when opening the report and remains identical across
+preview, all pages, print and PDF save. Pagination still measures all added content.
+
+The supplied demo backup remains valid. On November 1 it contains 48 earlier
+students who paid, **41 fully settled earlier payers**, and 30 new registrations.
+The fully settled branch counts are 14 / 13 / 14. The earlier v58 demo guide's 48
+describes all earlier payers. Income remains 72,900 + 106,500 = 179,400 MRU and
+current debt remains 53,400 MRU. Browser coverage restores this real fixture and
+verifies these values, both stopped students, and the branch filters.

@@ -29,7 +29,7 @@ try{
     const student=(id,date,branch,specialty,payments,extra={})=>({id,recordCode:`r-${id}`,name:`طالب ${id}`,phone:'22223333',registeredAt:date,branch,specialty,reg:id==='new'?1:id==='old'?2:3,start:date,end:'2027-12-01',active:true,status:'active',required:1000,paid:payments.reduce((s,p)=>s+p[1],0),payments,snapshot:{billing:'one_time',fee:1000,durationValue:365,durationUnit:'day'},...extra});
     localStorage.setItem('efc-students-v1',JSON.stringify([
       student('new','2026-11-01','a','x',[payment('2026-11-01',100,1),payment('2026-11-15',50,2),payment('2026-11-16',999,3)]),
-      student('old','2026-10-01','a','x',[payment('2026-10-31',200,4),payment('2026-11-01',60,5),payment('2026-11-15',40,6)],{active:false,status:'inactive'}),
+      student('old','2026-10-01','a','x',[payment('2026-10-31',200,4),payment('2026-11-01',60,5),payment('2026-11-15',40,6)],{active:false,status:'inactive',required:300,snapshot:{centerOpsV13:true,billing:'one_time',fee:300,durationValue:365,durationUnit:'day'}}),
       student('unpaid','2026-11-15','a','x',[]),student('other','2026-09-01','b','y',[payment('2026-11-10',90,7)])
     ]));
     const expense=(id,date,branch,specialty,amount,name)=>({id,name,branch,specialty,date,amount,method:'نقداً',time:'12:00',receiptNo:id+1,createdAt:id+1});
@@ -43,24 +43,27 @@ try{
   await page.waitForFunction(()=>window.EFC_SECURITY_UI_V13?.ready&&window.EFC_ACCOUNTING_INTEGRITY_V21?.ready);
   await page.waitForSelector('#financeBodyV13 .finance-partition-v58');
   const money=text=>Number(String(text).replace(/[^0-9-]/g,''));
+  const partitionValues=async()=>{const selectors=['[data-income-part="new"] b','[data-income-part="earlier"] b','[data-student-part="new"] b','[data-student-part="earlier"] b'];return await Promise.all(selectors.map(async selector=>money(await page.locator(selector).textContent())));};
   const kpis=async()=>page.locator('#financeBodyV13>.kpis>.card').allTextContents();
-  let cards=await kpis();assert.equal(cards.length,3);assert.equal(money(await page.locator('.finance-kpi-line-v13 b').first().textContent()),340);
-  assert.deepEqual(await page.locator('.finance-partition-line-v58 b').allTextContents().then(a=>a.map(money)),[150,190,2,2]);
+  let cards=await kpis();assert.equal(cards.length,3);assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),340);
+  assert.deepEqual(await partitionValues(),[150,190,2,1]);
+  assert.equal(await page.locator('[data-student-part=new]').count(),1,'new count is not repeated');
+  assert.deepEqual(await page.locator('.finance-income-card-v59 [data-income-part]').evaluateAll(rows=>rows.map(r=>r.dataset.incomePart)),['new','earlier','total']);
   const inactiveBefore=await page.evaluate(()=>JSON.stringify(students.find(s=>s.id==='old')));
   const debt=await page.locator('#financeBodyV13>.kpis>.card').nth(2).textContent();
   await page.locator('#branchV13').selectOption('a');await page.locator('#specV13').selectOption('x');
-  assert.deepEqual(await page.locator('.finance-partition-line-v58 b').allTextContents().then(a=>a.map(money)),[150,100,2,1]);
-  assert.equal(money(await page.locator('.finance-kpi-line-v13 b').first().textContent()),250);
+  assert.deepEqual(await partitionValues(),[150,100,2,1]);
+  assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),250);
   const filteredDebt=await page.locator('#financeBodyV13>.kpis>.card').nth(2).textContent();
   await page.locator('#financeModeV13 [data-mode=daily]').click();
-  assert.deepEqual(await page.locator('.finance-partition-line-v58 b').allTextContents().then(a=>a.map(money)),[0,90,1,2]);
+  assert.deepEqual(await partitionValues(),[0,90,1,1]);
   assert.equal(await page.locator('#financeBodyV13>.kpis>.card').nth(2).textContent(),filteredDebt,'debt must ignore time filter');
   await page.locator('#financeModeV13 [data-mode=weekly]').click();await page.locator('#fromV13').fill('2026-11-15');await page.locator('#fromV13').dispatchEvent('change');await page.locator('#toV13').fill('2026-11-01');await page.locator('#toV13').dispatchEvent('change');
-  assert.deepEqual(await page.locator('.finance-partition-line-v58 b').allTextContents().then(a=>a.map(money)),[150,100,2,1],'reversed range must normalize');
+  assert.deepEqual(await partitionValues(),[150,100,2,1],'reversed range must normalize');
   await page.locator('#fromV13').fill('');await page.locator('#fromV13').dispatchEvent('change');
-  assert.equal(money(await page.locator('.finance-kpi-line-v13 b').first().textContent()),360,'blank start uses oldest finance date through chosen end');
+  assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),360,'blank start uses oldest finance date through chosen end');
   await page.locator('#financeModeV13 [data-mode=yearly]').click();
-  assert.equal(money(await page.locator('.finance-kpi-line-v13 b').first().textContent()),450);
+  assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),450);
   assert.equal(await page.evaluate(()=>JSON.stringify(students.find(s=>s.id==='old'))),inactiveBefore,'view/filter operations must not reactivate canceled students');
   await page.locator('#financeModeV13 [data-mode=monthly]').click();
   if(output)await page.screenshot({path:path.join(output,'income-dashboard.png'),fullPage:true});
@@ -71,11 +74,21 @@ try{
   assert.equal(await page.locator('#incomeHistoryBodyV13 tbody tr').count(),4);
   const preview=async(kind,expected)=>{
     const tableRows=await page.locator(`#${kind}HistoryBodyV13 tbody tr`).count();assert.equal(tableRows,expected);
+    const selectedBranch=await page.locator(`#${kind}HistoryBranchV13 option:checked`).textContent(),selectedCourse=await page.locator(`#${kind}HistorySpecV13 option:checked`).textContent();
     await page.locator(`#${kind}HistoryExportV58`).click();
     const frame=page.frameLocator('.receipt-viewer-frame-v13');await frame.locator('#historySaveV58:not([disabled])').waitFor();
     assert.equal(await frame.locator('.history-report-table-v58 tbody tr').count(),expected||1);
     assert.equal(await frame.locator('.history-report-table-v58 th').filter({hasText:'الإجراءات'}).count(),0);
     assert.equal(await frame.locator('.head12').count(),await frame.locator('.history-paper-v58').count());
+    const pages=await frame.locator('.history-paper-v58').count();
+    assert.deepEqual(await frame.locator('.history-report-title-v59 h2').allTextContents(),Array(pages).fill(kind==='income'?'سجل المداخيل':'سجل المصاريف'));
+    assert.equal(await frame.locator('[data-report-field=from]').count(),pages);assert.equal(await frame.locator('[data-report-field=to]').count(),pages);
+    assert((await frame.locator('[data-report-field=extracted]').first().textContent()).includes('15/11/2026'));
+    assert((await frame.locator('[data-report-field=extracted]').first().textContent()).includes('12:00:00'));
+    assert.equal(await frame.locator('[data-report-field=branch] b').first().textContent(),selectedBranch);
+    assert.equal(await frame.locator('[data-report-field=course] b').first().textContent(),selectedCourse);
+    assert.equal(await frame.locator('.history-report-title-v59 h2').first().evaluate(el=>getComputedStyle(el).color),kind==='expense'?'rgb(169, 50, 61)':'rgb(8, 99, 79)');
+    assert.equal(new Set(await frame.locator('[data-report-field=extracted]').allTextContents()).size,1,'extraction timestamp must be identical on all pages');
     assert.equal(await frame.locator('.history-report-table-v58 .open-income-receipt-v13').count(),0);
     const fitting=await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.every(p=>p.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom<=p.getBoundingClientRect().bottom-45));assert(fitting,'every page must fit its measured content');
     return frame;
@@ -142,5 +155,20 @@ try{
   await page.waitForSelector('.finance-partition-v58');await page.evaluate(()=>window.EFC_ACCOUNTING_INTEGRITY_V21.guardFinanceViews());assert.equal(await page.locator('#financeBodyV13 .efc-archive-only-v21').count(),0,'weekly fiscal guard must not use the whole calendar year');
   await page.locator('[data-section=expenses]').click();await page.locator('#viewExpenseHistoryV13').click();await page.locator('#expenseHistoryModeV13 [data-mode=monthly]').click();assert(await page.locator('#expenseHistoryExportV58').isDisabled());assert.equal(await page.locator('#expenseHistoryTotalV53').textContent(),'—');assert.equal(await page.locator('#expenseHistoryBodyV13 .efc-archive-only-v21').count(),1);
   assert.deepEqual(errors,[],'browser runtime must stay error-free');
+  // Restore the same realistic backup supplied to the user. Independent expected
+  // totals: 48 earlier payers, of whom 41 have fully settled obligations at Nov 1.
+  const demoContext=await browser.newContext({viewport:{width:1440,height:1000},timezoneId:'UTC'}),demo=await demoContext.newPage();
+  demo.on('pageerror',e=>errors.push(String(e)));demo.on('dialog',d=>d.dismiss());await demo.clock.setFixedTime(new Date('2026-11-01T16:30:00Z'));
+  await demo.goto(`http://127.0.0.1:${server.address().port}/#finance`);
+  const demoReady=()=>demo.waitForFunction(()=>window.EFC_SECURITY_UI_V13?.ready&&window.EFC_ACCOUNTING_INTEGRITY_V21?.ready);await demoReady();
+  const backup=JSON.parse(fs.readFileSync('docs/sample-data/EFC-Demo-2026-11-01.json','utf8'));
+  await demo.evaluate(async data=>await window.EFC_APPLY_RESTORED_STATE(data),backup);await demo.reload();await demoReady();
+  assert.equal(money(await demo.locator('[data-student-part=new] b').textContent()),30);
+  assert.equal(money(await demo.locator('[data-student-part=earlier] b').textContent()),41);
+  assert.equal(money(await demo.locator('[data-income-part=new] b').textContent()),72900);assert.equal(money(await demo.locator('[data-income-part=earlier] b').textContent()),106500);assert.equal(money(await demo.locator('[data-income-part=total] b').textContent()),179400);
+  assert.equal(money(await demo.locator('#financeBodyV13>.kpis>.card').nth(2).locator('b').textContent()),53400,'aggregate debt is unchanged');
+  for(const [branch,count] of [['demo-center-1',14],['demo-center-2',13],['demo-center-3',14]]){await demo.locator('#branchV13').selectOption(branch);assert.equal(money(await demo.locator('[data-student-part=earlier] b').textContent()),count);}
+  await demo.locator('#branchV13').selectOption('');assert.equal(await demo.evaluate(()=>students.filter(s=>s.active===false).length),2);
+  if(output)await demo.screenshot({path:path.join(output,'demo-income-dashboard-v59.png'),fullPage:true});await demoContext.close();assert.deepEqual(errors,[]);
   console.log(`Finance browser v58 passed: dashboard partitions, branch/course/day/reversed/blank/month/year filters, canceled-state preservation, both histories, empty results, general expenses, ${pageCount}-page preview/PDF/native save, snapshot stability and responsive widths.`);
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
