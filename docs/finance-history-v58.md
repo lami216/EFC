@@ -1,4 +1,4 @@
-# Finance history and registration partitions (v58/v59)
+# Finance history and registration partitions (v58/v59/v60)
 
 Target: `feature/efc-next-development`. Audited baseline:
 `5acee84cc1597780547d10515b2a87a608061e7a`.
@@ -97,3 +97,15 @@ The fully settled branch counts are 14 / 13 / 14. The earlier v58 demo guide's 4
 describes all earlier payers. Income remains 72,900 + 106,500 = 179,400 MRU and
 current debt remains 53,400 MRU. Browser coverage restores this real fixture and
 verifies these values, both stopped students, and the branch filters.
+
+## v60 horizontal dashboard presentation
+
+Only the income dashboard presentation changes: each existing income/student
+card has two equal RTL columns, new registrations on the right and earlier
+registrations on the left. The income aggregate remains in a full-width row below
+both halves. The student card shows its two existing counts once each, without a
+combined student total. The settled-payer rule and all amounts remain unchanged.
+
+The report renderer/styles, receipt header, history pages, filters, debt and
+profit calculations are unchanged. Geometry checks verify the side-by-side cells,
+equal widths, readable values and total placement at 1440, 1024 and 840 pixels.

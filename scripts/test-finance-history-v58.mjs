@@ -44,11 +44,21 @@ try{
   await page.waitForSelector('#financeBodyV13 .finance-partition-v58');
   const money=text=>Number(String(text).replace(/[^0-9-]/g,''));
   const partitionValues=async()=>{const selectors=['[data-income-part="new"] b','[data-income-part="earlier"] b','[data-student-part="new"] b','[data-student-part="earlier"] b'];return await Promise.all(selectors.map(async selector=>money(await page.locator(selector).textContent())));};
+  const checkHorizontalCards=async target=>{
+    for(const cardName of ['finance-income-card-v59','finance-student-card-v59']){
+      const card=target.locator('.'+cardName),cells=card.locator('.finance-horizontal-split-v60>.finance-split-cell-v60');assert.equal(await cells.count(),2);
+      const rects=await cells.evaluateAll(items=>items.map(el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,bottom:r.bottom};}));
+      assert(rects[0].x>rects[1].x,'new cohort is on the right in RTL');assert(Math.abs(rects[0].y-rects[1].y)<1,'both cohort cells share the same row');assert(Math.abs(rects[0].width-rects[1].width)<1,'equal width halves');
+      assert(await cells.evaluateAll(items=>items.every(el=>el.scrollWidth<=el.clientWidth+1)),'labels and values fit each half');
+      if(cardName==='finance-income-card-v59'){const total=await card.locator('[data-income-part=total]').boundingBox();assert(total.y>=Math.max(...rects.map(r=>r.bottom))-1,'total is below both income halves');assert(total.width>rects[0].width*1.8,'total spans the card');}
+    }
+  };
   const kpis=async()=>page.locator('#financeBodyV13>.kpis>.card').allTextContents();
   let cards=await kpis();assert.equal(cards.length,3);assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),340);
   assert.deepEqual(await partitionValues(),[150,190,2,1]);
   assert.equal(await page.locator('[data-student-part=new]').count(),1,'new count is not repeated');
   assert.deepEqual(await page.locator('.finance-income-card-v59 [data-income-part]').evaluateAll(rows=>rows.map(r=>r.dataset.incomePart)),['new','earlier','total']);
+  await checkHorizontalCards(page);
   const inactiveBefore=await page.evaluate(()=>JSON.stringify(students.find(s=>s.id==='old')));
   const debt=await page.locator('#financeBodyV13>.kpis>.card').nth(2).textContent();
   await page.locator('#branchV13').selectOption('a');await page.locator('#specV13').selectOption('x');
@@ -169,6 +179,7 @@ try{
   assert.equal(money(await demo.locator('#financeBodyV13>.kpis>.card').nth(2).locator('b').textContent()),53400,'aggregate debt is unchanged');
   for(const [branch,count] of [['demo-center-1',14],['demo-center-2',13],['demo-center-3',14]]){await demo.locator('#branchV13').selectOption(branch);assert.equal(money(await demo.locator('[data-student-part=earlier] b').textContent()),count);}
   await demo.locator('#branchV13').selectOption('');assert.equal(await demo.evaluate(()=>students.filter(s=>s.active===false).length),2);
-  if(output)await demo.screenshot({path:path.join(output,'demo-income-dashboard-v59.png'),fullPage:true});await demoContext.close();assert.deepEqual(errors,[]);
-  console.log(`Finance browser v58 passed: dashboard partitions, branch/course/day/reversed/blank/month/year filters, canceled-state preservation, both histories, empty results, general expenses, ${pageCount}-page preview/PDF/native save, snapshot stability and responsive widths.`);
+  for(const width of [1440,1024,840]){await demo.setViewportSize({width,height:900});await checkHorizontalCards(demo);if(output)await demo.screenshot({path:path.join(output,`demo-income-horizontal-${width}.png`),fullPage:true});}
+  await demoContext.close();assert.deepEqual(errors,[]);
+  console.log(`Finance browser v60 passed: horizontal dashboard halves and full-width total at 1440/1024/840, unchanged partitions and financial totals, all period/branch/course filters, canceled-state preservation, both histories, ${pageCount}-page PDF/print/native save, snapshot stability and fiscal guards.`);
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
