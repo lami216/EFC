@@ -89,10 +89,14 @@ try{
     const frame=page.frameLocator('.receipt-viewer-frame-v13');await frame.locator('#historySaveV58:not([disabled])').waitFor();
     assert.equal(await frame.locator('.history-report-table-v58 tbody tr').count(),expected||1);
     assert.equal(await frame.locator('.history-report-table-v58 th').filter({hasText:'الإجراءات'}).count(),0);
-    assert.equal(await frame.locator('.head12').count(),await frame.locator('.history-paper-v58').count());
+    assert.equal(await frame.locator('.head12').count(),1,'EFC branding appears on the first page only');
     const pages=await frame.locator('.history-paper-v58').count();
-    assert.deepEqual(await frame.locator('.history-report-title-v59 h2').allTextContents(),Array(pages).fill(kind==='income'?'سجل المداخيل':'سجل المصاريف'));
-    assert.equal(await frame.locator('[data-report-field=from]').count(),pages);assert.equal(await frame.locator('[data-report-field=to]').count(),pages);
+    assert.deepEqual(await frame.locator('.history-report-title-v59 h2').allTextContents(),[kind==='income'?'سجل المداخيل':'سجل المصاريف']);
+    assert.equal(await frame.locator('[data-report-field=from]').count(),1);assert.equal(await frame.locator('[data-report-field=to]').count(),1);
+    assert.equal(await frame.locator('.history-report-table-v58 thead').count(),pages,'column labels remain on every page');
+    assert.equal(await frame.locator('[data-report-page=continuation] .history-report-meta-v58').count(),0);
+    assert.equal(await frame.locator('.history-report-summary-v58:not([hidden])').count(),1,'aggregate appears once at the end');
+    assert(await frame.locator('.history-paper-v58').last().locator('.history-report-summary-v58').isVisible());
     assert((await frame.locator('[data-report-field=extracted]').first().textContent()).includes('15/11/2026'));
     assert((await frame.locator('[data-report-field=extracted]').first().textContent()).includes('12:00:00'));
     assert.equal(await frame.locator('[data-report-field=branch] b').first().textContent(),selectedBranch);
@@ -100,7 +104,7 @@ try{
     assert.equal(await frame.locator('.history-report-title-v59 h2').first().evaluate(el=>getComputedStyle(el).color),kind==='expense'?'rgb(169, 50, 61)':'rgb(8, 99, 79)');
     assert.equal(new Set(await frame.locator('[data-report-field=extracted]').allTextContents()).size,1,'extraction timestamp must be identical on all pages');
     assert.equal(await frame.locator('.history-report-table-v58 .open-income-receipt-v13').count(),0);
-    const fitting=await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.every(p=>p.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom<=p.getBoundingClientRect().bottom-45));assert(fitting,'every page must fit its measured content');
+    const fitting=await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.every(p=>Math.max(p.querySelector('.history-report-table-v58').getBoundingClientRect().bottom,p.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom)<=p.getBoundingClientRect().bottom-45));assert(fitting,'every table and final total must fit its page');
     return frame;
   };
   let frame=await preview('income',4);
@@ -117,10 +121,12 @@ try{
   await page.locator('#backToIncomeFinanceV13').click();await page.locator('[data-section=expenses]').click();await page.locator('#viewExpenseHistoryV13').click();
   await page.locator('#expenseHistoryBranchV13').selectOption('a');await page.locator('#expenseHistorySpecV13').selectOption('x');
   if(output)await page.screenshot({path:path.join(output,'expense-history.png'),fullPage:true});
-  frame=await preview('expense',140);const pageCount=await frame.locator('.history-paper-v58').count();assert(pageCount>5,'long filtered result must paginate');
+  frame=await preview('expense',140);const pageCount=await frame.locator('.history-paper-v58').count();assert(pageCount>1&&pageCount<20,'compact continuation pages must improve on the previous 20-page fixture');
+  const rowCounts=await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.map(p=>p.querySelectorAll('tbody tr').length));assert(rowCounts[1]>rowCounts[0],'continuation page reuses the space freed by the first-page header');
   assert.equal(await frame.locator('.history-report-table-v58 tbody tr td:first-child').allTextContents().then(a=>new Set(a).size),140,'every receipt exactly once');
-  assert((await frame.locator('.history-report-summary-v58').first().textContent()).includes('140'));
+  assert((await frame.locator('.history-report-summary-v58:not([hidden])').textContent()).includes('140'));
   if(output)await frame.locator('.history-paper-v58').first().screenshot({path:path.join(output,'report-page-1.png')});
+  if(output){await frame.locator('.history-paper-v58').nth(1).screenshot({path:path.join(output,'report-page-2.png')});await frame.locator('.history-paper-v58').last().screenshot({path:path.join(output,'report-page-last.png')});}
   await frame.locator('body').evaluate(()=>{window.print=()=>{window.qaPrintCalls=(window.qaPrintCalls||0)+1;};});
   await frame.locator('#historyPrintV58').click();assert.equal(await frame.locator('body').evaluate(()=>window.qaPrintCalls),1);
   const printPage=await context.newPage();await printPage.setContent(await frame.locator('html').evaluate(el=>el.outerHTML));
@@ -151,7 +157,7 @@ try{
   assert((await frame.locator('.history-paper-v58').count())>1,'one oversized description must continue across pages');
   const originalDescription=await page.evaluate(()=>window.EFC_DOMAIN_V13.getExpenses().find(e=>e.id==='giant').name),exportedDescription=await frame.locator('.history-report-table-v58 tbody tr td:nth-child(4)').allTextContents().then(a=>a.join(''));
   assert(exportedDescription===originalDescription,'continuation pages preserve every character of the canonical description');
-  assert(await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.every(p=>p.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom<=p.getBoundingClientRect().bottom-45)));
+  assert(await frame.locator('.history-paper-v58').evaluateAll(pages=>pages.every(p=>Math.max(p.querySelector('.history-report-table-v58').getBoundingClientRect().bottom,p.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom)<=p.getBoundingClientRect().bottom-45)));
   await page.locator('.receipt-viewer-close-v13').click();
   // Real fiscal state: closed details may have been cleaned, so neither histories
   // nor new dashboard cards may pretend a live subset is the complete total.
@@ -181,5 +187,5 @@ try{
   await demo.locator('#branchV13').selectOption('');assert.equal(await demo.evaluate(()=>students.filter(s=>s.active===false).length),2);
   for(const width of [1440,1024,840]){await demo.setViewportSize({width,height:900});await checkHorizontalCards(demo);if(output)await demo.screenshot({path:path.join(output,`demo-income-horizontal-${width}.png`),fullPage:true});}
   await demoContext.close();assert.deepEqual(errors,[]);
-  console.log(`Finance browser v60 passed: horizontal dashboard halves and full-width total at 1440/1024/840, unchanged partitions and financial totals, all period/branch/course filters, canceled-state preservation, both histories, ${pageCount}-page PDF/print/native save, snapshot stability and fiscal guards.`);
+  console.log(`Finance browser v61 passed: first-page-only branding/filters, compact continuation rows, final total once, ${pageCount} pages instead of 20, PDF/print/native save and oversized text; unchanged dashboard, financial totals, all filters, source states and fiscal guards.`);
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

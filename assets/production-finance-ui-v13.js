@@ -148,22 +148,24 @@ function historyReportCss(){return `${expenseReceiptCss()}
 body{background:#edf2ef}.history-pages-v58{width:1040px;margin:auto}
 .history-paper-v58{--report-accent:#08634f;--report-border:#a5cbb6;--report-soft:#eaf6ef;box-sizing:border-box;width:1040px;height:735px;padding:18px 22px;background:#fff;margin:16px 0;display:flex;flex-direction:column;direction:rtl;border:1px solid #b2c5ba;color:#182b24}
 .history-paper-v58.expense{--report-accent:#a9323d;--report-border:#e3b4b8;--report-soft:#fff1f2}.history-paper-v58 .head12{flex:none;direction:ltr}.history-paper-v58 .tag12{color:#08634f}
-.history-report-title-v59{flex:none;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 12px;margin:9px 0 7px;background:var(--report-soft);border:1px solid var(--report-border);border-inline-start:5px solid var(--report-accent);border-radius:6px}
-.history-report-title-v59 h2{font-size:23px;line-height:1.2;margin:0;color:var(--report-accent)}.history-report-title-v59 p{margin:3px 0 0;font-size:10px;color:#53665e}.history-report-count-v59{font-size:12px;white-space:nowrap;color:var(--report-accent);font-weight:700}
-.history-report-meta-v58{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 0 9px;direction:rtl}
-.history-report-field-v59{min-width:0;border:1px solid #d8e2dd;border-radius:5px;padding:5px 9px;background:#fbfdfc;display:grid;gap:2px;align-content:start}.history-report-field-v59 small{font-size:10px;color:#5c7166;font-weight:700}.history-report-field-v59 b{font-size:12px;line-height:1.4;overflow-wrap:anywhere}.history-report-field-v59 span{font-size:10px;color:#53665e}.history-report-field-v59[data-report-field="from"] b,.history-report-field-v59[data-report-field="to"] b{font-size:14px;color:var(--report-accent)}
-.history-report-table-v58{flex-shrink:0;width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px;line-height:1.5}.history-report-table-v58 th{background:var(--report-accent);color:#fff;padding:7px 4px}.history-report-table-v58 td{border:1px solid #c5d5cd;padding:6px 4px;text-align:center;overflow-wrap:anywhere;white-space:pre-wrap}
-.history-report-table-v58 th:first-child{width:64px}.history-report-table-v58 th:last-child{width:90px}.history-report-table-v58 th:nth-child(2){width:85px}.history-report-table-v58 th:nth-child(3){width:60px}.history-report-table-v58.expense th:nth-child(5){width:120px}.history-report-table-v58.expense th:nth-child(6){width:100px}.history-report-table-v58.expense th:nth-child(7){width:80px}.history-report-table-v58.income th:nth-child(4){width:135px}.history-report-table-v58.income th:nth-child(6){width:110px}.history-report-table-v58.income th:nth-child(7){width:100px}.history-report-table-v58.income th:nth-child(8){width:80px}.history-report-table-v58 tbody tr:nth-child(even){background:#f0f7f3}.history-paper-v58.expense tbody tr:nth-child(even){background:#fff8f8}
-.history-report-summary-v58{flex-shrink:0;display:flex;justify-content:space-between;gap:16px;padding:9px 12px;margin-top:10px;border:1px solid var(--report-border);background:var(--report-soft);font-size:13px}.history-report-summary-v58 b{color:var(--report-accent)}
+.history-report-title-v59{flex:none;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 10px;margin:7px 0 5px;background:var(--report-soft);border:1px solid var(--report-border);border-inline-start:5px solid var(--report-accent);border-radius:6px}
+.history-report-title-v59 h2{font-size:21px;line-height:1.2;margin:0;color:var(--report-accent)}.history-report-title-v59 p{margin:3px 0 0;font-size:10px;color:#53665e}.history-report-count-v59{font-size:12px;white-space:nowrap;color:var(--report-accent);font-weight:700}
+.history-report-meta-v58{flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin:0 0 7px;direction:rtl}
+.history-report-field-v59{min-width:0;border:1px solid #8ea79b;border-radius:4px;padding:3px 7px;background:#fbfdfc;display:grid;gap:2px;align-content:start}.history-report-field-v59 small{font-size:10px;color:#5c7166;font-weight:700}.history-report-field-v59 b{font-size:11.5px;line-height:1.3;overflow-wrap:anywhere}.history-report-field-v59 span{font-size:10px;color:#53665e}.history-report-field-v59[data-report-field="from"] b,.history-report-field-v59[data-report-field="to"] b{font-size:13px;color:var(--report-accent)}
+.history-report-table-v58{flex-shrink:0;width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px;line-height:1.35}.history-report-table-v58 th{background:var(--report-accent);color:#fff;padding:5px 4px;border:1px solid #ffffff50}.history-report-table-v58 td{border:1px solid #869e92;padding:4px 4px;text-align:center;overflow-wrap:anywhere;white-space:pre-wrap}
+.history-report-table-v58 th:first-child{width:64px}.history-report-table-v58 th:last-child{width:90px}.history-report-table-v58 th:nth-child(2){width:85px}.history-report-table-v58 th:nth-child(3){width:60px}.history-report-table-v58.expense th:nth-child(5){width:120px}.history-report-table-v58.expense th:nth-child(6){width:100px}.history-report-table-v58.expense th:nth-child(7){width:80px}.history-report-table-v58.income th:nth-child(4){width:135px}.history-report-table-v58.income th:nth-child(6){width:110px}.history-report-table-v58.income th:nth-child(7){width:100px}.history-report-table-v58.income th:nth-child(8){width:80px}.history-report-table-v58 tbody tr:nth-child(even){background:#f0f7f3}.history-paper-v58.expense tbody tr:nth-child(even){background:#fff8f8}.history-paper-v58.expense td{border-color:#b98b92}
+.history-report-summary-v58{flex-shrink:0;display:flex;justify-content:space-between;gap:16px;padding:9px 12px;margin-top:10px;border:1px solid var(--report-border);background:var(--report-soft);font-size:13px}.history-report-summary-v58 b{color:var(--report-accent)}.history-report-summary-v58[hidden]{display:none!important}
 .history-report-footer-v58{flex-shrink:0;margin-top:auto;padding-top:9px;border-top:1px solid #c5d5cd;display:flex;justify-content:space-between;font-size:10px;color:#536b5e}.history-report-actions-v58{position:sticky;top:0;z-index:2;display:flex;justify-content:center;gap:10px;padding:12px;background:#edf2ef}.history-report-actions-v58 button{border:0;border-radius:7px;padding:10px 20px;color:white;background:#08634f;font:700 13px Tahoma;cursor:pointer}.history-report-actions-v58 button:disabled{opacity:.6;cursor:wait}
 @media print{@page{size:A4 landscape;margin:0}body{background:#fff}.history-pages-v58{width:297mm;margin:0}.history-paper-v58{width:297mm;height:209.9mm;margin:0;border:0;break-after:page;page-break-after:always}.history-paper-v58:last-child{break-after:auto;page-break-after:auto}.history-report-actions-v58{display:none}}
 `;}
-function createHistoryReportPage(doc,model){
+function createHistoryReportPage(doc,model,firstPage=true){
   const page=doc.createElement('section');page.className=`history-paper-v58 ${model.kind}`;
   const field=(key,label,value,detail='')=>`<div class="history-report-field-v59" data-report-field="${key}"><small>${esc(label)}</small><b>${esc(value)}</b>${detail?`<span>${esc(detail)}</span>`:''}</div>`;
-  // The approved receipt header is unchanged. Report identity and filter fields
-  // live in their own section; extraction time is captured once in the model.
-  page.innerHTML=`${expenseReceiptHeader(null,model.title)}<div class="history-report-title-v59"><div><h2>${esc(model.title)}</h2><p>${esc(model.range.label)}</p></div><span class="history-report-count-v59">${model.rows.length} عملية</span></div><div class="history-report-meta-v58">${field('from','من تاريخ',showDate(model.range.from))}${field('to','إلى تاريخ',showDate(model.range.to))}${field('extracted','تاريخ الاستخراج',showDate(model.generatedDate),`الساعة ${model.generatedTime}`)}${field('branch','الفرع',model.branchLabel)}${field('course','الدورة',model.specialtyLabel)}${field('cutoff','البيانات حتى',showDate(model.range.effectiveTo))}</div><table class="history-report-table-v58 ${model.kind}"><thead><tr>${model.columns.map(label=>`<th>${esc(label)}</th>`).join('')}</tr></thead><tbody></tbody></table><div class="history-report-summary-v58"><span>إجمالي السجل المفلتر · ${model.rows.length} عملية</span><b>${esc(cash(model.total))}</b></div><footer class="history-report-footer-v58"><span>Centre EFC · ${esc(model.title)}</span><span class="history-page-number-v58"></span></footer>`;
+  // Full branding and filter information belong to the first page only.
+  // Continuation pages start directly with the repeated table column headings.
+  page.dataset.reportPage=firstPage?'first':'continuation';
+  const introduction=firstPage?`${expenseReceiptHeader(null,model.title)}<div class="history-report-title-v59"><div><h2>${esc(model.title)}</h2><p>${esc(model.range.label)}</p></div><span class="history-report-count-v59">${model.rows.length} عملية</span></div><div class="history-report-meta-v58">${field('from','من تاريخ',showDate(model.range.from))}${field('to','إلى تاريخ',showDate(model.range.to))}${field('extracted','تاريخ الاستخراج',showDate(model.generatedDate),`الساعة ${model.generatedTime}`)}${field('branch','الفرع',model.branchLabel)}${field('course','الدورة',model.specialtyLabel)}${field('cutoff','البيانات حتى',showDate(model.range.effectiveTo))}</div>`:'';
+  page.innerHTML=`${introduction}<table class="history-report-table-v58 ${model.kind}"><thead><tr>${model.columns.map(label=>`<th>${esc(label)}</th>`).join('')}</tr></thead><tbody></tbody></table><div class="history-report-summary-v58" hidden><span>إجمالي السجل المفلتر · ${model.rows.length} عملية</span><b>${esc(cash(model.total))}</b></div><footer class="history-report-footer-v58"><span>Centre EFC · ${esc(model.title)}</span><span class="history-page-number-v58"></span></footer>`;
   return page;
 }
 async function paginateHistoryReport(doc,model){
@@ -171,20 +173,24 @@ async function paginateHistoryReport(doc,model){
   const append=cells=>{const tr=doc.createElement('tr');tr.innerHTML=cells.map(value=>`<td>${esc(value??'—')}</td>`).join('');page.querySelector('tbody').appendChild(tr);return tr;};
   const pending=model.rows.map(cells=>[...cells]);
   while(pending.length){
-    const cells=pending.shift(),tr=append(cells);
-    const overflows=()=>page.querySelector('.history-report-summary-v58').getBoundingClientRect().bottom>page.getBoundingClientRect().bottom-18-page.querySelector('footer').offsetHeight-12;
+    const cells=pending.shift(),tr=append(cells),lastRow=pending.length===0;
+    page.querySelector('.history-report-summary-v58').hidden=!lastRow;
+    const overflows=()=>{
+      const end=page.querySelector(lastRow?'.history-report-summary-v58':'.history-report-table-v58').getBoundingClientRect().bottom;
+      return end>page.getBoundingClientRect().bottom-18-page.querySelector('footer').offsetHeight-12;
+    };
     // Actual wrapped row heights, not a fixed count or a single enormous canvas.
-    if(overflows()&&page.querySelectorAll('tbody tr').length>1){tr.remove();page=createHistoryReportPage(doc,model);root.appendChild(page);page.querySelector('tbody').appendChild(tr);}
+    if(overflows()&&page.querySelectorAll('tbody tr').length>1){tr.remove();page.querySelector('.history-report-summary-v58').hidden=true;page=createHistoryReportPage(doc,model,false);root.appendChild(page);page.querySelector('tbody').appendChild(tr);page.querySelector('.history-report-summary-v58').hidden=!lastRow;}
     if(overflows()){
       // A single unusually long description may span pages. Preserve all text,
       // repeat its receipt identity, and show the monetary amount only once.
       const first=[...cells],rest=cells.map((value,index)=>index===0?value:'');let split=false;
       cells.forEach((value,index)=>{const text=String(value??'');if(text.length>80){const middle=Math.ceil(text.length/2);first[index]=text.slice(0,middle);rest[index]=text.slice(middle);split=true;}});
       if(!split)throw new Error('تعذر احتواء صف التقرير في الصفحة.');
-      tr.remove();pending.unshift(first,rest);
+      tr.remove();page.querySelector('.history-report-summary-v58').hidden=true;pending.unshift(first,rest);
     }
   }
-  if(!model.rows.length){const tr=doc.createElement('tr');tr.innerHTML=`<td colspan="${model.columns.length}">لا توجد نتائج لهذه الفلاتر</td>`;page.querySelector('tbody').appendChild(tr);}
+  if(!model.rows.length){const tr=doc.createElement('tr');tr.innerHTML=`<td colspan="${model.columns.length}">لا توجد نتائج لهذه الفلاتر</td>`;page.querySelector('tbody').appendChild(tr);page.querySelector('.history-report-summary-v58').hidden=false;}
   const pages=[...root.children];pages.forEach((paper,index)=>paper.querySelector('.history-page-number-v58').textContent=`صفحة ${index+1} من ${pages.length}`);await expenseWaitImages(root);return pages;
 }
 async function saveHistoryReportPdf(model,doc){

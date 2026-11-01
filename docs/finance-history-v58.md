@@ -1,4 +1,4 @@
-# Finance history and registration partitions (v58/v59/v60)
+# Finance history and registration partitions (v58/v59/v60/v61)
 
 Target: `feature/efc-next-development`. Audited baseline:
 `5acee84cc1597780547d10515b2a87a608061e7a`.
@@ -109,3 +109,17 @@ combined student total. The settled-payer rule and all amounts remain unchanged.
 The report renderer/styles, receipt header, history pages, filters, debt and
 profit calculations are unchanged. Geometry checks verify the side-by-side cells,
 equal widths, readable values and total placement at 1440, 1024 and 840 pixels.
+
+## v61 compact history exports
+
+The EFC header, colored report title and labeled date/filter fields now appear
+only on the first page. Continuation pages start with the table column headings;
+every page retains its small footer and page number. The unchanged whole-report
+aggregate appears once, at the end of the final page.
+
+Metadata boxes and table padding are smaller, with darker borders. Arabic table
+text remains 11px. Pagination measures the available space separately for the
+first and continuation pages and reserves the aggregate only for the final row.
+Oversized descriptions still continue without losing characters or duplicating
+amounts. Preview, print and saved PDF use the same page structure. Dashboard
+presentation, accounting, filters and fiscal/archive guards remain unchanged.
