@@ -55,4 +55,27 @@ need(cert,'id="certRecordsTotalV53"','certificate history shows the amount match
 need(cert,'receiptDateReadable:true','certificate receipt date readability marker');
 need(bank,'receiptDateReadable:true','bank receipt date readability marker');
 const indexVersions=[...index.matchAll(/[?&]v=([^"&]+)/g)].map(m=>m[1]),gateVersion=gate.match(/RUNTIME_VERSION='([^']+)'/)?.[1];if(!gateVersion||!indexVersions.length||indexVersions.some(v=>v!==gateVersion))throw new Error('Cache version mismatch after bank/manager receipt changes.');
+
+// Bank receipt variants must be identical in UI, print and generated PDF.
+const receiptBodySource=bank.slice(bank.indexOf('function receiptBody(entry){'),bank.indexOf('function receiptDocument(entry,'));
+const receiptCssSource=bank.slice(bank.indexOf('function receiptCss(){'),bank.indexOf('function receiptHeader(entry){'));
+if(!receiptBodySource.startsWith('function receiptBody')||!receiptCssSource.startsWith('function receiptCss'))throw new Error('Bank receipt source extraction failed');
+const {runInNewContext}=await import('node:vm');
+const receiptBody=runInNewContext(receiptBodySource+';receiptBody',{
+  receiptHeader:()=>'',cash:value=>String(value),showDate:value=>String(value),esc:value=>String(value)
+});
+const receiptCss=runInNewContext(receiptCssSource+';receiptCss()',{}),sample={date:'2026-10-08',time:'12:00',amount:2500,statement:'bank receipt test'};
+const incomeReceipt=receiptBody({...sample,type:'in'}),withdrawalReceipt=receiptBody({...sample,type:'out'});
+for(const receipt of [incomeReceipt,withdrawalReceipt])need(receipt,'وصل حساب البنك لمؤسسة EFC','official bank receipt heading');
+need(incomeReceipt,'نوع الحركة: <b>دخل</b>','income direction');
+need(withdrawalReceipt,'نوع الحركة: <b>صرف / سحب</b>','withdrawal direction');
+need(incomeReceipt,'bank-operation-v58 in','green income type');
+need(withdrawalReceipt,'bank-operation-v58 out','red withdrawal type');
+need(incomeReceipt,'bank-amount-v22 in','income amount class');
+need(withdrawalReceipt,'bank-amount-v22 out','withdrawal amount class');
+need(receiptCss,'.bank-amount-v22.in .bank-track-v22 b{color:#087344}','green amount CSS');
+need(receiptCss,'.bank-amount-v22.out .bank-track-v22 b{color:#b4232c}','red amount CSS');
+need(bank,'stage.innerHTML=`<style>${receiptCss()}</style>','PDF renders same bank receipt CSS');
+need(bank,'frame.srcdoc=receiptDocument(entry,true,autoPrint)','viewer uses same bank receipt body');
+
 console.log('Bank v22 period filters, colored summaries/reports, certificate manager receipt, reminder logo and backup integration verified.');
