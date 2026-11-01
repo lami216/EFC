@@ -235,7 +235,12 @@ function archiveNotice(label='هذه الفترة',info=rangeState('','')){
 }
 function financeRange(){
   const mode=text(document.querySelector('#financeModeV13 [data-mode].active')?.dataset.mode||'daily'),day=text(document.getElementById('dayV13')?.value),year=Number(document.getElementById('yearV13')?.value||0),month=Math.max(1,Math.min(12,Number(document.getElementById('monthV13')?.value||1)));
-  if(mode==='daily'&&day)return{from:day,to:day,label:'اليوم المختار'};if(!year)return null;
+  if(mode==='daily'&&day)return{from:day,to:day,label:'اليوم المختار'};
+  if(mode==='weekly'){
+    const rawFrom=text(document.getElementById('fromV13')?.value),last=text(document.getElementById('toV13')?.value||rawFrom||day),oldest=window.EFC_FINANCE_UI_V13?.oldestAvailableDate?.()||last,from=rawFrom||oldest;
+    return{from:from<=last?from:last,to:from<=last?last:from,label:'الفترة المختارة'};
+  }
+  if(!year)return null;
   if(mode==='monthly'){const last=new Date(year,month,0).getDate();return{from:`${year}-${String(month).padStart(2,'0')}-01`,to:`${year}-${String(month).padStart(2,'0')}-${String(last).padStart(2,'0')}`,label:'الشهر المختار'};}
   return{from:`${year}-01-01`,to:`${year}-12-31`,label:`سنة ${year}`};
 }
@@ -246,7 +251,7 @@ function certificateFinanceRange(){
 }
 function guardBody(body,range){
   if(!body||!range)return;const info=rangeState(range.from,range.to);if(info.status==='open'){delete body.dataset.efcArchiveOnlyV21;delete body.dataset.efcArchiveStateV21;return;}
-  const key=`${info.status}|${info.from}|${info.to}|${info.lockedThrough}`;if(body.dataset.efcArchiveStateV21===key)return;body.dataset.efcArchiveOnlyV21='1';body.dataset.efcArchiveStateV21=key;body.innerHTML=archiveNotice(range.label,info);
+  const key=`${info.status}|${info.from}|${info.to}|${info.lockedThrough}`;if(body.dataset.efcArchiveStateV21===key&&body.querySelector('.efc-archive-only-v21'))return;body.dataset.efcArchiveOnlyV21='1';body.dataset.efcArchiveStateV21=key;body.innerHTML=archiveNotice(range.label,info);
 }
 function periodPaymentRange(){
   const result=document.getElementById('periodResultV13'),active=document.querySelector('.period-tabs-prod button.active');if(!result||active?.dataset.tab!=='payments')return null;
@@ -451,7 +456,7 @@ async function install(){
     restoreMergesExpenses:true,restoreMergesBranches:true,branchIdentityRemapOnRestore:true,expenseIdentityFirstRestore:true,legacyPaymentRestoreDeduplication:true,studentIdentityRestoreAlignment:true,
     paymentRestoreTombstones:true,expenseRestoreTombstones:true,certificateRestoreTombstones:true,manualStudentRestoreTombstones:true,historicalPaymentScopeSnapshots:true,registrationScopeEditRetargetsLivePayments:true,closedPaymentScopeSnapshotsRemainHistorical:true,legacyPaymentScopeAutoMigration:true,legacyPaymentScopeMigrationIdempotent:true,legacyPaymentScopeMigrationAudited:true,auditTrail:true,
     paymentReceiptDeletionReversesSource:true,registrationReceiptDeletionRemovesRegistration:true,studentReceiptDeleteAction:true,certificateDeliveryReceiptDeleteAction:true,certificateDeliveryDeleteReversesSource:true,aggregateReportsRemainReadOnly:true,deleteStudentPaymentSource,deleteCertificateDeliverySource,deleteExpenseSource:(row,button=null)=>deleteExpense(row,button),
-    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),retargetStudentPaymentScopes,migrateLegacyPaymentScopeMismatches,guardFinanceViews,rangeState
+    snapshot:()=>clone(state),prepareIncoming:incoming=>prepareIncoming(incoming,state),stampAllPayments:()=>stampAllPayments({persist:true}),retargetStudentPaymentScopes,migrateLegacyPaymentScopeMismatches,guardFinanceViews,guardBody,rangeState
   });
 }
 function ready(){return Boolean(window.EFC_FISCAL_V14?.ready&&window.EFC_STUDENT_LIFECYCLE_UI_V20?.ready&&window.EFC_CENTER_OPS_V13?.ready&&window.EFC_FINANCE_UI_V13?.ready&&window.EFC_CERTIFICATES_V13?.ready&&window.EFC_REGISTRATION_SCHEDULE_MATRIX_V17?.ready&&window.EFC_DOMAIN_V13?.ready&&window.EFC_RECEIPT_SEQUENCES_V10);}
