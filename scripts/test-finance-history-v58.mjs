@@ -55,7 +55,7 @@ try{
   };
   const kpis=async()=>page.locator('#financeBodyV13>.kpis>.card').allTextContents();
   let cards=await kpis();assert.equal(cards.length,3);assert.equal(money(await page.locator('[data-income-part=total] b').textContent()),340);
-  assert.deepEqual(await partitionValues(),[150,190,2,1]);
+  assert.deepEqual(await partitionValues(),[240,100,3,1],'the September-start student whose first actual payment is in November is financially new in November');
   assert.equal(await page.locator('[data-student-part=new]').count(),1,'new count is not repeated');
   assert.deepEqual(await page.locator('.finance-income-card-v59 [data-income-part]').evaluateAll(rows=>rows.map(r=>r.dataset.incomePart)),['new','earlier','total']);
   await checkHorizontalCards(page);

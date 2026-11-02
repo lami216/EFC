@@ -11,7 +11,7 @@ vm.createContext(context);
 // Exercise the actual runtime helpers without adding test-only production exports.
 vm.runInContext(source.replace('window.EFC_FINANCE_UI_V13=Object.freeze(',`window.financeTest={studentRegistrationDate,registrationIsSettled,incomeRegistrationPartition,incomePartitionCards,historyReportModel,historyReportAllowed,expenseReceiptHeader,monthBounds,yearBounds};window.EFC_FINANCE_UI_V13=Object.freeze(`),context);
 const api=context.financeTest,partition=api.incomeRegistrationPartition;
-const student=(id,date,extra={})=>({id,recordCode:`r-${id}`,registeredAt:date,start:'2020-01-01',required:100,payments:[['2026-11-01',100]],...extra});
+const student=(id,date,extra={})=>({id,recordCode:`r-${id}`,registeredAt:date,start:date,required:100,payments:[[date,100]],...extra});
 const newStudent=student('new','2026-11-01'),old=student('old','2026-10-31'),unpaid=student('unpaid','2026-11-15'),late=student('late','2026-12-01'),unknown={id:'unknown'};
 const row=(student,amount,extra={})=>({student,amount,date:'2026-11-15',...extra});
 const income=[row(newStudent,100),row(newStudent,50),row(old,80),row({...old},20),row({id:'certificate:1'},30,{sourceType:'certificate'}),row(late,12),row(unknown,8)];
@@ -21,9 +21,32 @@ assert.deepEqual(JSON.parse(JSON.stringify(result)),{newIncome:150,earlierIncome
 assert.equal(result.newIncome+result.earlierIncome+result.certificateIncome+result.unclassifiedIncome,income.reduce((sum,r)=>sum+r.amount,0));
 assert.equal(JSON.stringify({income,registered:[newStudent,unpaid]}),before,'partition must never mutate source payments/student state');
 assert.equal(api.studentRegistrationDate(student('explicit','2026-10-01',{registrationDate:'2026-11-01'})),'2026-10-01');
-assert.equal(api.studentRegistrationDate({registrationDate:'2026-09-02',start:'2026-11-01'}),'2026-09-02');
-assert.equal(api.studentRegistrationDate({id:`student-${Date.parse('2026-10-05T12:00:00Z').toString(36)}-uuid`,start:'2026-11-01'}),'2026-10-05','original id timestamp precedes editable course start');
+assert.equal(api.studentRegistrationDate({registrationDate:'2026-09-02',start:'2026-11-01'}),'2026-11-01','unpaid registrations follow start, never stale creation metadata');
+assert.equal(api.studentRegistrationDate({id:`student-${Date.parse('2026-10-05T12:00:00Z').toString(36)}-uuid`,start:'2026-11-01'}),'2026-11-01','native id creation timestamp never decides the financial registration month');
 assert.equal(api.studentRegistrationDate({id:'legacy',start:'2026-08-02'}),'2026-08-02','legacy course start remains the final fallback');
+const corrected=student('existing','2026-11-02',{start:'2026-11-05',payments:[['2026-10-25',100],['2026-11-10',20]]});
+assert.equal(api.studentRegistrationDate(corrected),'2026-10-25','existing records automatically use the original payment, ignoring creation/start dates');
+corrected.payments[0][0]='2026-11-02';assert.equal(api.studentRegistrationDate(corrected),'2026-11-02','editing the registration receipt moves the financial registration month');
+corrected.payments[1][0]='2026-09-01';assert.equal(api.studentRegistrationDate(corrected),'2026-11-02','a later backdated collection must not replace the original registration payment');
+assert.equal(api.studentRegistrationDate({start:'2026-08-02',payments:[['2026-07-01',0],['2026-07-02',-10],['2026-09-02',100]]}),'2026-09-02','non-payments never define a registration');
+assert.equal(api.studentRegistrationDate({start:'2026-08-02',payments:[['',100]]}),'2026-08-02','missing source payment date matches canonical allPayments start fallback');
+assert.equal(api.studentRegistrationDate({registeredAt:'2026-11-01',registrationDate:'2026-11-01',start:'2026-10-25',payments:[['2026-10-25',100]]}),'2026-10-25','both stale registration metadata fields are ignored');
+assert.equal(api.studentRegistrationDate({payments:[]}), '','missing dates remain unknown instead of being fabricated');
+for(const created of ['2020-01-01T12:00:00Z','2026-12-01T12:00:00Z'])assert.equal(api.studentRegistrationDate({id:`student-${Date.parse(created).toString(36)}-uuid`,payments:[['2026-10-25',100]]}),'2026-10-25','creation time and future-clock cutoffs cannot change financial registration dates');
+const existing=student('pre-update','2026-11-02',{start:'2026-10-25',required:500,payments:[['2026-10-25',300],['2026-11-10',200]]});
+function periodPartition(s,range){
+  const rows=s.payments.map(p=>row(s,p[1],{date:p[0]})).filter(r=>r.date>=range.from&&r.date<=range.to);
+  const date=api.studentRegistrationDate(s),registered=date>=range.from&&date<=range.to?[s]:[];
+  const result=partition(rows,registered,range);
+  assert.equal(result.newIncome+result.earlierIncome+result.certificateIncome+result.unclassifiedIncome,rows.reduce((sum,r)=>sum+r.amount,0),'date corrections preserve the canonical filtered aggregate');
+  return JSON.parse(JSON.stringify(result));
+}
+const oct={from:'2026-10-01',to:'2026-10-31'},nov={from:'2026-11-01',to:'2026-11-15'};
+assert.deepEqual(periodPartition(existing,oct),{newIncome:300,earlierIncome:0,certificateIncome:0,unclassifiedIncome:0,newCount:1,earlierCount:0});
+assert.deepEqual(periodPartition(existing,nov),{newIncome:0,earlierIncome:200,certificateIncome:0,unclassifiedIncome:0,newCount:0,earlierCount:1});
+existing.payments[0][0]='2026-11-02';assert.equal(periodPartition(existing,oct).newCount,0);assert.equal(periodPartition(existing,nov).newCount,1);assert.equal(periodPartition(existing,nov).newIncome,500);assert.equal(periodPartition(existing,nov).earlierCount,0);
+existing.start='2026-09-01';assert.equal(periodPartition(existing,nov).newCount,1,'course-start edits no longer change a paid financial registration');
+existing.payments[0][0]='2026-10-25';assert.equal(periodPartition(existing,oct).newCount,1);assert.equal(periodPartition(existing,nov).earlierIncome,200,'source date correction works in both directions');
 for(const range of [{from:'2026-11-15',to:'2026-11-15'},api.monthBounds(2026,11),api.yearBounds(2026),{from:'2026-10-31',to:'2026-11-15'}]){
   for(const branch of ['', 'a', 'b'])for(const specialty of ['', 'x', 'y']){
     const fixtures=[newStudent,old,unpaid].map((s,i)=>({...s,branch:i===1?'b':'a',specialty:i===1?'y':'x'}));
@@ -39,7 +62,7 @@ for(const range of [{from:'2026-11-15',to:'2026-11-15'},api.monthBounds(2026,11)
 }
 assert.equal(partition([],[],{from:'2026-11-01',to:'2026-11-15'}).newCount,0);
 assert.equal(partition([row(newStudent,0),row(newStudent,-5)], [newStudent],{from:'2026-11-01',to:'2026-11-15'}).newIncome,-5,'partition must preserve canonical signed/zero amounts');
-const partial=student('partial','2026-10-01',{required:200,payments:[['2026-11-15',50]]}),future=student('future','2026-10-01',{payments:[['2026-11-15',20],['2026-11-16',80]]});
+const partial=student('partial','2026-10-01',{required:200,payments:[['2026-10-01',10],['2026-11-15',50]]}),future=student('future','2026-10-01',{payments:[['2026-10-01',10],['2026-11-15',10],['2026-11-16',80]]});
 const scoped={from:'2026-11-01',to:'2026-11-15'},paymentRows=[row(old,80),row({...old},20),row(partial,50),row(future,20)];
 assert.equal(partition(paymentRows,[],scoped).earlierCount,1,'only distinct fully settled earlier students count; partial and future settlement do not');
 assert.equal(partition(paymentRows,[],scoped).earlierIncome,170,'partial amounts still remain in canonical income');

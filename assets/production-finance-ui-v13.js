@@ -14,9 +14,12 @@ function dayBounds(day){const value=String(day||today());return{from:value,to:va
 function monthBounds(year,month){const last=new Date(Number(year),Number(month),0).getDate();return{from:`${year}-${pad2(month)}-01`,to:`${year}-${pad2(month)}-${pad2(last)}`};}
 function yearBounds(year){return{from:`${year}-01-01`,to:`${year}-12-31`};}
 function studentRegistrationDate(student){
-  const explicit=String(student?.registeredAt||student?.registrationDate||'').slice(0,10);if(/^\d{4}-\d{2}-\d{2}$/.test(explicit))return explicit;
-  const parts=String(student?.id||'').split('-');if(parts[0]==='student'&&parts[1]){const stamp=parseInt(parts[1],36);if(Number.isFinite(stamp)&&stamp>=1577836800000&&stamp<=Date.now()+86400000){const d=new Date(stamp);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}}
-  return String(student?.start||'').slice(0,10);
+  // Finance registration follows the original registration payment, including
+  // existing records and receipt date corrections. Keep source payment order:
+  // sorting by date would let a later backdated collection become a registration.
+  // Until a student pays, retain the existing unpaid-registration count by start.
+  const registrationPayment=(student?.payments||[]).find(payment=>Number(payment?.[1]||0)>0);
+  return String(registrationPayment?.[0]||student?.start||'').slice(0,10);
 }
 // Presentation only: consume the canonical, already filtered payment rows. Never
 // rebuild payments from paid/required balances or change accounting scope snapshots.

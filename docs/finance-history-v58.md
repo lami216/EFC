@@ -1,4 +1,4 @@
-# Finance history and registration partitions (v58/v59/v60/v61)
+# Finance history and registration partitions (v58/v59/v60/v61/v62)
 
 Target: `feature/efc-next-development`. Audited baseline:
 `5acee84cc1597780547d10515b2a87a608061e7a`.
@@ -18,11 +18,14 @@ The v59 feedback refinement starts from
   finance dashboard, income history and expense history. Only the dashboard's two
   existing cards receive partitions. Histories retain their existing summary and
   actions and add one shared export control beside the heading.
-- The existing registration-date resolver prefers `registeredAt`, then
-  `registrationDate`, then the original creation timestamp in a native student ID;
-  legacy records without these fall back to `start`. Payment date controls period
-  inclusion, while registration date controls new/earlier classification. No date
-  is inferred from the installment/month being paid.
+- Since v62, the finance registration-date resolver uses the date of the first
+  positive source payment: the original registration receipt. Source array order
+  is retained, matching the existing receipt editor; sorting by payment date
+  would incorrectly promote later backdated collections into registrations.
+  Until a student pays, `start` keeps unpaid registrations visible. Creation
+  metadata (`registeredAt`, `registrationDate`, native ID timestamps) is no longer
+  used for finance cohorts. Each actual payment date still determines the period
+  containing its amount. No date is inferred from the installment being paid.
 - Student counts use `recordCode` (or legacy `id`) once per group. The first count
   includes all matching new registrations, including unpaid ones. The second
   counts distinct earlier registrations with a positive canonical payment in the
@@ -33,6 +36,39 @@ The v59 feedback refinement starts from
   aggregate. Missing or later registration dates appear as unclassified income.
 - The debt total, profitability, expense predicates, payment allocation, student
   lifecycle, registration editor and persistence model remain authoritative.
+
+## v62: registration follows its source payment
+
+Confirmed on the previous build: a native November file with an October start
+and October registration receipt was counted as a November registration; its
+October income appeared as unclassified. Finance used creation metadata while
+period-search registrations used the course start. The approved correction is
+limited to finance: its registration month follows the original payment date;
+period search intentionally continues to filter by `start`.
+
+The resolver reads existing canonical records on every draw. Existing installed
+and restored data therefore receive the correction immediately, without a
+migration, new registration, rewritten receipt, changed ID or altered balance.
+Moving the original receipt from October to November (or back) moves the finance
+registration count and new/earlier income classification. Later collections
+retain the original cohort, even when their dates are edited before the original
+receipt date. Canonical transaction amounts, payment-period filters, fiscal locks,
+certificate separation, the earlier fully settled count and report layout stay
+unchanged. A later backdated collection can still correctly remain unclassified
+when its registration receipt lies after the selected period; this is not the
+creation-date bug and no source dates are silently repaired.
+
+Validation: `npm run check` includes runtime-helper cases for existing metadata,
+receipt date corrections, later backdated collections, unpaid/missing-date
+fallbacks, future creation timestamps, cohort filter matrices and reconciliation.
+`scripts/test-finance-registration-date-v62.mjs` runs the full packaged app and
+edits actual original receipts through their UI. It verifies monthly/day/range/
+year and branch/course filters, unchanged start-based search, startup correction,
+round-trip date changes, personal-data start edits, repeated backup restore,
+legacy imports lacking an ID, unpaid-to-paid transitions and stopped students.
+`scripts/test-finance-history-v58.mjs` retains the full report/PDF/native-save,
+responsive layout and closed/mixed fiscal regression checks plus the supplied
+realistic backup (30 new, 41 earlier settled, 179400 income and 53400 debt).
 
 ## Reports and fiscal guard
 
