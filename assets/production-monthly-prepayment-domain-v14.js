@@ -46,31 +46,37 @@ function allocationMonthCount(student,asOf=today(),paidOverride=null,minCount=0)
   return Math.min(MAX_MONTHS,count);
 }
 function dynamicAllocation(student,asOf=today(),paidOverride=null,minCount=0){
-  const fee=feeOf(student),count=allocationMonthCount(student,asOf,paidOverride,minCount),monthPaid=Array(count).fill(0),allocations=[];
+  // Older stopped records may not have a frozen-month count. Preserve their
+  // previous payment-derived obligations instead of treating missing as zero.
+  const frozen=student?.frozenMonths,hasFrozen=frozen!==undefined&&frozen!==null&&frozen!==''&&Number.isInteger(Number(frozen))&&Number(frozen)>=0;
+  const fee=feeOf(student),limit=isInactive(student)?Math.min(MAX_MONTHS,hasFrozen?Number(frozen):allocationMonthCount(student,asOf,paidOverride,0)):MAX_MONTHS,initialCount=Math.min(limit,allocationMonthCount(student,asOf,paidOverride,minCount)),monthPaid=Array(initialCount).fill(0),allocations=[],unallocated=[];
   const place=(paymentIndex,monthIndex,amount)=>{
-    if(monthIndex<0||monthIndex>=count||amount<=0||fee<=0)return 0;
+    if(monthIndex<0||monthIndex>=limit||amount<=0||fee<=0)return 0;
+    while(monthPaid.length<=monthIndex)monthPaid.push(0);
     const before=Math.max(0,Number(monthPaid[monthIndex]||0)),room=Math.max(0,fee-before),used=Math.min(room,amount);
     if(used>0){const after=before+used;monthPaid[monthIndex]=after;allocations.push({paymentIndex,monthNumber:monthIndex+1,amount:used,before,after,fee});}
     return used;
   };
-  if(paidOverride!==null&&paidOverride!==undefined){let left=Math.max(0,Number(paidOverride||0));for(let i=0;i<count&&left>0;i+=1)left-=place(-1,i,left);return{monthPaid,allocations,count};}
+  if(paidOverride!==null&&paidOverride!==undefined){let left=Math.max(0,Number(paidOverride||0));for(let i=0;i<limit&&left>0;i+=1)left-=place(-1,i,left);if(left>0)unallocated.push({paymentIndex:-1,amount:left});return{monthPaid,allocations,count:monthPaid.length,unallocated};}
   (student.payments||[]).forEach((payment,index)=>{
     if(asOf&&paymentDate(payment,student)>asOf)return;
     let left=Math.max(0,Number(payment?.[1]||0));if(left<=0)return;
     const explicit=explicitOf(payment);
     if(explicit.length){
       for(const item of explicit){if(left<=0)break;left-=place(index,item.monthNumber-1,Math.min(left,item.amount));}
-      if(left>0){const start=Math.max(0,(explicit.at(-1)?.monthNumber||targetOf(payment))-1);for(let i=start;i<count&&left>0;i+=1)left-=place(index,i,left);}
+      if(left>0){const start=Math.max(0,(explicit.at(-1)?.monthNumber||targetOf(payment))-1);for(let i=start;i<limit&&left>0;i+=1)left-=place(index,i,left);}
+      if(left>0)unallocated.push({paymentIndex:index,amount:left});
       return;
     }
     const start=Math.max(0,targetOf(payment)-1);
-    for(let i=start;i<count&&left>0;i+=1)left-=place(index,i,left);
+    for(let i=start;i<limit&&left>0;i+=1)left-=place(index,i,left);
+    if(left>0)unallocated.push({paymentIndex:index,amount:left});
   });
-  return{monthPaid,allocations,count};
+  return{monthPaid,allocations,count:monthPaid.length,unallocated};
 }
 function installmentPlan(student,asOf=today(),paidOverride=null,minCount=0){
   if(!isDynamicMonthly(student))return B.installmentPlan(student,asOf,paidOverride);
-  const fee=feeOf(student),count=allocationMonthCount(student,asOf,paidOverride,minCount),{monthPaid}=dynamicAllocation(student,asOf,paidOverride,count);
+  const fee=feeOf(student),{monthPaid,count}=dynamicAllocation(student,asOf,paidOverride,minCount);
   return Array.from({length:count},(_,index)=>{
     const number=index+1,monthStart=addDuration(student.start,index,'month'),openDate=number===1?monthStart:addDays(monthStart,-OPEN_LEAD_DAYS),renewalDate=number===1?addDuration(monthStart,1,'month'):monthStart,dueFrom=addDays(renewalDate,-RENEWAL_WARNING_DAYS),overdueFrom=renewalDate,paid=Math.min(fee,Number(monthPaid[index]||0)),remaining=Math.max(0,fee-paid),prepaid=paid>0&&asOf<monthStart;
     let state='upcoming';
@@ -122,34 +128,50 @@ function allocationMonthLabel(student,paymentIndex,asOf=today()){
   return numbers.join('، ')||String(targetOf(student.payments?.[paymentIndex]));
 }
 function defaultDescription(value){const text=String(value||'').trim();return !text||/^دفعة(?:\s+الشهر|\s+تسجيل|\s+مستحقات)/.test(text);}
+// Preview and commit share the source-order allocator and selected receipt date.
+// No student, payment, identity or persisted state is changed by the preview.
+function previewMonthlyPaymentAllocation(student,{amount,date=today(),targetMonth=null}={}){
+  const value=Number(amount||0),fee=feeOf(student),asOf=String(date||today());
+  if(!Number.isFinite(value)||!Number.isFinite(fee)||value<=0||fee<=0)throw new Error('المبلغ غير صالح.');
+  const plan=installmentPlan(student,asOf),firstOpen=plan.find(month=>month.remaining>0),fallback=(plan.at(-1)?.number||0)+1,monthNumber=clampMonth(Number(targetMonth)||firstOpen?.number||fallback||1);
+  const payments=[...(student.payments||[]),[asOf,value,'','',0,'','',monthNumber]],index=payments.length-1,draft={...student,payments};
+  const allocations=paymentAllocations(draft,index,asOf),allocated=allocations.reduce((sum,item)=>sum+item.amount,0);
+  if(!allocations.length||Math.round(allocated*100)!==Math.round(value*100))throw new Error('قيمة الدفعة تتجاوز الحد المدعوم للأشهر المقدمة.');
+  // A backdated addition must also fit when later receipts become visible.
+  // It must not create missing coverage past MAX_MONTHS or frozen obligations.
+  const eventual=dynamicAllocation(draft,'9999-12-31');
+  if(eventual.unallocated.some(item=>item.paymentIndex===index&&item.amount>0))throw new Error('قيمة الدفعة تتجاوز الحد المدعوم للأشهر المقدمة.');
+  return{monthNumber,allocations,summary:allocationSummary(draft,index,asOf),remaining:targetRemaining(draft,monthNumber,asOf)};
+}
 function appendPayment(student,{amount,method,date=today(),time=nowTime(),description='',targetMonth=null,debtDueDate=null,persist=true}={}){
   if(!student)throw new Error('الطالب غير موجود.');
   window.EFC_FISCAL_V14?.assertDateOpen?.(String(date||today()),'تاريخ الدفعة');
+  const before=clone(student),firstRegistration=!(student.payments||[]).some(payment=>Number(payment?.[1]||0)>0);
+  const markRegistration=index=>{if(firstRegistration){student.registrationPaymentCode=String(student.payments?.[index]?.[6]||'');student.registrationPaymentInferred=false;}};
+  const rollback=error=>{Object.keys(student).forEach(key=>delete student[key]);Object.assign(student,before);throw error;};
   if(!isDynamicMonthly(student)){
+    try{
     const index=B.appendPayment(student,{amount,method,date,time,description,targetMonth,debtDueDate,persist:false}),stamp=Date.now();
     if(student.payments?.[index])student.payments[index][11]=stamp;
+    markRegistration(index);
     student.updatedAt=stamp;
     if(persist)saveStudentsClean();
     return index;
+    }catch(error){return rollback(error);}
   }
-  reconcileStudent(student);
-  const value=Math.max(0,Number(amount||0)),fee=feeOf(student);if(value<=0||fee<=0)throw new Error('المبلغ غير صالح.');
-  const selected=String(method||'').trim();if(!selected)throw new Error('اختر وسيلة الدفع.');
-  const plan=installmentPlan(student,String(date||today())),firstOpen=plan.find(month=>month.remaining>0),fallback=(plan.at(-1)?.number||0)+1,monthNumber=clampMonth(Number(targetMonth)||firstOpen?.number||fallback||1),span=Math.max(1,Math.ceil(value/fee));
-  if(monthNumber+span-1>MAX_MONTHS)throw new Error('قيمة الدفعة تتجاوز الحد المدعوم للأشهر المقدمة.');
-  const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=Date.now();
-  student.payments.push([String(date),value,selected,String(time||nowTime()),stamp,String(description||'').trim(),transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,null,stamp]);
-  const allocations=paymentAllocations(student,index,String(date||today()));
-  if(!allocations.length||Math.round(allocations.reduce((sum,item)=>sum+item.amount,0)*100)!==Math.round(value*100)){student.payments.pop();throw new Error('تعذر توزيع الدفعة على الأشهر.');}
-  student.payments[index][10]=allocations.map(item=>({monthNumber:item.monthNumber,amount:item.amount}));
-  const summary=allocationSummary(student,index,String(date||today())),original=String(description||'').trim();
-  student.payments[index][5]=defaultDescription(original)?summary:`${summary} — ${original}`;
+  const value=Number(amount||0),selected=String(method||'').trim();if(!selected)throw new Error('اختر وسيلة الدفع.');
+  const preview=previewMonthlyPaymentAllocation(student,{amount:value,date,targetMonth}),monthNumber=preview.monthNumber;
+  try{
+  const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=Date.now(),original=String(description||'').trim();
+  student.payments.push([String(date),value,selected,String(time||nowTime()),stamp,defaultDescription(original)?preview.summary:`${preview.summary} — ${original}`,transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,preview.allocations.map(item=>({monthNumber:item.monthNumber,amount:item.amount})),stamp]);
+  markRegistration(index);
   student.updatedAt=stamp;
   reconcileStudent(student,String(date||today()));
   const remaining=targetRemaining(student,monthNumber,String(date||today()));
   B.setDebtDate(student,String(monthNumber),remaining>0&&debtDueDate?debtDueDate:null);
   if(persist)saveStudentsClean();
   return index;
+  }catch(error){return rollback(error);}
 }
 
 function customDescription(value){
@@ -190,6 +212,7 @@ function updateStudentRegistration(student,changes={}){
     const stamp=Date.now(),transactionCode=window.EFC_CODES?.newTransactionCode?.(draft)||uid('tx'),description=String(changes.paymentDescription||'').trim(),receipt=String(changes.registrationReceiptNo??draft.registrationReceiptNo??'').trim();
     draft.payments.push([String(changes.paymentDate||start),amount,method,String(changes.paymentTime||nowTime()),stamp,description,transactionCode,monthly?1:null,receipt||null,changes.debtDueDate?String(changes.debtDueDate):null,null,stamp]);
     effectiveIndex=draft.payments.length-1;notes.push(description);
+    if(!(student.payments||[]).some(payment=>Number(payment?.[1]||0)>0)){draft.registrationPaymentCode=transactionCode;draft.registrationPaymentInferred=false;}
   }
   const editStamp=Date.now();
   if(effectiveIndex!==null){
@@ -314,7 +337,7 @@ allocV4=function(student,paymentIndex){
 financialStatus=financialStatusV14;
 monthBadgeV3=function(student,asOf=today(),paidOverride=null){const focus=monthlyFocus(student,asOf,paidOverride);if(!focus)return'';const cls=focus.state==='complete'?'good':focus.state==='overdue'?'bad':focus.state==='upcoming'?'neutral':'warn';return`<span class="badge ${cls}">${B.esc(focus.label)}</span>`;};
 
-const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyCoverageEnd,monthlyPrepayment:true,monthlyCoverageEndForSearch:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationScopeEditRetargetsFinance:true,registrationScopeEditRetargetsDailyLedger:true,closedPaymentScopeHistoryPreserved:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyRenewalWarningDays:RENEWAL_WARNING_DAYS});
+const next=Object.freeze({...B,requiredAmount,remainingAmount,reconcileStudent,reconcileAllStudents,installmentPlan,dynamicAllocation,targetRemaining,previewMonthlyPaymentAllocation,appendPayment,updateStudentRegistration,stopStudent,notificationsForStudent,currentNotifications,saveStudents:saveStudentsClean,paymentAllocations,allocationSummary,allocationMonthLabel,visibleMonthCount,monthlyFocus,monthlyCoverageEnd,monthlyPrepayment:true,monthlyCoverageEndForSearch:true,registrationEditAtomic:true,registrationEditStudentScoped:true,monthlyReallocationOnEdit:true,historicalCourseSnapshotPreservedOnEdit:true,registrationScopeEditRetargetsFinance:true,registrationScopeEditRetargetsDailyLedger:true,closedPaymentScopeHistoryPreserved:true,registrationNumberCollisionGuard:true,registrationNumberImmutable:true,registrationCollisionOnlyOnScopeChange:true,zeroPaymentRegistrationCanCreateTransaction:true,rollbackOnLocalSaveFailure:true,revisionStampedPayments:true,stoppedStudentHasEndDate:true,stoppedMonthlyPaidThroughProtected:true,monthlyOpenLeadDays:OPEN_LEAD_DAYS,monthlyRenewalWarningDays:RENEWAL_WARNING_DAYS});
 window.EFC_DOMAIN_V13=next;
 window.EFC_DOMAIN_V13_READY=Promise.resolve(next);
 reconcileAllStudents();

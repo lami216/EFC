@@ -35,7 +35,7 @@ document.addEventListener('click',event=>{const input=event.target instanceof HT
 
 function normalizeCenters(items){
   const seen=new Set();
-  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim()})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
+  return (Array.isArray(items)?items:[]).map(item=>({id:String(item?.id||D.uid('center')),name:String(item?.name||'').trim(),updatedAt:Number.isFinite(Number(item?.updatedAt))?Math.max(0,Number(item.updatedAt)):0})).filter(item=>item.name&&!seen.has(item.id)&&(seen.add(item.id),true));
 }
 function applyCenters(items,{write=true}={}){
   const next=normalizeCenters(items);
@@ -59,7 +59,7 @@ async function persistCentersNow(){
   return typeof window.EFC_FORCE_PERSIST==='function'?window.EFC_FORCE_PERSIST():{};
 }
 function contributeCenters(state){
-  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name)}));
+  state.branches=branches.map(item=>({id:String(item.id),name:String(item.name),updatedAt:Number.isFinite(Number(item.updatedAt))?Math.max(0,Number(item.updatedAt)):0}));
   return state;
 }
 function saveCenters(){
@@ -83,7 +83,8 @@ function openCenterEditor(id=null){
   form.onsubmit=event=>{
     event.preventDefault();const name=String(new FormData(form).get('name')||'').trim();if(!name)return;
     const duplicate=branches.some(item=>item.id!==existing?.id&&item.name.trim().toLowerCase()===name.toLowerCase());if(duplicate)return alert('هذا المركز موجود بالفعل.');
-    if(existing)existing.name=name;else branches.push({id:D.uid('center'),name});
+    const updatedAt=Math.max(Date.now(),Number(existing?.updatedAt||0)+1);
+    if(existing){existing.name=name;existing.updatedAt=updatedAt;}else branches.push({id:D.uid('center'),name,updatedAt});
     saveCenters();close();window.renderSpecialties();
   };
 }

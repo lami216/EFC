@@ -1,0 +1,40 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import assert from 'node:assert/strict';
+import {pathToFileURL} from 'node:url';
+const moduleName=process.env.EFC_PLAYWRIGHT_MODULE||'playwright';
+const {chromium}=await import(path.isAbsolute(moduleName)?pathToFileURL(moduleName).href:moduleName);
+const root=path.resolve('dist');
+const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+decodeURIComponent((req.url||'/').split('?')[0]==='/'?'/index.html':req.url.split('?')[0]));if(!file.startsWith(root+path.sep))return res.writeHead(403).end();try{res.setHeader('Content-Type',file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(file));}catch{res.writeHead(404).end();}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const browser=await chromium.launch({headless:true,...(process.env.EFC_BROWSER_PATH?{executablePath:process.env.EFC_BROWSER_PATH}:{})});
+const errors=[];
+try{
+  const initial={certificateBranches:[{id:'cb',recordCode:'cb-record',name:'فرع الشهادات',createdAt:1,updatedAt:1}],certificateReceipts:[{id:'certificate-1',recordCode:'receipt-record',transactionCode:'receipt-transaction',receiptNo:7,studentName:'طالب الاختبار',studentType:'external',phone:'00000000',reg:'1',specialtyId:'x',specialtyName:'الفرنسية',branchType:'certificate',branchId:'cb',branchName:'فرع الشهادات',amount:100,method:'نقداً',date:'2026-11-01',time:'12:00',createdAt:1,timestamp:1,updatedAt:10}],nextReceiptNo:8};
+  async function boot(certificates){const context=await browser.newContext({viewport:{width:1440,height:1000},timezoneId:'UTC'}),page=await context.newPage();page.on('pageerror',e=>errors.push(String(e)));page.on('dialog',d=>d.accept());await page.clock.setFixedTime(new Date('2026-11-15T12:00:00Z'));await page.addInitScript(cert=>{if(localStorage.getItem('certificate-test-v63'))return;localStorage.setItem('certificate-test-v63','1');localStorage.setItem('efc-branches-v13',JSON.stringify([{id:'a',name:'المركز الأول'}]));localStorage.setItem('efc-specialties-v1',JSON.stringify([{id:'x',name:'الفرنسية',courseType:'quick',billing:'one_time',fee:500,durationValue:30,durationUnit:'day'}]));localStorage.setItem('efc-certificate-state-v1',JSON.stringify(cert));},certificates);await page.goto(`http://127.0.0.1:${server.address().port}/#certificates`);await ready(page);return page;}
+  const ready=page=>page.waitForFunction(()=>window.EFC_SECURITY_UI_V13?.ready&&window.EFC_ACCOUNTING_INTEGRITY_V21?.ready);
+  const snapshot=page=>page.evaluate(()=>window.EFC_CERTIFICATE_STATE_V14.snapshot());
+  const restore=(page,state)=>page.evaluate(async cert=>await window.EFC_APPLY_RESTORED_STATE({version:3,students:[],certificateBranches:cert.certificateBranches,certificateReceipts:cert.certificateReceipts,certificateNextReceiptNo:cert.nextReceiptNo}),state);
+  const source=await boot(initial);
+  await source.evaluate(()=>window.EFC_EDIT_CERTIFICATE_RECEIPT_V13(window.EFC_CERTIFICATE_STATE_V14.snapshot().certificateReceipts[0]));
+  await source.locator('#certAmountV13').fill('250');await source.locator('#certIssueV13').click();await source.waitForSelector('.receipt-viewer-v13');
+  const financial=await snapshot(source);assert.equal(financial.certificateReceipts[0].amount,250);assert(financial.certificateReceipts[0].updatedAt>10);
+  await source.locator('.receipt-viewer-close-v13').click();await source.evaluate(()=>window.EFC_OPEN_CERTIFICATE_DELIVERY_V13(window.EFC_CERTIFICATE_STATE_V14.snapshot().certificateReceipts[0]));
+  await source.locator('.cert-delivery-form [name=receiverType]').selectOption('student');await source.locator('.cert-delivery-save').click();await source.waitForSelector('.receipt-viewer-v13');
+  const delivered=await snapshot(source);assert(delivered.certificateReceipts[0].deliveryUpdatedAt>0);assert.equal(delivered.certificateReceipts[0].delivery.receiverName,'طالب الاختبار');
+  assert.equal(delivered.certificateReceipts[0].updatedAt,financial.certificateReceipts[0].updatedAt,'delivery mutation must not pretend the financial fields changed');
+  const destination=await boot(initial);await restore(destination,delivered);await destination.reload();await ready(destination);
+  let restored=(await snapshot(destination)).certificateReceipts[0];assert.equal(restored.amount,250);assert.deepEqual(restored.delivery,delivered.certificateReceipts[0].delivery);assert.equal(restored.id,'certificate-1');assert.equal(restored.receiptNo,7);
+  await restore(destination,initial);await destination.reload();await ready(destination);restored=(await snapshot(destination)).certificateReceipts[0];assert.equal(restored.amount,250);assert(restored.delivery,'older pending snapshot cannot revoke delivery');
+  await source.locator('.receipt-viewer-close-v13').click();await source.evaluate(()=>window.EFC_OPEN_CERTIFICATE_DELIVERY_V13(window.EFC_CERTIFICATE_STATE_V14.snapshot().certificateReceipts[0]));
+  await source.locator('.cert-delivery-card .efc-source-delete-receipt-v21').click();await source.waitForFunction(()=>window.EFC_CERTIFICATE_STATE_V14.snapshot().certificateReceipts[0].delivery===null);
+  const cancelled=await snapshot(source);assert.equal(cancelled.certificateReceipts[0].delivery,null);assert(cancelled.certificateReceipts[0].deliveryUpdatedAt>delivered.certificateReceipts[0].deliveryUpdatedAt);
+  await restore(destination,cancelled);await destination.reload();await ready(destination);assert.equal((await snapshot(destination)).certificateReceipts[0].delivery,null);
+  await restore(destination,delivered);await destination.reload();await ready(destination);assert.equal((await snapshot(destination)).certificateReceipts[0].delivery,null,'old delivered backup must not revive a newer cancelled delivery');
+  assert.equal((await snapshot(destination)).certificateReceipts.length,1,'all repeated restores keep one stable receipt');
+  const legacy=structuredClone(initial);delete legacy.certificateReceipts[0].updatedAt;const ambiguous=await boot(legacy);const changed=structuredClone(legacy);changed.certificateReceipts[0].amount=700;await restore(ambiguous,changed);
+  assert.equal((await snapshot(ambiguous)).certificateReceipts[0].amount,100,'an unversioned conflict does not silently overwrite local finance');
+  const conflicts=await ambiguous.evaluate(()=>window.EFC_RESTORE_CONFLICTS_V63||[]);assert(conflicts.some(c=>c.type==='certificate'),'ambiguous legacy edits are exposed to the shared restore report');
+  assert.deepEqual(errors,[]);console.log('Certificate browser v63 passed: real edit/delivery UI stamps revisions; restored updates survive restart; reverse old restores, delivery cancellation, stable identities, idempotence and visible legacy conflicts verified.');
+}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

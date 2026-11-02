@@ -45,7 +45,7 @@ function normalizeCertificateDelivery(item){
   if(!item||typeof item!=='object')return null;
   const receiverType=item.receiverType==='agent'?'agent':'student',date=String(item.date||'').trim(),time=String(item.time||'').trim(),receiverName=String(item.receiverName||'').trim(),receiverPhone=String(item.receiverPhone||'').trim();
   if(!date||!time||!receiverName)return null;
-  return{receiverType,receiverName,receiverPhone,date,time,recordedAt:Number(item.recordedAt||Date.now())};
+  return{receiverType,receiverName,receiverPhone,date,time,recordedAt:certificateRevision(item.recordedAt)};
 }
 function normalizeReceipt(item){
   if(!item||typeof item!=='object')return null;
@@ -73,6 +73,8 @@ function normalizeReceipt(item){
     time:String(item.time||'00:00'),
     timestamp:Number(item.timestamp||item.createdAt||Date.now()),
     createdAt:Number(item.createdAt||item.timestamp||Date.now()),
+    updatedAt:certificateRevision(item.updatedAt),
+    deliveryUpdatedAt:certificateRevision(item.deliveryUpdatedAt||item.delivery?.recordedAt),
     delivery:normalizeCertificateDelivery(item.delivery)
   };
 }
@@ -88,11 +90,30 @@ function normalizeState(raw){
   const configured=Math.max(1,Number(raw?.nextReceiptNo||raw?.certificateNextReceiptNo||1));
   return{certificateBranches:uniqueBranches,certificateReceipts:uniqueReceipts,nextReceiptNo:Math.max(configured,maxReceipt+1)};
 }
-function mergeState(current,incoming){
+function certificateRevision(value){const revision=Number(value);return Number.isFinite(revision)&&revision>0?revision:0;}
+function nextCertificateRevision(...values){return Math.max(Date.now(),...values.map(value=>certificateRevision(value)+1));}
+function mergeCertificateReceipt(existing,incoming,onConflict){
+  // Financial/profile changes and delivery changes have independent revisions.
+  // Otherwise a later delivery save could overwrite a newer amount from another
+  // backup, and an old delivered copy could revive a cancelled delivery.
+  const financialKeys=['studentType','studentId','studentName','phone','reg','specialtyId','specialtyName','branchType','branchId','branchName','amount','method','date','time'];
+  const differentFinancial=financialKeys.some(key=>existing[key]!==incoming[key]);
+  const localRevision=certificateRevision(existing.updatedAt),incomingRevision=certificateRevision(incoming.updatedAt);
+  const report=(part)=>onConflict?.({type:'certificate',id:existing.id,recordCode:existing.recordCode,reason:`${part}-revision-ambiguous`,local:JSON.parse(JSON.stringify(existing)),incoming:JSON.parse(JSON.stringify(incoming))});
+  if(incomingRevision>localRevision){financialKeys.forEach(key=>existing[key]=incoming[key]);existing.updatedAt=incomingRevision;}
+  else if(incomingRevision===localRevision&&differentFinancial)report('receipt');
+  const localDeliveryRevision=certificateRevision(existing.deliveryUpdatedAt),incomingDeliveryRevision=certificateRevision(incoming.deliveryUpdatedAt);
+  if(incomingDeliveryRevision>localDeliveryRevision){existing.delivery=incoming.delivery;existing.deliveryUpdatedAt=incomingDeliveryRevision;}
+  else if(incomingDeliveryRevision===localDeliveryRevision&&JSON.stringify(existing.delivery)!==JSON.stringify(incoming.delivery))report('delivery');
+  // Existing receipt identity, number and creation time never change on merge.
+  return existing;
+}
+function mergeState(current,incoming,{onConflict}={}){
   const a=normalizeState(current),b=normalizeState(incoming),branchMap=new Map(),receipts=[...a.certificateReceipts];
   [...a.certificateBranches,...b.certificateBranches].forEach(item=>{const key=String(item.recordCode||item.name.trim().toLowerCase()),existing=branchMap.get(key);if(!existing||Number(item.updatedAt||item.createdAt||0)>=Number(existing.updatedAt||existing.createdAt||0))branchMap.set(key,item);});
-  const branches=[...branchMap.values()],receiptCodes=new Set(receipts.flatMap(item=>[item.recordCode,item.transactionCode]));
-  b.certificateReceipts.forEach(item=>{if(receiptCodes.has(item.recordCode)||receiptCodes.has(item.transactionCode))return;receipts.push(item);receiptCodes.add(item.recordCode);receiptCodes.add(item.transactionCode);});
+  const branches=[...branchMap.values()],byRecord=new Map(),byTransaction=new Map(),byId=new Map();
+  const remember=item=>{byRecord.set(item.recordCode,item);byTransaction.set(item.transactionCode,item);byId.set(item.id,item);};receipts.forEach(remember);
+  b.certificateReceipts.forEach(item=>{const existing=byRecord.get(item.recordCode)||byTransaction.get(item.transactionCode)||byId.get(item.id);if(existing){mergeCertificateReceipt(existing,item,onConflict);return;}receipts.push(item);remember(item);});
   const maxReceipt=Math.max(0,...receipts.map(item=>Number(item.receiptNo||0)));
   return{certificateBranches:branches,certificateReceipts:receipts,nextReceiptNo:Math.max(a.nextReceiptNo,b.nextReceiptNo,maxReceipt+1)};
 }
@@ -241,7 +262,7 @@ function openCertificateDelivery(reference){
   const form=modal.querySelector('form'),type=form.elements.receiverType,studentBox=modal.querySelector('.cert-delivery-student'),agentBox=modal.querySelector('.cert-delivery-agent'),saveButton=modal.querySelector('.cert-delivery-save');
   const sync=()=>{const student=type.value==='student',agent=type.value==='agent';studentBox.hidden=!student;agentBox.hidden=!agent;saveButton.disabled=!student&&!agent;};type.addEventListener('change',sync);sync();
   modal.querySelector('.x').onclick=close;modal.querySelector('.cert-delivery-cancel').onclick=close;
-  form.onsubmit=async event=>{event.preventDefault();if(certificateDeliverySaveInFlight)return;if(!['student','agent'].includes(type.value))return alert('اختر المستلم.');const agent=type.value==='agent',receiverName=agent?String(form.elements.agentName.value||'').trim():String(receipt.studentName||'').trim(),receiverPhone=agent?String(form.elements.agentPhone.value||'').trim():String(receipt.phone||'').trim();if(!receiverName)return alert(agent?'أدخل اسم الوكيل.':'اسم الطالب غير موجود.');if(agent&&!receiverPhone)return alert('أدخل رقم الوكيل.');const previous=receipt.delivery,delivery={receiverType:agent?'agent':'student',receiverName,receiverPhone,date:deliveryDate,time:deliveryTime,recordedAt:Date.now()};certificateDeliverySaveInFlight=true;saveButton.disabled=true;receipt.delivery=delivery;try{await persist();close();closeCertificateReceiptViewers();if(document.getElementById('certRecordsModeV48'))drawCertificateHistory();openCertificateDeliveryReceipt(receipt);}catch(error){receipt.delivery=previous;writeLocal();console.error('EFC certificate delivery save failed.',error);alert('تعذر حفظ معلومات الاستلام. لم يتم تغيير السجل.');}finally{certificateDeliverySaveInFlight=false;if(saveButton.isConnected)saveButton.disabled=false;}};
+  form.onsubmit=async event=>{event.preventDefault();if(certificateDeliverySaveInFlight)return;if(!['student','agent'].includes(type.value))return alert('اختر المستلم.');const agent=type.value==='agent',receiverName=agent?String(form.elements.agentName.value||'').trim():String(receipt.studentName||'').trim(),receiverPhone=agent?String(form.elements.agentPhone.value||'').trim():String(receipt.phone||'').trim();if(!receiverName)return alert(agent?'أدخل اسم الوكيل.':'اسم الطالب غير موجود.');if(agent&&!receiverPhone)return alert('أدخل رقم الوكيل.');const previous=receipt.delivery,previousRevision=receipt.deliveryUpdatedAt,delivery={receiverType:agent?'agent':'student',receiverName,receiverPhone,date:deliveryDate,time:deliveryTime,recordedAt:Date.now()};certificateDeliverySaveInFlight=true;saveButton.disabled=true;receipt.delivery=delivery;receipt.deliveryUpdatedAt=nextCertificateRevision(previousRevision,delivery.recordedAt);try{await persist();close();closeCertificateReceiptViewers();if(document.getElementById('certRecordsModeV48'))drawCertificateHistory();openCertificateDeliveryReceipt(receipt);}catch(error){receipt.delivery=previous;receipt.deliveryUpdatedAt=previousRevision;writeLocal();console.error('EFC certificate delivery save failed.',error);alert('تعذر حفظ معلومات الاستلام. لم يتم تغيير السجل.');}finally{certificateDeliverySaveInFlight=false;if(saveButton.isConnected)saveButton.disabled=false;}};
   return true;
 }
 
@@ -249,6 +270,14 @@ function resolveCertificateReceipt(reference){
   if(!reference)return null;
   const id=String(reference.id||''),recordCode=String(reference.recordCode||''),transactionCode=String(reference.transactionCode||'');
   return state.certificateReceipts.find(item=>(id&&String(item.id)===id)||(recordCode&&String(item.recordCode)===recordCode)||(transactionCode&&String(item.transactionCode)===transactionCode))||null;
+}
+async function clearCertificateDelivery(reference){
+  const receipt=resolveCertificateReceipt(typeof reference==='string'?{id:reference}:reference);
+  if(!receipt?.delivery)return false;
+  const previous=receipt.delivery,previousRevision=receipt.deliveryUpdatedAt;
+  receipt.delivery=null;receipt.deliveryUpdatedAt=nextCertificateRevision(previousRevision,previous.recordedAt);
+  try{await persist();return true;}
+  catch(error){receipt.delivery=previous;receipt.deliveryUpdatedAt=previousRevision;writeLocal();throw error;}
 }
 function editingReceipt(){
   if(!editingReceiptId)return null;
@@ -700,8 +729,8 @@ async function saveEditedReceipt(receipt){
     if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branch)return alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');
     externalData={studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:String(branch.id||branchId),branchName:branch.name};
   }
-  const previous={studentName:receipt.studentName,phone:receipt.phone,reg:receipt.reg,specialtyId:receipt.specialtyId,specialtyName:receipt.specialtyName,branchType:receipt.branchType,branchId:receipt.branchId,branchName:receipt.branchName,amount:receipt.amount,method:receipt.method};
-  issueInFlight=true;Object.assign(receipt,externalData||{}, {amount,method});syncIssueButton();
+  const previous={studentName:receipt.studentName,phone:receipt.phone,reg:receipt.reg,specialtyId:receipt.specialtyId,specialtyName:receipt.specialtyName,branchType:receipt.branchType,branchId:receipt.branchId,branchName:receipt.branchName,amount:receipt.amount,method:receipt.method,updatedAt:receipt.updatedAt};
+  issueInFlight=true;Object.assign(receipt,externalData||{}, {amount,method});receipt.updatedAt=nextCertificateRevision(receipt.updatedAt);syncIssueButton();
   try{await persist();}
   catch(error){Object.assign(receipt,previous);writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate receipt edit failed.',error);alert('تعذر حفظ تعديل الروسي. لم يتم تغيير البيانات.');return;}
   issueInFlight=false;clearCertificateEdit();renderCertificates();openReceipt(receipt);
@@ -716,7 +745,7 @@ async function issueReceipt(){
   const name=String(document.getElementById('certExternalNameV13')?.value||'').trim(),phone=String(document.getElementById('certExternalPhoneV13')?.value||'').trim(),reg=String(document.getElementById('certExternalRegV13')?.value||'').trim(),specialtyId=String(document.getElementById('certExternalSpecV13')?.value||''),branchId=String(document.getElementById('certExternalBranchV13')?.value||''),specialty=spec(specialtyId),branch=activeCertificateBranches().find(item=>item.id===branchId);
   if(!name)return alert('أدخل اسم الطالب.');if(!reg)return alert('أدخل رقم تسجيل الطالب.');if(!specialty)return alert('اختر الشهادة.');if(!branch)return alert('اختر فرع الشهادة أو أضف فرعًا جديدًا.');
   const data={studentType:'external',studentId:null,studentName:name,phone,reg,specialtyId,specialtyName:specialty.name,branchType:'certificate',branchId:branch.id,branchName:branch.name};
-  const receipt=normalizeReceipt({...data,id:uid('certificate'),recordCode:uid('certificate-record'),transactionCode:uid('certificate-tx'),receiptNo:nextReceiptNo(),amount,method,date:today(),time:nowTime(),timestamp:Date.now(),createdAt:Date.now()});
+  const receipt=normalizeReceipt({...data,id:uid('certificate'),recordCode:uid('certificate-record'),transactionCode:uid('certificate-tx'),receiptNo:nextReceiptNo(),amount,method,date:today(),time:nowTime(),timestamp:Date.now(),createdAt:Date.now(),updatedAt:Date.now()});
   issueInFlight=true;syncIssueButton();state.certificateReceipts.unshift(receipt);
   try{await persist();}
   catch(error){state.certificateReceipts=state.certificateReceipts.filter(item=>item.id!==receipt.id);writeLocal();issueInFlight=false;syncIssueButton();console.error('EFC certificate issue failed.',error);alert('تعذر حفظ الشهادة. لم يتم اعتماد العملية، ويمكنك المحاولة مجددًا.');return;}
@@ -767,7 +796,7 @@ document.addEventListener('click',event=>{
 async function boot(){
   await loadState();ensureSidebar();
   window.EFC_REGISTER_STATE_CONTRIBUTOR?.('certificates',snapshot=>Object.assign(snapshot,{certificateBranches:state.certificateBranches,certificateReceipts:state.certificateReceipts,certificateNextReceiptNo:state.nextReceiptNo}));
-  window.EFC_REGISTER_RESTORE_CONTRIBUTOR?.('certificates',async incoming=>{if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)||incoming?.certificateNextReceiptNo){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[],certificateNextReceiptNo:incoming.certificateNextReceiptNo});await persist();}});
+  window.EFC_REGISTER_RESTORE_CONTRIBUTOR?.('certificates',async incoming=>{if(Array.isArray(incoming?.certificateBranches)||Array.isArray(incoming?.certificateReceipts)||incoming?.certificateNextReceiptNo){state=mergeState(state,{certificateBranches:incoming.certificateBranches||[],certificateReceipts:incoming.certificateReceipts||[],certificateNextReceiptNo:incoming.certificateNextReceiptNo},{onConflict:conflict=>window.EFC_REPORT_RESTORE_CONFLICT?.(conflict)});await persist();}});
 
   window.EFC_OPEN_CERTIFICATE_RECEIPT_V13=openReceipt;
   window.EFC_SAVE_CERTIFICATE_PDF_V13=savePdf;
@@ -781,7 +810,7 @@ async function boot(){
   window.EFC_CERTIFICATE_EDIT_V44=Object.freeze({active:()=>Boolean(editingReceipt()),cancel:cancelCertificateReceiptEdit,begin:beginCertificateReceiptEdit});
   window.EFC_FIND_CERTIFICATE_V13=id=>state.certificateReceipts.find(item=>String(item.id)===String(id))||null;
   window.EFC_CERTIFICATE_PAYMENTS_V13=()=>state.certificateReceipts.map(certificatePayment);
-  window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set((ids||[]).map(String)),records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!idSet.has(String(item.id||''))&&!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});
+  window.EFC_CERTIFICATE_STATE_V14=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),clearDelivery:clearCertificateDelivery,purgeReceiptsByIdentity:async({ids=[],recordCodes=[],transactionCodes=[]}={})=>{const idSet=new Set((ids||[]).map(String)),records=new Set((recordCodes||[]).map(String)),transactions=new Set((transactionCodes||[]).map(String)),before=state.certificateReceipts.length;state={...state,certificateReceipts:state.certificateReceipts.filter(item=>!idSet.has(String(item.id||''))&&!records.has(String(item.recordCode||''))&&!transactions.has(String(item.transactionCode||'')))};const deleted=before-state.certificateReceipts.length;if(deleted)await persist();return{deleted};}});
   window.EFC_RENDER_CERTIFICATES_V13=renderCertificates;
   window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceCustomWeekRange:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodSummary:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryAboveFilters:true,certificateFinanceSummaryFilterClearance:true,certificateFinanceSummaryDedicatedRow:true,certificateFinanceCompactFilterGeometry:true,certificatePeriodSwitchConstrainedToGrid:true,certificateFinanceResponsiveRulesConsolidated:true,certificateFinancePositiveSummary:true,certificateFinanceFixedSpecialtyFilterWidth:true,certificateFinanceTopbarAligned:true,certificateFinanceNoChart:true,certificateFinanceDailyDateOnly:true,certificateFinanceFilterSummaryText:true,certificateFinanceResponsiveLikeLedger:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateHistorySeparatePage:true,certificateHistoryCount:true,certificateHistoryFilteredTotal:true,certificateHistoryAmountUsesFinanceCard:true,certificateHistorySummaryAlignedSingleRow:true,certificateHistoryInteractiveControlsDark:true,certificateHistoryCountCenteredBelowTitle:true,certificateHistoryUsesFinanceFilters:true,certificateHistoryCustomWeekRange:true,certificateHistoryFilterByPeriod:true,certificateHistoryFilterByBranch:true,certificateHistoryFilterByDeliveryStatus:true,certificateHistoryFilterByPaymentMethod:true,certificateHistoryBlankFromUsesOldestAvailable:true,certificateFinanceBlankFromUsesOldestAvailable:true,certificateHistoryFilterSummaryText:true,certificateHistoryIdentitySearch:true,certificateHistorySearchMatchesStudentIdentityRules:true,certificateHistorySummaryMatchesFinance:true,certificateTerminologyUsesCertificateOnly:true,certificateToolbarStyledActions:true,certificateFinanceNoHistoryTable:true,certificateHistorySpreadsheetTable:true,certificateHistoryStandardGreenHeader:true,certificateManagerReceipt:true,certificateManagerReceiptDoesNotMutateFinance:true,certificateManagerReceiptAsksFundsLocation:true,certificateManagerReceiptFiltersCenterAndCertificate:true,certificateManagerReceiptMultiBranch:true,certificateManagerReceiptBranchBreakdown:true,certificateManagerReceiptBranchChips:true,certificateManagerReceiptDefaultsAllCentersAndCertificates:true,certificateManagerReceiptColoredSummary:true,certificateManagerAmountProminentInline:true,certificateFinanceSpecialtyTerminology:true,certificateReceiptPaidAmountLabel:true,certificatePdfLogoCaptureFixed:true,certificateUsesSharedEmbeddedLogo:true,certificateReceiptEditDelete:true,certificateDeliveryTracking:true,certificateDeliveryStudentOrAgent:true,certificateDeliveryNoDefaultRecipient:true,certificateDeliveryExclusiveRecipientFields:true,certificateDeliveryClearStudentHeader:true,certificateDeliveryHistoryDate:true,certificateDeliveryReadonlyAfterSave:true,certificateDeliveryReceipt:true,certificateDeliveryReceiptCongrats:true,certificateExternalReceiptFullEdit:true,certificateInternalReceiptIdentityLocked:true,certificateReceiptFiscalLockAware:true,certificateReceiptNumbersNeverReused:true,certificateReceiptHighWaterPersisted:true,certificateInternalEditStudentSelectionLocked:true,certificateRegisteredIssuanceRemoved:true,certificateManualReceiptOnly:true,certificateExternalBranchRename:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,externalCertificateBranchDelete:true,deletedCertificateBranchHistoryPreserved:true,certificateBranchFiltersRequireLiveReceipt:true,certificateBranchFiltersRequireLiveSource:true,certificateBranchDisplayResolvesCurrentSource:true,certificateBranchStoredNameFallback:true,externalCertificateBranchReactivation:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,receiptDateReadable:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }

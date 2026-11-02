@@ -49,6 +49,7 @@ function normalizeExpenses(){
     date:String(item.date||today()),
     time:String(item.time||'00:00'),
     createdAt:Number(item.createdAt||Date.now()),
+    updatedAt:Number.isFinite(Number(item.updatedAt))?Math.max(0,Number(item.updatedAt)):0,
     receiptNo:Number.isInteger(Number(item.receiptNo))&&Number(item.receiptNo)>0?Number(item.receiptNo):null
   })).filter(item=>{if(seen.has(item.id))return false;seen.add(item.id);return true;});
   writeJson(STORAGE.expenses,expenses);

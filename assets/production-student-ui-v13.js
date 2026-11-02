@@ -59,7 +59,7 @@ function openCourseEditor(id=null){
   updateType();typeEl.onchange=updateType;modal.querySelector('.cancel').onclick=()=>modal.remove();
   form.onsubmit=event=>{
     event.preventDefault();const data=new FormData(form),courseType=String(data.get('type')),count=Math.max(1,Number(data.get('days')||1)),name=String(data.get('name')||'').trim();if(!name)return;
-    const item={...(existing||{}),id:existing?.id||D.uid('sp'),name,courseType,billing:courseType==='normal'?'monthly':'one_time',durationUnit:courseType==='normal'?'month':'day',durationValue:courseType==='normal'?1:count,quickDays:courseType==='quick'?count:null};delete item.fee;
+    const item={...(existing||{}),id:existing?.id||D.uid('sp'),name,courseType,billing:courseType==='normal'?'monthly':'one_time',durationUnit:courseType==='normal'?'month':'day',durationValue:courseType==='normal'?1:count,quickDays:courseType==='quick'?count:null,updatedAt:Math.max(Date.now(),Number(existing?.updatedAt||0)+1)};delete item.fee;
     if(existing)specialties=specialties.map(value=>value.id===id?item:value);else specialties.push(item);
     D.saveSpecs();modal.remove();renderSpecialties();
   };

@@ -189,12 +189,16 @@ async function saveEntry(){
   if(!canEditBank())return alert('الحساب الحالي لا يملك صلاحية تعديل البنك.');
   const type=document.getElementById('bankTypeV22')?.value==='out'?'out':'in',amount=Math.max(0,Number(document.getElementById('bankAmountV22')?.value||0)),statement=String(document.getElementById('bankStatementV22')?.value||'').trim(),date=String(document.getElementById('bankDateV22')?.value||today());
   if(amount<=0)return alert('أدخل مبلغًا صحيحًا.');if(!statement)return alert('أدخل البيان أو الملاحظة.');
-  const current=editingId?state.entries.find(item=>item.id===editingId):null,entry=normalizeEntry(current?{...current,type,amount,statement,date,updatedAt:Date.now()}:{id:uid('bank'),recordCode:uid('bank-record'),receiptNo:nextReceiptNo(),type,amount,statement,date,time:nowTime(),createdAt:Date.now(),updatedAt:Date.now()});
+  const current=editingId?state.entries.find(item=>item.id===editingId):null;
+  // Validate both ends before changing the record or allocating a receipt.
+  // Checking only the target would let a closed source escape into an open year.
+  try{if(current)window.EFC_FISCAL_V14?.assertDateOpen?.(current.date,'التاريخ الأصلي لحركة البنك');window.EFC_FISCAL_V14?.assertDateOpen?.(date,'تاريخ حركة البنك');}catch(error){alert(String(error?.message||error||'لا يمكن حفظ هذه الحركة.'));return;}
+  const before=JSON.parse(JSON.stringify(state)),beforeEditing=editingId,entry=normalizeEntry(current?{...current,type,amount,statement,date,updatedAt:Date.now()}:{id:uid('bank'),recordCode:uid('bank-record'),receiptNo:nextReceiptNo(),type,amount,statement,date,time:nowTime(),createdAt:Date.now(),updatedAt:Date.now()});
   if(!entry)return alert('تعذر تجهيز حركة البنك.');
   if(current)state.entries=state.entries.map(item=>item.id===current.id?entry:item);else state.entries.push(entry);
-  try{await persist();editingId=null;renderBank();if(!current)openReceipt(entry);}catch(error){console.error('EFC bank save failed.',error);alert('تعذر حفظ حركة البنك.');}
+  try{await persist();editingId=null;renderBank();if(!current)openReceipt(entry);}catch(error){const nextReceiptNo=state.nextReceiptNo;state=before;state.nextReceiptNo=Math.max(state.nextReceiptNo,nextReceiptNo);editingId=beforeEditing;writeLocal();try{await persist();}catch(rollbackError){console.error('EFC bank save rollback persistence failed.',rollbackError);}console.error('EFC bank save failed.',error);alert('تعذر حفظ حركة البنك. لم يتم تغيير الحركة.');}
 }
-function beginEdit(id){const entry=state.entries.find(item=>item.id===id);if(!entry||!canEditBank())return;editingId=id;renderBank();requestAnimationFrame(()=>document.getElementById('bankStatementV22')?.focus());}
+function beginEdit(id){const entry=state.entries.find(item=>item.id===id);if(!entry||!canEditBank())return;try{window.EFC_FISCAL_V14?.assertDateOpen?.(entry.date,'التاريخ الأصلي لحركة البنك');}catch(error){alert(String(error?.message||error||'لا يمكن تعديل هذه الحركة.'));return;}editingId=id;renderBank();requestAnimationFrame(()=>document.getElementById('bankStatementV22')?.focus());}
 async function deleteEntry(id){
   if(!canEditBank())return alert('الحساب الحالي لا يملك صلاحية تعديل البنك.'),false;
   const entry=state.entries.find(item=>item.id===id);if(!entry)return false;
@@ -230,7 +234,7 @@ async function boot(){
   window.EFC_OPEN_BANK_PERIOD_REPORT_V22=openBankPeriodReport;
   window.EFC_SAVE_BANK_PERIOD_REPORT_PDF_V22=saveBankPeriodReportPdf;
   window.EFC_BANK_STATE_V22=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state))});
-  window.EFC_BANK_V22=Object.freeze({ready:true,bankIndependentFromFinance:true,bankEntriesEditableAndDeletable:true,bankReceiptSourceDeletion:true,bankDeleteFiscalLockAware:true,bankDeleteRollbackSafe:true,bankStatementFixedHeight:true,bankStatementLengthBounded:true,bankStatementWrapsSafely:true,bankUsesIncomeAndExpenseLabels:true,bankPeriodFiltersDailyWeeklyMonthlyYearly:true,bankWeeklyBlankFromUsesOldestAvailable:true,bankPeriodReport:true,bankPeriodSummaryColors:true,bankIncomeExpenseCounts:true,bankLedgerStudentSearchTableStyle:true,bankReceiptSharedEmbeddedLogo:true,bankBackupRestore:true,bankOwnReceiptSequence:true,receiptDateReadable:true,noFinanceStreamIntegration:true});
+  window.EFC_BANK_V22=Object.freeze({ready:true,bankIndependentFromFinance:true,bankEntriesEditableAndDeletable:true,bankReceiptSourceDeletion:true,bankDeleteFiscalLockAware:true,bankDeleteRollbackSafe:true,bankSaveFiscalSourceAndTargetGuard:true,bankSaveRollbackSafe:true,bankStatementFixedHeight:true,bankStatementLengthBounded:true,bankStatementWrapsSafely:true,bankUsesIncomeAndExpenseLabels:true,bankPeriodFiltersDailyWeeklyMonthlyYearly:true,bankWeeklyBlankFromUsesOldestAvailable:true,bankPeriodReport:true,bankPeriodSummaryColors:true,bankIncomeExpenseCounts:true,bankLedgerStudentSearchTableStyle:true,bankReceiptSharedEmbeddedLogo:true,bankBackupRestore:true,bankOwnReceiptSequence:true,receiptDateReadable:true,noFinanceStreamIntegration:true});
 }
 boot().catch(error=>{console.error('EFC bank v22 failed to initialize.',error);throw error;});
 })();
