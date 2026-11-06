@@ -154,7 +154,7 @@ function appendPayment(student,{amount,method,date=today(),time=nowTime(),descri
     const index=B.appendPayment(student,{amount,method,date,time,description,targetMonth,debtDueDate,persist:false}),stamp=Date.now();
     if(student.payments?.[index])student.payments[index][11]=stamp;
     markRegistration(index);
-    student.updatedAt=stamp;
+    student.updatedAt=Math.max(stamp,Number(student.updatedAt||0)+1);
     if(persist)saveStudentsClean();
     return index;
     }catch(error){return rollback(error);}
@@ -165,7 +165,7 @@ function appendPayment(student,{amount,method,date=today(),time=nowTime(),descri
   const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=Date.now(),original=String(description||'').trim();
   student.payments.push([String(date),value,selected,String(time||nowTime()),stamp,defaultDescription(original)?preview.summary:`${preview.summary} — ${original}`,transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,preview.allocations.map(item=>({monthNumber:item.monthNumber,amount:item.amount})),stamp]);
   markRegistration(index);
-  student.updatedAt=stamp;
+  student.updatedAt=Math.max(stamp,Number(student.updatedAt||0)+1);
   reconcileStudent(student,String(date||today()));
   const remaining=targetRemaining(student,monthNumber,String(date||today()));
   B.setDebtDate(student,String(monthNumber),remaining>0&&debtDueDate?debtDueDate:null);
@@ -196,10 +196,12 @@ function updateStudentRegistration(student,changes={}){
   const name=String(changes.name??draft.name??'').trim();if(!name)throw new Error('اسم الطالب مطلوب.');
   const branch=String(changes.branch??draft.branch??'').trim();if(!branch)throw new Error('المركز مطلوب.');
   const start=String(changes.start??draft.start??'').trim();if(!start)throw new Error('تاريخ البداية مطلوب.');
+  const datedStop=isInactive(student)&&student.stopEndBasis==='effective-date';
+  if(datedStop&&(!isCalendarDate(start)||start>student.stoppedAt))throw new Error('تاريخ بداية الدورة يجب أن يكون في تاريخ الإيقاف أو قبله.');
   const fee=Math.max(0,Number(changes.fee??draft.snapshot?.fee??draft.required??0));if(fee<=0)throw new Error('سعر الدورة غير صالح.');
   const scopeChanged=String(branch)!==String(student.branch||'')||String(item.id)!==String(student.specialty||'');
   if(scopeChanged){const duplicate=students.find(other=>other!==student&&(!student.id||!other?.id||String(other.id)!==String(student.id))&&String(other?.branch||'')===branch&&String(other?.specialty||'')===String(item.id)&&Number(other?.reg)===Number(draft.reg));if(duplicate)throw new Error(`رقم السجل ${String(draft.reg??'').padStart(4,'0')} مستخدم مسبقًا لطالب آخر في المركز والدورة المحددين.`);}
-  draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
+  draft.name=name;draft.phone=String(changes.phone??draft.phone??'').trim();draft.branch=branch;draft.specialty=String(item.id);draft.start=start;draft.end=datedStop?student.stoppedAt:monthly?'':addDuration(start,shape.durationValue,shape.durationUnit);
   draft.snapshot={...(draft.snapshot||{}),centerOpsV13:true,centerOpsMonthlyV13:monthly,dynamicMonthly:monthly,courseType:type,billing:monthly?'monthly':'one_time',fee,durationValue:shape.durationValue,durationUnit:shape.durationUnit};
   if(changes.schedule){draft.schedule=clone(changes.schedule);draft.schedule.specialtyId=String(item.id);draft.schedule.specialtyName=String(item.name||'');}
   draft.payments=Array.isArray(draft.payments)?draft.payments.map(payment=>Array.isArray(payment)?[...payment]:[]):[];
@@ -214,7 +216,7 @@ function updateStudentRegistration(student,changes={}){
     effectiveIndex=draft.payments.length-1;notes.push(description);
     if(!(student.payments||[]).some(payment=>Number(payment?.[1]||0)>0)){draft.registrationPaymentCode=transactionCode;draft.registrationPaymentInferred=false;}
   }
-  const editStamp=Date.now();
+  const editStamp=Math.max(Date.now(),Number(student.updatedAt||0)+1);
   if(effectiveIndex!==null){
     const existingPayment=draft.payments[effectiveIndex],candidatePaymentDate=String(changes.paymentDate??existingPayment?.[0]??start);window.EFC_FISCAL_V14?.assertDateOpen?.(candidatePaymentDate,'تاريخ الدفعة');
     const payment=draft.payments[effectiveIndex],amount=Math.max(0,Number(changes.paymentAmount??payment[1]??0));if(amount<=0)throw new Error('مبلغ الدفعة يجب أن يكون أكبر من صفر.');
@@ -224,7 +226,11 @@ function updateStudentRegistration(student,changes={}){
     if(changes.paymentDescription!==undefined)notes[effectiveIndex]=String(changes.paymentDescription||'').trim();
     payment[9]=changes.debtDueDate?String(changes.debtDueDate):null;payment[11]=editStamp;
   }
-  if(monthly){
+  if(monthly&&datedStop){
+    // Keep the original payment allocation hints. Amounts beyond the dated
+    // cutoff are credit, so a later name or receipt edit must not reject them.
+    draft.frozenMonths=monthsStartedThrough(draft,draft.stoppedAt);
+  }else if(monthly){
     draft.debtDueDates={};
     draft.payments.forEach(payment=>{if(!wasMonthly||!Number.isInteger(Number(payment?.[7]))||Number(payment?.[7])<1)payment[7]=1;payment[10]=null;});
     const farFuture='9999-12-31',allocation=dynamicAllocation(draft,farFuture,null,MAX_MONTHS);
@@ -290,13 +296,53 @@ function stoppedStudentEndDate(student,stopDate=today()){
   const paidThrough=addDays(addDuration(student.start,Number(lastFullyPaid.number||1),'month'),-1);
   return paidThrough>stopped?paidThrough:stopped;
 }
-function stopStudent(student,reason=''){
+function isCalendarDate(value){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;
+  const date=new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value;
+}
+function monthsStartedThrough(student,date){
+  let count=0;
+  while(count<MAX_MONTHS&&addDuration(student.start,count,'month')<=date)count+=1;
+  return count;
+}
+function stopStudent(student,reason='',effectiveDate){
   if(!student)return;
-  const stopped=today(),previousEnd=String(student.end||'').trim();
-  if(previousEnd&&!student.scheduledEndBeforeStop)student.scheduledEndBeforeStop=previousEnd;
-  if(isDynamicMonthly(student)){const plan=installmentPlan(student,stopped);student.frozenMonths=plan.filter(month=>month.dueDate<=stopped||month.paid>0).length;}
-  student.end=stoppedStudentEndDate(student,stopped);student.stopEndBasis=student.end>stopped?'paid-through':'stopped-at';
-  student.active=false;student.status='inactive';student.stoppedAt=stopped;student.stopReason=String(reason||'').trim();student.updatedAt=Date.now();reconcileStudent(student,stopped);saveStudentsClean();
+  const auth=window.EFC_AUTH_V13;
+  if(auth?.canEdit?.('students')===false)throw new Error('الحساب الحالي لا يملك صلاحية إيقاف الطالب.');
+  if(isInactive(student))throw new Error('الطالب موقوف بالفعل.');
+  const current=today(),dated=effectiveDate!==undefined;
+  const stopped=dated?String(effectiveDate??'').trim():current;
+  const monthly=isDynamicMonthly(student),start=String(student.start||'');
+  if(dated){
+    if(!isCalendarDate(stopped))throw new Error('اختر تاريخ إيقاف صالحًا.');
+    if(stopped>current)throw new Error('تاريخ الإيقاف لا يمكن أن يكون بعد اليوم.');
+    if(monthly&&!isCalendarDate(start))throw new Error('تاريخ بداية الدورة غير صالح.');
+    if(isCalendarDate(start)&&stopped<start)throw new Error('تاريخ الإيقاف لا يمكن أن يكون قبل بداية الدورة.');
+    if(stopped<current&&auth&&auth.currentUser?.()?.role!=='admin')throw new Error('اختيار تاريخ إيقاف سابق متاح للمسؤول فقط.');
+  }
+  window.EFC_FISCAL_V14?.assertDateOpen?.(stopped,'تاريخ الإيقاف');
+
+  const before={...student},previousEnd=String(student.end||'').trim();
+  const end=dated&&monthly?stopped:stoppedStudentEndDate(student,stopped);
+  const frozenMonths=monthly?(dated?monthsStartedThrough(student,stopped):installmentPlan(student,stopped).filter(month=>month.dueDate<=stopped||month.paid>0).length):null;
+  try{
+    if(previousEnd&&!student.scheduledEndBeforeStop)student.scheduledEndBeforeStop=previousEnd;
+    if(monthly)student.frozenMonths=frozenMonths;
+    student.end=end;
+    student.stopEndBasis=dated&&monthly?'effective-date':end>stopped?'paid-through':'stopped-at';
+    student.active=false;
+    student.status='inactive';
+    student.stoppedAt=stopped;
+    student.stopReason=String(reason||'').trim();
+    student.updatedAt=Math.max(Date.now(),Number(student.updatedAt||0)+1);
+    reconcileStudent(student,current);
+    saveStudentsClean();
+  }catch(error){
+    Object.keys(student).forEach(key=>delete student[key]);
+    Object.assign(student,before);
+    throw error;
+  }
 }
 function daysUntil(from,to){const a=new Date(`${String(from)}T12:00:00`),b=new Date(`${String(to)}T12:00:00`);return Math.max(0,Math.round((b-a)/86400000));}
 function notificationsForStudent(student){

@@ -105,4 +105,27 @@ saved=F.getState();
 assert.equal(saved.archives.length,1);
 assert.equal(saved.archives[0].totals.courseIncome,1000);
 assert.equal(saved.pendingClose,null);
-console.log('Fiscal v14 verification passed: owner anchor/end, annual recurrence, aggregate archive, cross-year retention, debtor retention, detail cleanup, tombstone restore protection, closed-period lock.');
+
+// A dated stop may leave prepaid money outside the frozen obligations. Exercise
+// the real archive cleanup and restore tombstones with the allocator's credit.
+const datedStop=(id,paid)=>({id,recordCode:`reg-${id}`,active:false,status:'inactive',stopEndBasis:'effective-date',start:'2026-10-01',end:'2026-10-15',stoppedAt:'2026-10-15',branch:'main',specialty:'sp1',required:500,paid,payments:[['2026-10-01',paid,'نقداً']]});
+const credited=datedStop('dated-credit',1000),settled=datedStop('dated-settled',500);
+Object.assign(context.EFC_DOMAIN_V13,{
+  isInactive:student=>student.active===false||student.status==='inactive',
+  isDynamicMonthly:student=>student.stopEndBasis==='effective-date',
+  dynamicAllocation(student,asOf){
+    assert.equal(asOf,'2027-09-14','archive evaluates unapplied credit through the fiscal cutoff');
+    return {unallocated:student.id===credited.id?[{paymentIndex:0,amount:500}]:[]};
+  }
+});
+students.push(credited,settled);currentDate='2027-09-15';plan=F.nextPlan();
+assert.equal(F.eligibleStudent(credited,plan),false,'zero debt does not make unapplied prepaid credit eligible for cleanup');
+assert.equal(F.eligibleStudent(settled,plan),true,'a settled dated-stop record without credit stays eligible');
+const second=await F.closeCurrentYear();
+assert.equal(second.cleanup.studentRecordCodes.includes(credited.recordCode),false);
+assert.equal(second.cleanup.studentRecordCodes.includes(settled.recordCode),true);
+assert.deepEqual(students.find(student=>student.id===credited.id)?.payments,[['2026-10-01',1000,'نقداً']],'archive preserves the original receipt with outstanding credit');
+assert.equal(students.some(student=>student.id===settled.id),false);
+await context.window.EFC_APPLY_RESTORED_STATE({students:[credited,settled],specialties:[],paymentMethods:[],fiscalState:F.getState()});
+assert.deepEqual(appliedIncoming.students.map(student=>student.id),[credited.id],'archive tombstones preserve credit and filter the settled record');
+console.log('Fiscal v14 verification passed: owner anchor/end, annual recurrence, aggregate archive, cross-year/debtor/prepaid-credit retention, detail cleanup, tombstone restore protection, closed-period lock.');

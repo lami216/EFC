@@ -51,6 +51,19 @@ function incomePartitionCards(incomeTotal,partition,periodContext){
   const extra=(label,value,part)=>`<div class="finance-partition-line-v58" data-income-part="${part}"><small>${label}</small><b>${cash(value)}</b></div>`;
   return `<div class="card finance-partition-card-v58 finance-income-card-v59"><div class="finance-split-heading-v60">المداخيل</div><span>${esc(periodContext)}</span><div class="finance-partition-v58 finance-horizontal-split-v60">${cell('دخل الجدد',cash(p.newIncome),'data-income-part="new"')}${cell('دخل السابقين',cash(p.earlierIncome),'data-income-part="earlier"')}</div>${p.certificateIncome||p.unclassifiedIncome?`<div class="finance-extra-income-v60">${p.certificateIncome?extra('الشهادات',p.certificateIncome,'certificate'):''}${p.unclassifiedIncome?extra('غير مصنف',p.unclassifiedIncome,'unclassified'):''}</div>`:''}<div class="finance-income-total-v59" data-income-part="total"><small>الإجمالي</small><b>${cash(incomeTotal)}</b></div>${p.certificateIncome?'':'<span class="finance-certificate-note-v58">الشهادات مستقلة</span>'}</div><div class="card finance-partition-card-v58 finance-student-card-v59"><div class="finance-split-heading-v60">الطلاب</div><span>${esc(periodContext)}</span><div class="finance-partition-v58 finance-horizontal-split-v60">${cell('مسجلون جدد',p.newCount,'data-student-part="new"')}${cell('سابقون مسدّدون',p.earlierCount,'data-student-part="earlier"','طلاب سابقون دفعوا في الفترة ولا متبقي عليهم حتى نهايتها')}</div><span class="finance-student-count-note-v59">سداد كامل خلال الفترة · دون تكرار</span></div>`;
 }
+function expensePartitionCard({title,cardClass,periodContext,course,general,total,totalClass=''}){
+  return `<div class="card ${cardClass}">
+    <div class="finance-split-heading-v60">${title}</div>
+    <span>${esc(periodContext)}</span>
+    <div class="finance-partition-v58 finance-horizontal-split-v60 finance-expense-split-v64">
+      <div class="finance-split-cell-v60"><small>مصاريف الدورات</small><b data-expense-part="course">${course}</b></div>
+      <div class="finance-split-cell-v60"><small>المصاريف العامة</small><b data-expense-part="general">${general}</b></div>
+    </div>
+    <div class="finance-kpi-line-v13 finance-expense-split-total-v64">
+      <small>الإجمالي</small><b class="${totalClass}" data-expense-part="total">${total}</b>
+    </div>
+  </div>`;
+}
 function financeOldestAvailableDate(){
   const valid=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||'').slice(0,10)),dates=[];
   allPayments().forEach(row=>{const date=String(row?.date||'').slice(0,10);if(valid(date))dates.push(date);});
@@ -254,7 +267,7 @@ renderFinance=function(initialSection='income'){
   let section=['income','expenses','profit'].includes(initialSection)?initialSection:'income',mode='monthly',profitView='branch';const specEl=document.getElementById('specV13'),controlsRoot=document.querySelector('.finance-controls-v13'),dayWrap=document.getElementById('dayWrapV13'),fromWrap=document.getElementById('fromWrapV13'),toWrap=document.getElementById('toWrapV13'),monthWrap=document.getElementById('monthWrapV13'),yearWrap=document.getElementById('yearWrapV13'),action=document.getElementById('financePrimaryActionV13');
   function controls(){
     const previous=specEl.value;
-    specEl.innerHTML=`<option value="">كل الدورات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}${section!=='income'?`<option value="${GENERAL_EXPENSE}">مصروف عام</option>`:''}`;
+    specEl.innerHTML=`<option value="">كل الدورات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}${section==='profit'?`<option value="${GENERAL_EXPENSE}">مصروف عام</option>`:''}`;
     if([...specEl.options].some(option=>option.value===previous))specEl.value=previous;
     if(controlsRoot)controlsRoot.dataset.mode=mode;dayWrap.hidden=mode!=='daily';fromWrap.hidden=mode!=='weekly';toWrap.hidden=mode!=='weekly';monthWrap.hidden=mode!=='monthly';yearWrap.hidden=!['monthly','yearly'].includes(mode);
     if(section==='income')action.innerHTML='<button class="button finance-income-history-action-v23" id="viewIncomeHistoryV13">عرض سجل المداخيل</button>';
@@ -272,7 +285,21 @@ renderFinance=function(initialSection='income'){
       const debtStudents=students.filter(student=>(!branch||student.branch===branch)&&(!specialty||student.specialty===specialty)),debt=debtStudents.reduce((sum,student)=>sum+Math.max(0,Number(remainingAmount(student)||0)),0);
       html=`<div class="kpis finance-kpis-three-v23">${incomePartitionCards(incomeTotal,incomeRegistrationPartition(income,registered,{from:range.from,to:effectiveTo}),periodContext)}<div class="card"><div class="finance-kpi-line-v13"><small>الدين</small><b>${cash(debt)}</b></div><span>إجمالي المبالغ غير المدفوعة حاليًا</span></div></div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(income,row=>branchName(row.student.branch)),incomeTotal)}</div><div class="card"><h3>حسب الدورة</h3>${breakdown(groupRows(income,row=>spec(row.student.specialty)?.name||row.student.specialty),incomeTotal)}</div><div class="card"><h3>حسب وسيلة الدفع</h3>${breakdown(groupRows(income,row=>row.method),incomeTotal)}</div></div>`;
     }else if(section==='expenses'){
-      html=`<div class="kpis finance-expense-kpis-v53"><div class="card finance-expense-count-card-v53"><div class="finance-kpi-line-v13"><small>عدد المصاريف</small><b>${costs.length}</b></div><span>هذا عدد المصاريف في ${periodContext}</span></div><div class="card finance-expense-total-card-v53"><div class="finance-kpi-line-v13"><small>المصاريف</small><b class="expense-total-v13">${cash(expenseTotal)}</b></div><span>هذه مصاريف ${periodContext}</span></div></div><div class="grid three breakdowns"><div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(costs,row=>branchName(row.branch)),expenseTotal,true)}</div><div class="card"><h3>حسب الدورة</h3>${breakdown(groupRows(costs,row=>expenseSpecialtyName(row.specialty)),expenseTotal,true)}</div><div class="card"><h3>حسب الوسيلة</h3>${breakdown(groupRows(costs,row=>row.method),expenseTotal,true)}</div></div>`;
+      const courseCosts=costs.filter(row=>row.specialty!==GENERAL_EXPENSE);
+      const generalCosts=expenses.filter(row=>expenseMatches(row,{from:range.from,to:effectiveTo,branch,specialty:GENERAL_EXPENSE}));
+      const displayedCosts=[...courseCosts,...generalCosts];
+      const courseTotal=courseCosts.reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const generalTotal=generalCosts.reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const displayedTotal=courseTotal+generalTotal;
+      const expenseContext=[periodPhrase,branchLabel?`من ${branchLabel}`:''].filter(Boolean).join(' ');
+      const countCard=expensePartitionCard({title:'عدد المصاريف',cardClass:'finance-expense-count-card-v53',periodContext:expenseContext,course:courseCosts.length,general:generalCosts.length,total:displayedCosts.length});
+      const amountCard=expensePartitionCard({title:'قيمة المصاريف',cardClass:'finance-expense-total-card-v53',periodContext:expenseContext,course:cash(courseTotal),general:cash(generalTotal),total:cash(displayedTotal),totalClass:'expense-total-v13'});
+      html=`<div class="kpis finance-expense-kpis-v53">${countCard}${amountCard}</div>
+        <div class="grid three breakdowns">
+          <div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(displayedCosts,row=>branchName(row.branch)),displayedTotal,true)}</div>
+          <div class="card"><h3>حسب الدورة</h3>${breakdown(groupRows(courseCosts,row=>expenseSpecialtyName(row.specialty)),courseTotal,true)}</div>
+          <div class="card"><h3>حسب الوسيلة</h3>${breakdown(groupRows(displayedCosts,row=>row.method),displayedTotal,true)}</div>
+        </div>`;
     }else{
       const net=incomeTotal-expenseTotal;
       html=`<div class="kpis"><div class="card"><div class="finance-kpi-line-v13"><small>الدخل</small><b>${cash(incomeTotal)}</b></div><span>هذا دخل ${periodContext}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>المصاريف</small><b class="expense-total-v13">${cash(expenseTotal)}</b></div><span>هذه مصاريف ${periodContext}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>صافي الربح</small><b class="${net<0?'negative-v13':''}">${cash(net)}</b></div><span>صافي الربح في ${periodContext}</span></div><div class="card"><div class="finance-kpi-line-v13"><small>هامش الربح</small><b>${(incomeTotal?net/incomeTotal*100:0).toFixed(1)}%</b></div><span>هامش الربح في ${periodContext}</span></div></div>`;
@@ -587,6 +614,9 @@ const historyPresentationStyle=document.createElement('style');historyPresentati
 .content:has(.finance-switch-v13) #financeBodyV13 .finance-split-cell-v60:first-child{border-inline-end:1px solid #b5d6c5}
 .content:has(.finance-switch-v13) #financeBodyV13 .finance-split-cell-v60 small{font-size:9.5px!important;white-space:normal!important;line-height:1.35;font-weight:700;color:#365d4d}
 .content:has(.finance-switch-v13) #financeBodyV13 .finance-split-cell-v60>b{font-size:clamp(12px,1vw,15px)!important;line-height:1.25!important;max-width:100%;white-space:normal!important;overflow-wrap:anywhere;color:#172e26}
+.content:has(.finance-switch-v13) #financeBodyV13 .finance-expense-split-v64{border-top-color:#eccaca}
+.content:has(.finance-switch-v13) #financeBodyV13 .finance-expense-split-v64 .finance-split-cell-v60:first-child{border-inline-end-color:#eccaca}
+.content:has(.finance-switch-v13) #financeBodyV13 .finance-expense-split-total-v64{border-top:1px solid #eccaca;margin-top:6px!important;padding-top:5px}
 .content:has(.finance-switch-v13) #financeBodyV13 .finance-student-card-v59 .finance-split-cell-v60>b{font-size:21px!important}
 .content:has(.finance-switch-v13) #financeBodyV13>.kpis>.finance-partition-card-v58{gap:0!important}
 .content:has(.finance-switch-v13) #financeBodyV13 .finance-income-card-v59 .finance-income-total-v59{margin-top:5px;padding-top:5px}

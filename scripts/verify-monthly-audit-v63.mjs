@@ -29,4 +29,70 @@ const stoppedExcess={...make(),active:false,status:'inactive',frozenMonths:1,pay
 const stoppedLegacy={...make(),active:false,status:'inactive',payments:[payment('2026-11-01',200)]};assert.deepEqual(Array.from(conserved(stoppedLegacy,'2026-11-15').monthPaid),[200]);assert.equal(D.remainingAmount(stoppedLegacy),300,'missing legacy frozenMonths must preserve the prior obligation and debt');assert.equal(D.remainingAmount(stoppedLegacy,'2028-12-01'),300,'legacy stopped obligations do not grow with the calendar');
 const first=make();D.appendPayment(first,{amount:300,method:'cash',persist:false});assert.equal(first.registrationPaymentCode,first.payments[0][6]);assert.equal(first.registrationPaymentInferred,false);D.appendPayment(first,{amount:200,method:'cash',persist:false});assert.equal(first.registrationPaymentCode,first.payments[0][6]);
 const rollback=make(),beforeRollback=JSON.stringify(rollback);failSave=true;assert.throws(()=>D.appendPayment(rollback,{amount:100,method:'cash'}));failSave=false;assert.equal(JSON.stringify(rollback),beforeRollback,'save rejection rolls back receipt and registration marker');
-console.log('Monthly audit v63: top-ups, preview equivalence, backdated overlap, historical/serialized conservation, 20 allocation matrices, 240-month limit, stopped state, registration identity and rollback passed.');
+
+context.spec=id=>({id,name:'Monthly',billing:'monthly'});
+context.EFC_AUTH_V13={canEdit:section=>section==='students',currentUser:()=>({role:'admin'})};
+const october=()=>({...make(),name:'Monthly student',branch:'a',specialty:'m',start:'2026-10-01'});
+const correctedStop=october();
+correctedStop.payments=[
+  payment('2026-10-01',200,[{monthNumber:1,amount:200}]),
+  payment('2026-11-03',500,[{monthNumber:2,amount:500}]),
+  payment('2026-11-10',100,[{monthNumber:1,amount:100}])
+];
+correctedStop.payments[1][7]=2;
+const originalReceipts=JSON.stringify(correctedStop.payments),olderRevision=Date.now()+5000;
+correctedStop.updatedAt=olderRevision;
+D.stopStudent(correctedStop,'تاريخ فعلي','2026-10-31');
+assert.equal(correctedStop.stoppedAt,'2026-10-31');
+assert.equal(correctedStop.end,'2026-10-31');
+assert.equal(correctedStop.frozenMonths,1);
+assert.equal(correctedStop.active,false);
+assert(correctedStop.updatedAt>olderRevision,'a dated stop advances the revision even if the old clock was ahead');
+assert.equal(JSON.stringify(correctedStop.payments),originalReceipts,'stopping preserves every original receipt and date');
+assert.deepEqual(Array.from(conserved(correctedStop,'2026-11-15').monthPaid),[300]);
+assert.equal(D.remainingAmount(correctedStop),200,'later collections for a started month still reduce frozen debt');
+assert.equal(sum(D.dynamicAllocation(correctedStop).unallocated),500,'a payment for a removed month remains visible as credit');
+
+D.updateStudentRegistration(correctedStop,{name:'Corrected name'});
+assert.equal(correctedStop.name,'Corrected name');
+assert.equal(JSON.stringify(correctedStop.payments),originalReceipts,'personal edits preserve frozen payment allocation hints and excess credit');
+D.updateStudentRegistration(correctedStop,{paymentIndex:2,paymentDate:'2026-11-11'});
+assert.equal(correctedStop.payments[2][0],'2026-11-11');
+assert.equal(correctedStop.stoppedAt,'2026-10-31');
+assert.equal(correctedStop.end,'2026-10-31');
+assert.equal(correctedStop.frozenMonths,1);
+assert.equal(correctedStop.active,false);
+assert.equal(D.remainingAmount(correctedStop),200);
+assert.equal(sum(D.dynamicAllocation(correctedStop).unallocated),500);
+assert.throws(()=>D.updateStudentRegistration(correctedStop,{start:'2026-11-01'}),/بداية الدورة/);
+D.appendPayment(correctedStop,{amount:200,method:'cash',date:'2026-11-15',targetMonth:1,persist:false});
+assert.equal(D.remainingAmount(correctedStop,'2027-01-01'),0);
+assert.equal(correctedStop.frozenMonths,1);
+assert.equal(correctedStop.active,false,'paying frozen debt does not reactivate the student');
+assert.equal(sum(D.dynamicAllocation(correctedStop).unallocated),500);
+
+const boundary=october();D.stopStudent(boundary,'','2026-11-01');
+assert.equal(boundary.frozenMonths,2,'a month beginning on the chosen stop date counts');
+assert.equal(D.remainingAmount(boundary),1000);
+for(const invalid of ['', '2026-02-31','2026-09-30','2026-11-16']){
+  const record=october(),before=JSON.stringify(record);
+  assert.throws(()=>D.stopStudent(record,'',invalid));
+  assert.equal(JSON.stringify(record),before,'invalid dates do not change the student');
+}
+context.EFC_FISCAL_V14={assertDateOpen:date=>{if(date<='2026-10-31')throw Error('سنة مالية مقفلة');}};
+assert.throws(()=>D.stopStudent(october(),'','2026-10-31'),/مقفلة/);
+delete context.EFC_FISCAL_V14;
+context.EFC_AUTH_V13={canEdit:()=>true,currentUser:()=>({role:'staff'})};
+const staff=october();assert.throws(()=>D.stopStudent(staff,'','2026-10-31'),/مسؤول/);
+D.stopStudent(staff,'','2026-11-15');assert.equal(staff.frozenMonths,2);
+assert.throws(()=>D.stopStudent(staff,'','2026-11-15'),/موقوف بالفعل/);
+context.EFC_AUTH_V13={canEdit:()=>false,currentUser:()=>({role:'staff'})};
+assert.throws(()=>D.stopStudent(october(),'','2026-11-15'),/صلاحية/);
+context.EFC_AUTH_V13={canEdit:()=>true,currentUser:()=>({role:'admin'})};
+const quick={...october(),end:'2026-11-20',snapshot:{billing:'one_time',fee:1000},payments:[payment('2026-10-01',200)]};
+D.stopStudent(quick,'','2026-10-31');assert.equal(quick.end,'2026-10-31');assert.equal(D.remainingAmount(quick),800);
+const failedStop=october(),beforeStopFailure=JSON.stringify(failedStop);failSave=true;
+assert.throws(()=>D.stopStudent(failedStop,'','2026-10-31'));failSave=false;
+assert.equal(JSON.stringify(failedStop),beforeStopFailure,'a failed dated stop rolls back its changes');
+
+console.log('Monthly audit: allocations, conservation, identity, dated stop permissions and boundaries, frozen debt/credit, receipt edits and rollback passed.');

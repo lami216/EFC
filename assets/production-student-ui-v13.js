@@ -34,6 +34,31 @@ function modalShell(title,subtitle,body,wide=false){
   modal.innerHTML=`<div class="modal-card ${wide?'wide-modal':'narrow'}"><div class="modal-head"><div><p>${esc(subtitle||'')}</p><h2>${esc(title)}</h2></div><button class="x" type="button">×</button></div>${body}</div>`;
   document.body.appendChild(modal);modal.querySelector('.x').onclick=()=>closeModal(modal);autocompleteOff(modal);return modal;
 }
+function openStudentStopDialog(student,onStopped){
+  const current=today();
+  const canBackdate=window.EFC_AUTH_V13?.currentUser?.()?.role==='admin';
+  const policy=isDynamicMonthly(student)
+    ?'تُحسب رسوم الأشهر التي بدأت حتى تاريخ الإيقاف، وتبقى الدفعات في سجل الطالب.'
+    :'يبقى المتبقي من رسوم الدورة مستحقًا بعد الإيقاف.';
+  const modal=modalShell(student.name,'إيقاف الطالب',`
+    <div class="grid two student-stop-dialog-v64">
+      <label>تاريخ الإيقاف<input class="input" name="stopDate" type="date" value="${esc(current)}" min="${esc(student.start||'')}" max="${esc(current)}" ${canBackdate?'':'readonly'} required></label>
+      <label>سبب الإيقاف (اختياري)<input class="input" name="stopReason" type="text"></label>
+      <div class="wide course-note-v13">${policy}</div>
+      <p class="wide stop-date-error-v64" role="alert" hidden></p>
+      <div class="wide modal-actions"><button type="button" class="button secondary cancel">إلغاء</button><button type="button" class="button confirm-stop-v64">تأكيد الإيقاف</button></div>
+    </div>`);
+  const date=modal.querySelector('[name=stopDate]');
+  const reason=modal.querySelector('[name=stopReason]');
+  const error=modal.querySelector('.stop-date-error-v64');
+  modal.querySelector('.cancel').onclick=()=>closeModal(modal);
+  modal.querySelector('.confirm-stop-v64').onclick=()=>{
+    try{stopStudent(student,reason.value,date.value);}
+    catch(failure){error.textContent=String(failure?.message||failure);error.hidden=false;return;}
+    closeModal(modal);
+    onStopped();
+  };
+}
 function showReceiptConfirmation(student,paymentIndex,kind='pay'){
   try{
     reconcileStudent(student);
@@ -133,7 +158,7 @@ openStudent=function(id,mode='finance'){
   modal.querySelector('.all-months-receipt-v13')?.addEventListener('click',()=>{const model=receiptModelV4(student,null,true);if(model)receiptWindowV4(model);});
   modal.querySelectorAll('.payment-receipt-v13').forEach(button=>button.onclick=()=>{const model=receiptModelV4(student,Number(button.dataset.index),false);if(model)receiptWindowV4(model);});
   modal.querySelectorAll('.month-receipt-v13').forEach(button=>button.onclick=()=>{const model=monthReceiptModelV13(student,Number(button.dataset.month));if(model)receiptWindowV4(model);});
-  modal.querySelector('.stop-student-v13')?.addEventListener('click',()=>{if(!confirm(`إيقاف ${student.name}؟`))return;const reason=prompt('سبب الإيقاف (اختياري):','')||'';stopStudent(student,reason);modal.remove();openStudent(id,mode);});
+  modal.querySelector('.stop-student-v13')?.addEventListener('click',()=>openStudentStopDialog(student,()=>{modal.remove();openStudent(id,mode);}));
   modal.querySelectorAll('.reminder-view-v13').forEach(button=>button.onclick=()=>window.EFC_OPEN_REMINDER_V13?.(reminders[Number(button.dataset.index)]));
   modal.querySelectorAll('.reminder-pdf-v13').forEach(button=>button.onclick=()=>window.EFC_SAVE_REMINDER_PDF_V13?.(reminders[Number(button.dataset.index)]));
   autocompleteOff(modal);

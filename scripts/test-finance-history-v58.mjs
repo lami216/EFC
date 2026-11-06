@@ -35,7 +35,8 @@ try{
     const expense=(id,date,branch,specialty,amount,name)=>({id,name,branch,specialty,date,amount,method:'نقداً',time:'12:00',receiptNo:id+1,createdAt:id+1});
     localStorage.setItem('efc-expenses-v11',JSON.stringify([
       ...Array.from({length:140},(_,i)=>expense(i,'2026-11-10','a','x',i+1,`مصروف ${i} · ${i%9===0?'وصف عربي طويل لاختبار التفاف النص داخل الجدول بدون قص المحتوى '.repeat(6):'تشغيل المركز'}`)),
-      expense(200,'2026-11-16','a','x',999,'مصروف مستقبلي'),expense(201,'2026-10-31','a','x',75,'مصروف سابق'),expense(202,'2026-11-10','b','y',80,'مصروف الفرع الثاني'),expense(203,'2026-11-10','a','__expense_general__',20,'مصروف عام')
+      expense(200,'2026-11-16','a','x',999,'مصروف مستقبلي'),expense(201,'2026-10-31','a','x',75,'مصروف سابق'),expense(202,'2026-11-10','b','y',80,'مصروف الفرع الثاني'),expense(203,'2026-11-10','a','__expense_general__',20,'مصروف عام'),
+      expense(204,'2026-11-16','a','__expense_general__',400,'مصروف عام مستقبلي'),expense(205,'2026-10-31','a','__expense_general__',30,'مصروف عام سابق'),expense(206,'2026-11-10','b','__expense_general__',40,'مصروف عام في الفرع الثاني')
     ]));
     localStorage.setItem('efc-certificate-state-v1',JSON.stringify({certificateReceipts:[{id:'cert',recordCode:'cert-r',transactionCode:'cert-tx',receiptNo:1,studentType:'internal',studentId:'old',studentName:'طالب قديم',specialtyId:'x',specialtyName:'الفرنسية',branchType:'internal',branchId:'a',branchName:'المركز الأول',amount:30,method:'نقداً',date:'2026-11-10',time:'12:00'}]}));
   });
@@ -118,7 +119,46 @@ try{
   await page.locator('#incomeHistoryBranchV13').selectOption('b');await page.locator('#incomeHistorySpecV13').selectOption('x');
   assert.equal(money(await page.locator('#incomeHistoryTotalV53').textContent()),0);
   await page.locator('#incomeHistoryExportV58').click();frame=page.frameLocator('.receipt-viewer-frame-v13');await frame.locator('#historySaveV58:not([disabled])').waitFor();assert((await frame.locator('body').textContent()).includes('لا توجد نتائج'));await page.locator('.receipt-viewer-close-v13').click();
-  await page.locator('#backToIncomeFinanceV13').click();await page.locator('[data-section=expenses]').click();await page.locator('#viewExpenseHistoryV13').click();
+  await page.locator('#backToIncomeFinanceV13').click();await page.locator('[data-section=expenses]').click();
+  const expenseCards=async()=>{
+    const values=[];
+    for(const card of ['count','total']){
+      const group=page.locator(`.finance-expense-${card}-card-v53`);
+      values.push(await Promise.all(['course','general','total'].map(async part=>money(await group.locator(`[data-expense-part=${part}]`).textContent()))));
+    }
+    return values;
+  };
+  const expensesBefore=await page.evaluate(()=>JSON.stringify(EFC_DOMAIN_V13.getExpenses()));
+  assert.equal(await page.locator('#specV13 option[value="__expense_general__"]').count(),0,'general expenses are outside the main expense course filter');
+  assert.deepEqual(await expenseCards(),[[141,2,143],[9950,60,10010]],'both groups follow the selected month and exclude future expenses');
+  await page.locator('#branchV13').selectOption('a');await page.locator('#specV13').selectOption('x');
+  assert.deepEqual(await expenseCards(),[[140,1,141],[9870,20,9890]],'course selection leaves this center’s general expenses visible');
+  await page.locator('#specV13').selectOption('y');assert.deepEqual(await expenseCards(),[[0,1,1],[0,20,20]],'no matching course expenses does not hide the general group');
+  await page.locator('#branchV13').selectOption('b');assert.deepEqual(await expenseCards(),[[1,1,2],[80,40,120]],'center selection scopes both groups');
+  await page.locator('#branchV13').selectOption('a');await page.locator('#specV13').selectOption('x');
+  await page.locator('#financeModeV13 [data-mode=daily]').click();assert.deepEqual(await expenseCards(),[[0,0,0],[0,0,0]]);
+  await page.locator('#dayV13').fill('2026-11-10');await page.locator('#dayV13').dispatchEvent('change');assert.deepEqual(await expenseCards(),[[140,1,141],[9870,20,9890]]);
+  await page.locator('#financeModeV13 [data-mode=weekly]').click();await page.locator('#fromV13').fill('2026-10-31');await page.locator('#fromV13').dispatchEvent('change');await page.locator('#toV13').fill('2026-11-10');await page.locator('#toV13').dispatchEvent('change');
+  assert.deepEqual(await expenseCards(),[[141,2,143],[9945,50,9995]],'explicit range includes both groups from the chosen dates');
+  await page.locator('#financeModeV13 [data-mode=yearly]').click();assert.deepEqual(await expenseCards(),[[141,2,143],[9945,50,9995]],'year total includes prior months and still excludes future expenses');
+  await page.locator('#financeModeV13 [data-mode=monthly]').click();
+  for(const width of [1440,1024,840]){
+    await page.setViewportSize({width,height:900});
+    for(const kind of ['count','total']){
+      const card=page.locator(`.finance-expense-${kind}-card-v53`),cells=card.locator('.finance-split-cell-v60');
+      const rects=await cells.evaluateAll(elements=>elements.map(el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,bottom:r.bottom,width:r.width,fit:el.scrollWidth<=el.clientWidth+1};}));
+      assert.equal(rects.length,2);assert(rects[0].x>rects[1].x&&Math.abs(rects[0].y-rects[1].y)<1&&Math.abs(rects[0].width-rects[1].width)<1,'expense groups share an evenly split RTL row');
+      assert(rects.every(r=>r.fit),'expense group labels and values fit their halves');
+      const total=await card.locator('.finance-expense-split-total-v64').boundingBox();assert(total.y>=Math.max(...rects.map(r=>r.bottom))-1,'expense total sits below both groups');
+    }
+    if(output)await page.screenshot({path:path.join(output,`expense-dashboard-${width}.png`)});
+  }
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('[data-section=profit]').click();assert.equal(money(await page.locator('#financeBodyV13>.kpis>.card').nth(1).locator('b').textContent()),9870,'course profitability excludes general expenses as before');
+  assert.equal(await page.locator('#specV13 option[value="__expense_general__"]').count(),1,'profit keeps the general expense filter');
+  await page.locator('[data-section=expenses]').click();assert.deepEqual(await expenseCards(),[[140,1,141],[9870,20,9890]]);
+  assert.equal(await page.evaluate(()=>JSON.stringify(EFC_DOMAIN_V13.getExpenses())),expensesBefore,'display filters never rewrite expense records');
+  await page.locator('#viewExpenseHistoryV13').click();
   await page.locator('#expenseHistoryBranchV13').selectOption('a');await page.locator('#expenseHistorySpecV13').selectOption('x');
   if(output)await page.screenshot({path:path.join(output,'expense-history.png'),fullPage:true});
   frame=await preview('expense',140);const pageCount=await frame.locator('.history-paper-v58').count();assert(pageCount>1&&pageCount<20,'compact continuation pages must improve on the previous 20-page fixture');
@@ -169,7 +209,9 @@ try{
   await page.locator('#incomeHistoryDayV13').fill('2026-11-15');await page.locator('#incomeHistoryDayV13').dispatchEvent('change');assert(!(await page.locator('#incomeHistoryExportV58').isDisabled()));
   await page.locator('#backToIncomeFinanceV13').click();await page.locator('#financeModeV13 [data-mode=weekly]').click();await page.locator('#fromV13').fill('2026-11-11');await page.locator('#fromV13').dispatchEvent('change');await page.locator('#toV13').fill('2026-11-15');await page.locator('#toV13').dispatchEvent('change');
   await page.waitForSelector('.finance-partition-v58');await page.evaluate(()=>window.EFC_ACCOUNTING_INTEGRITY_V21.guardFinanceViews());assert.equal(await page.locator('#financeBodyV13 .efc-archive-only-v21').count(),0,'weekly fiscal guard must not use the whole calendar year');
-  await page.locator('[data-section=expenses]').click();await page.locator('#viewExpenseHistoryV13').click();await page.locator('#expenseHistoryModeV13 [data-mode=monthly]').click();assert(await page.locator('#expenseHistoryExportV58').isDisabled());assert.equal(await page.locator('#expenseHistoryTotalV53').textContent(),'—');assert.equal(await page.locator('#expenseHistoryBodyV13 .efc-archive-only-v21').count(),1);
+  await page.locator('[data-section=expenses]').click();await page.locator('#financeModeV13 [data-mode=monthly]').click();
+  assert.equal(await page.locator('#financeBodyV13 .efc-archive-only-v21').count(),1);assert.equal(await page.locator('[data-expense-part]').count(),0,'split expense values are hidden for mixed fiscal periods');
+  await page.locator('#viewExpenseHistoryV13').click();await page.locator('#expenseHistoryModeV13 [data-mode=monthly]').click();assert(await page.locator('#expenseHistoryExportV58').isDisabled());assert.equal(await page.locator('#expenseHistoryTotalV53').textContent(),'—');assert.equal(await page.locator('#expenseHistoryBodyV13 .efc-archive-only-v21').count(),1);
   assert.deepEqual(errors,[],'browser runtime must stay error-free');
   // Restore the same realistic backup supplied to the user. Independent expected
   // totals: 48 earlier payers, of whom 41 have fully settled obligations at Nov 1.
@@ -187,5 +229,5 @@ try{
   await demo.locator('#branchV13').selectOption('');assert.equal(await demo.evaluate(()=>students.filter(s=>s.active===false).length),2);
   for(const width of [1440,1024,840]){await demo.setViewportSize({width,height:900});await checkHorizontalCards(demo);if(output)await demo.screenshot({path:path.join(output,`demo-income-horizontal-${width}.png`),fullPage:true});}
   await demoContext.close();assert.deepEqual(errors,[]);
-  console.log(`Finance browser v61 passed: first-page-only branding/filters, compact continuation rows, final total once, ${pageCount} pages instead of 20, PDF/print/native save and oversized text; unchanged dashboard, financial totals, all filters, source states and fiscal guards.`);
+  console.log(`Finance browser v64 passed: first-page-only branding/filters, compact continuation rows, final total once, ${pageCount} pages instead of 20, PDF/print/native save and oversized text; independent general-expense display, RTL geometry, unchanged profitability and financial totals, all filters, source states and fiscal guards.`);
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

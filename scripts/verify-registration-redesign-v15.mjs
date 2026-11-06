@@ -1,5 +1,7 @@
 import {readFileSync,existsSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
 
 const read=path=>readFileSync(path,'utf8');
 const requireText=(text,needle,label=needle)=>{if(!text.includes(needle))throw new Error(`Registration redesign missing: ${label}`);};
@@ -208,8 +210,8 @@ for(const [token,label] of [
   ['transactionCode:String(payment?.[6]||\'\')','receipt carries stable transaction code'],
   ['window.EFC_BEGIN_REGISTRATION_EDIT_V17','receipt viewer invokes registration editor'],
   ['saveDialogReceiptPdf:true','receipt PDF uses Save As'],
-  ['receiptFileNameUsesCenterAndRegister:true','receipt filename uses center and register'],
-  ['`روسي-${filePart(model.branch,\'المركز\')}-${filePart(westernDigitsV3(model.reg||\'\'),\'0000\')}.pdf`','receipt PDF suggested filename'],
+  ['receiptFileNameUsesStudentAndRegister:true','receipt filename uses the displayed student and register'],
+  ['const fileName=receiptPdfFileName(model)','receipt PDF suggested filename comes from the displayed model'],
   ['protectedReceiptIdentifiers:true','receipt and transaction identifiers stay protected']
 ])requireText(receipts,token,label);
 forbidText(receipts,'receipt-edit-panel-v13','receipt must not keep a second inline edit form');
@@ -223,6 +225,44 @@ for(const [token,label] of [
   ['save_file()','native receipt save waits for selected location']
 ])requireText(receiptPdfRust,token,label);
 forbidText(receiptPdfRust,'profile.join("Downloads")','receipt PDF must not force the Downloads folder');
+
+// Exercise the same PDF export function for all save transports. Rendering is
+// stubbed here because these cases verify the suggested filename and payload.
+const westernDigitsSource=read('assets/production-foundation-v13.js').match(/^const westernDigits=.*$/m)[0];
+const westernDigitsV3=vm.runInNewContext(`${westernDigitsSource}\nwesternDigits`);
+const pdfBytes=Buffer.from('%PDF-test');
+const pdfBlob={kind:'pdf-blob'};
+const saves=[];
+const stage={style:{},querySelector:()=>({}),remove(){}};
+class TestPdf{
+  internal={pageSize:{getWidth:()=>297,getHeight:()=>210}};
+  addImage(){}
+  output(format){return format==='blob'?pdfBlob:pdfBytes;}
+  save(name){saves.push({transport:'download',name});}
+}
+const receiptWindow={html2canvas:async()=>({width:1040,height:600,toDataURL:()=>''}),jspdf:{jsPDF:TestPdf}};
+const savePdf=vm.runInNewContext(`${receipts.slice(receipts.indexOf('function filePart('),receipts.indexOf('window.EFC_SAVE_RECEIPT_PDF=savePdf;'))}\nsavePdf`,{
+  window:receiptWindow,document:{createElement:()=>stage,body:{appendChild(){}}},css:()=>'',body:()=>'',loadLocal:async()=>{},waitImages:async()=>{},
+  arrayBufferToBase64:bytes=>bytes.toString('base64'),westernDigitsV3,alert(){},console
+});
+const model={student:'محمد / أحمد: المختار',branch:'فرع آخر',reg:'٠٠٤٢'};
+const expectedName='روسي-محمد _ أحمد_ المختار-0042.pdf';
+receiptWindow.__TAURI__={core:{invoke:async(command,{fileName,dataBase64})=>{
+  assert.equal(command,'save_receipt_pdf');assert.equal(dataBase64,pdfBytes.toString('base64'));
+  saves.push({transport:'windows',name:fileName});return 'chosen-location.pdf';
+}}};
+assert.equal(await savePdf(model),'chosen-location.pdf');
+delete receiptWindow.__TAURI__;
+receiptWindow.showSaveFilePicker=async({suggestedName})=>{
+  saves.push({transport:'browser-picker',name:suggestedName});
+  return{createWritable:async()=>({write:async blob=>assert.equal(blob,pdfBlob),close:async()=>{}})};
+};
+assert.equal(await savePdf(model),expectedName);
+delete receiptWindow.showSaveFilePicker;
+assert.equal(await savePdf(model),expectedName);
+assert.deepEqual(saves,['windows','browser-picker','download'].map(transport=>({transport,name:expectedName})));
+assert.equal(await savePdf({student:'ش'.repeat(159)+'😀'+ ' اسم طويل',reg:'0009'}),`روسي-${'ش'.repeat(159)}-0009.pdf`);
+assert.equal(await savePdf({student:'   ',reg:''}),'روسي-الطالب-0000.pdf');
 
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],
