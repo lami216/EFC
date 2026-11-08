@@ -51,12 +51,12 @@ function incomePartitionCards(incomeTotal,partition,periodContext){
   const extra=(label,value,part)=>`<div class="finance-partition-line-v58" data-income-part="${part}"><small>${label}</small><b>${cash(value)}</b></div>`;
   return `<div class="card finance-partition-card-v58 finance-income-card-v59"><div class="finance-split-heading-v60">المداخيل</div><span>${esc(periodContext)}</span><div class="finance-partition-v58 finance-horizontal-split-v60">${cell('دخل الجدد',cash(p.newIncome),'data-income-part="new"')}${cell('دخل السابقين',cash(p.earlierIncome),'data-income-part="earlier"')}</div>${p.certificateIncome||p.unclassifiedIncome?`<div class="finance-extra-income-v60">${p.certificateIncome?extra('الشهادات',p.certificateIncome,'certificate'):''}${p.unclassifiedIncome?extra('غير مصنف',p.unclassifiedIncome,'unclassified'):''}</div>`:''}<div class="finance-income-total-v59" data-income-part="total"><small>الإجمالي</small><b>${cash(incomeTotal)}</b></div>${p.certificateIncome?'':'<span class="finance-certificate-note-v58">الشهادات مستقلة</span>'}</div><div class="card finance-partition-card-v58 finance-student-card-v59"><div class="finance-split-heading-v60">الطلاب</div><span>${esc(periodContext)}</span><div class="finance-partition-v58 finance-horizontal-split-v60">${cell('مسجلون جدد',p.newCount,'data-student-part="new"')}${cell('سابقون مسدّدون',p.earlierCount,'data-student-part="earlier"','طلاب سابقون دفعوا في الفترة ولا متبقي عليهم حتى نهايتها')}</div><span class="finance-student-count-note-v59">سداد كامل خلال الفترة · دون تكرار</span></div>`;
 }
-function expensePartitionCard({title,cardClass,periodContext,course,general,total,totalClass=''}){
+function expensePartitionCard({title,cardClass,periodContext,course,general,total,totalClass='',courseLabel='مصاريف الدورات'}){
   return `<div class="card ${cardClass}">
     <div class="finance-split-heading-v60">${title}</div>
     <span>${esc(periodContext)}</span>
     <div class="finance-partition-v58 finance-horizontal-split-v60 finance-expense-split-v64">
-      <div class="finance-split-cell-v60"><small>مصاريف الدورات</small><b data-expense-part="course">${course}</b></div>
+      <div class="finance-split-cell-v60"><small title="${esc(courseLabel)}">${esc(courseLabel)}</small><b data-expense-part="course">${course}</b></div>
       <div class="finance-split-cell-v60"><small>المصاريف العامة</small><b data-expense-part="general">${general}</b></div>
     </div>
     <div class="finance-kpi-line-v13 finance-expense-split-total-v64">
@@ -153,6 +153,9 @@ function guardHistoryRange(kind,range){
   if(!historyReportAllowed(range)){
     document.getElementById(`${kind}HistoryTotalV53`).textContent='—';
     document.getElementById(`${kind}HistoryTotalContextV54`).textContent='راجع الأرشيف المالي للفترة المقفلة';
+    if(kind==='expense')for(const part of ['CourseTotal','GeneralTotal','CourseCount','GeneralCount']){
+      const value=document.getElementById(`expenseHistory${part}V65`);if(value)value.textContent='—';
+    }
   }
 }
 function historyReportModel(kind,rows,range,branchLabel,specialtyLabel){
@@ -292,8 +295,9 @@ renderFinance=function(initialSection='income'){
       const generalTotal=generalCosts.reduce((sum,row)=>sum+Number(row.amount||0),0);
       const displayedTotal=courseTotal+generalTotal;
       const expenseContext=[periodPhrase,branchLabel?`من ${branchLabel}`:''].filter(Boolean).join(' ');
-      const countCard=expensePartitionCard({title:'عدد المصاريف',cardClass:'finance-expense-count-card-v53',periodContext:expenseContext,course:courseCosts.length,general:generalCosts.length,total:displayedCosts.length});
-      const amountCard=expensePartitionCard({title:'قيمة المصاريف',cardClass:'finance-expense-total-card-v53',periodContext:expenseContext,course:cash(courseTotal),general:cash(generalTotal),total:cash(displayedTotal),totalClass:'expense-total-v13'});
+      const courseLabel=specialty&&specialty!==GENERAL_EXPENSE?`مصاريف ${specialtyLabel}`:'مصاريف الدورات';
+      const countCard=expensePartitionCard({courseLabel,title:'عدد المصاريف',cardClass:'finance-expense-count-card-v53',periodContext:expenseContext,course:courseCosts.length,general:generalCosts.length,total:displayedCosts.length});
+      const amountCard=expensePartitionCard({courseLabel,title:'قيمة المصاريف',cardClass:'finance-expense-total-card-v53',periodContext:expenseContext,course:cash(courseTotal),general:cash(generalTotal),total:cash(displayedTotal),totalClass:'expense-total-v13'});
       html=`<div class="kpis finance-expense-kpis-v53">${countCard}${amountCard}</div>
         <div class="grid three breakdowns">
           <div class="card"><h3>حسب الفرع</h3>${breakdown(groupRows(displayedCosts,row=>branchName(row.branch)),displayedTotal,true)}</div>
@@ -409,7 +413,7 @@ function renderExpenseHistory(){
   currentPage='finance';expenses=D.getExpenses();
   const current=today(),currentYear=Number(current.slice(0,4)),currentMonth=Number(current.slice(5,7)),state=expenseHistoryFilterStateV13||{mode:'monthly',day:current,from:current,to:current,month:currentMonth,year:currentYear,branch:'',specialty:''};
   expenseHistoryFilterStateV13=state;
-  shell(`<div class="history-heading-v58"><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16M7 3v3M7 9v3M7 15v3"/></g></svg><h1>سجل المصاريف</h1></section>${historyExportAction('expense')}</div><div class="expense-history-toolbar-v13"><button class="button secondary" id="backToFinanceV13">العودة للمالية</button><div class="history-primary-summary-row-v54"><div class="history-primary-summary-v54"><div class="history-primary-summary-card-v54 expense"><div class="finance-kpi-line-v13"><small id="expenseHistoryPeriodTitleV54">مصاريف شهرية</small><b id="expenseHistoryTotalV53">${cash(0)}</b></div><span id="expenseHistoryTotalContextV54">هذه مصاريف شهر ${monthNames[currentMonth-1]} ${currentYear}</span></div></div></div><span id="expenseHistoryMessageV13"></span></div><div class="card finance-controls-v13 expense-history-controls-v13" data-mode="${esc(state.mode)}"><div class="segmented" id="expenseHistoryModeV13"><button data-mode="daily" class="${state.mode==='daily'?'active':''}">يومي</button><button data-mode="weekly" class="${state.mode==='weekly'?'active':''}">أسبوع</button><button data-mode="monthly" class="${state.mode==='monthly'?'active':''}">شهري</button><button data-mode="yearly" class="${state.mode==='yearly'?'active':''}">سنوي</button></div><label id="expenseHistoryDayWrapV13">اليوم<input class="input" id="expenseHistoryDayV13" type="date" value="${esc(state.day||current)}"></label><label id="expenseHistoryFromWrapV13">من<input class="input" id="expenseHistoryFromV13" type="date" value="${esc(state.from||'')}"></label><label id="expenseHistoryToWrapV13">إلى<input class="input" id="expenseHistoryToV13" type="date" value="${esc(state.to||current)}"></label><label id="expenseHistoryMonthWrapV13">الشهر<select id="expenseHistoryMonthV13">${monthNames.map((name,index)=>`<option value="${index+1}" ${index+1===Number(state.month)?'selected':''}>${name}</option>`).join('')}</select></label><label id="expenseHistoryYearWrapV13">السنة<select id="expenseHistoryYearV13">${years().map(year=>`<option value="${year}" ${Number(year)===Number(state.year)?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="expenseHistoryBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select></label><label>الدورة<select id="expenseHistorySpecV13"><option value="">كل الدورات</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}<option value="${GENERAL_EXPENSE}">مصروف عام</option></select></label></div><div class="card expense-history-v13" id="expenseHistoryBodyV13"></div>`);
+  shell(`<div class="history-heading-v58"><section class="finance-hero-v13"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16M7 3v3M7 9v3M7 15v3"/></g></svg><h1>سجل المصاريف</h1></section>${historyExportAction('expense')}</div><div class="expense-history-toolbar-v13"><button class="button secondary" id="backToFinanceV13">العودة للمالية</button><div class="history-primary-summary-row-v54"><div class="history-primary-summary-v54"><div class="history-primary-summary-card-v54 expense expense-history-summary-v65"><small id="expenseHistoryPeriodTitleV54">مصاريف شهرية</small><div class="expense-history-parts-v65"><div><small id="expenseHistoryCourseLabelV65">مصاريف الدورات</small><b id="expenseHistoryCourseTotalV65">${cash(0)}</b><span><span id="expenseHistoryCourseCountV65">0</span> عملية</span></div><div><small>المصاريف العامة</small><b id="expenseHistoryGeneralTotalV65">${cash(0)}</b><span><span id="expenseHistoryGeneralCountV65">0</span> عملية</span></div></div><div class="finance-kpi-line-v13 expense-history-aggregate-v65"><small>الإجمالي</small><b id="expenseHistoryTotalV53">${cash(0)}</b></div><span id="expenseHistoryTotalContextV54">هذه مصاريف شهر ${monthNames[currentMonth-1]} ${currentYear}</span></div></div></div><span id="expenseHistoryMessageV13"></span></div><div class="card finance-controls-v13 expense-history-controls-v13" data-mode="${esc(state.mode)}"><div class="segmented" id="expenseHistoryModeV13"><button data-mode="daily" class="${state.mode==='daily'?'active':''}">يومي</button><button data-mode="weekly" class="${state.mode==='weekly'?'active':''}">أسبوع</button><button data-mode="monthly" class="${state.mode==='monthly'?'active':''}">شهري</button><button data-mode="yearly" class="${state.mode==='yearly'?'active':''}">سنوي</button></div><label id="expenseHistoryDayWrapV13">اليوم<input class="input" id="expenseHistoryDayV13" type="date" value="${esc(state.day||current)}"></label><label id="expenseHistoryFromWrapV13">من<input class="input" id="expenseHistoryFromV13" type="date" value="${esc(state.from||'')}"></label><label id="expenseHistoryToWrapV13">إلى<input class="input" id="expenseHistoryToV13" type="date" value="${esc(state.to||current)}"></label><label id="expenseHistoryMonthWrapV13">الشهر<select id="expenseHistoryMonthV13">${monthNames.map((name,index)=>`<option value="${index+1}" ${index+1===Number(state.month)?'selected':''}>${name}</option>`).join('')}</select></label><label id="expenseHistoryYearWrapV13">السنة<select id="expenseHistoryYearV13">${years().map(year=>`<option value="${year}" ${Number(year)===Number(state.year)?'selected':''}>${year}</option>`).join('')}</select></label><label>الفرع<select id="expenseHistoryBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select></label><label>الدورة<select id="expenseHistorySpecV13"><option value="">كل المصاريف</option>${specialties.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}<option value="${GENERAL_EXPENSE}">مصروف عام</option></select></label></div><div class="card expense-history-v13" id="expenseHistoryBodyV13"></div>`);
   const controls=document.querySelector('.expense-history-controls-v13'),dayWrap=document.getElementById('expenseHistoryDayWrapV13'),fromWrap=document.getElementById('expenseHistoryFromWrapV13'),toWrap=document.getElementById('expenseHistoryToWrapV13'),monthWrap=document.getElementById('expenseHistoryMonthWrapV13'),yearWrap=document.getElementById('expenseHistoryYearWrapV13'),branchEl=document.getElementById('expenseHistoryBranchV13'),specEl=document.getElementById('expenseHistorySpecV13');
   branchEl.value=state.branch||'';specEl.value=state.specialty||'';
   function syncControls(){
@@ -432,8 +436,16 @@ function renderExpenseHistory(){
     document.querySelectorAll('.delete-expense-v13').forEach(button=>button.onclick=()=>{const item=expenses.find(row=>row.id===button.dataset.id);if(!item||!canEdit('finance'))return;if(!confirm(`حذف المصروف «${item.name}» بقيمة ${cash(item.amount)}؟`))return;expenses=expenses.filter(row=>row.id!==item.id);D.saveExpenses(expenses);renderExpenseHistory();});
   }
   function draw(){
-    expenses=D.getExpenses();const r=range(),effectiveTo=r.to<current?r.to:current,branch=String(state.branch||''),specialty=String(state.specialty||''),rows=expenses.filter(row=>expenseMatches(row,{from:r.from,to:effectiveTo,branch,specialty})).sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time))),branchLabel=branch?branchName(branch):'كل الفروع',specialtyLabel=specialty?expenseSpecialtyName(specialty):'كل الدورات';
+    expenses=D.getExpenses();const r=range(),effectiveTo=r.to<current?r.to:current,branch=String(state.branch||''),specialty=String(state.specialty||''),rows=expenses.filter(row=>expenseMatches(row,{from:r.from,to:effectiveTo,branch,specialty})).sort((a,b)=>String(b.date+b.time).localeCompare(String(a.date+a.time))),branchLabel=branch?branchName(branch):'كل الفروع',specialtyLabel=specialty?expenseSpecialtyName(specialty):'كل المصاريف';
     document.getElementById('expenseHistoryMessageV13').textContent=`${rows.length} عملية · ${r.label} · ${branchLabel} · ${specialtyLabel}`;const filteredTotal=rows.reduce((sum,row)=>sum+Number(row.amount||0),0),title=document.getElementById('expenseHistoryPeriodTitleV54'),total=document.getElementById('expenseHistoryTotalV53'),context=document.getElementById('expenseHistoryTotalContextV54'),periodTitle=state.mode==='daily'?'مصاريف اليوم':state.mode==='weekly'?'مصاريف الفترة':state.mode==='monthly'?'مصاريف شهرية':'مصاريف سنوية',periodDescriptor=state.mode==='daily'?r.label:state.mode==='weekly'?r.label:state.mode==='monthly'?`شهر ${r.label}`:r.label,detailParts=[branch?`من ${branchLabel}`:'',specialty?`في ${specialtyLabel}`:''].filter(Boolean);if(title)title.textContent=periodTitle;if(total)total.textContent=cash(filteredTotal);if(context)context.textContent=`هذه مصاريف ${periodDescriptor}${detailParts.length?` ${detailParts.join(' ')}`:''}`;
+    // The summary, table and export share the same canonical filtered rows.
+    // General expenses are separate only on the dashboard, never added to a course export.
+    const courseRows=rows.filter(row=>row.specialty!==GENERAL_EXPENSE),generalRows=rows.filter(row=>row.specialty===GENERAL_EXPENSE);
+    document.getElementById('expenseHistoryCourseLabelV65').textContent=specialty&&specialty!==GENERAL_EXPENSE?`مصاريف ${specialtyLabel}`:'مصاريف الدورات';
+    document.getElementById('expenseHistoryCourseTotalV65').textContent=cash(courseRows.reduce((sum,row)=>sum+Number(row.amount||0),0));
+    document.getElementById('expenseHistoryGeneralTotalV65').textContent=cash(generalRows.reduce((sum,row)=>sum+Number(row.amount||0),0));
+    document.getElementById('expenseHistoryCourseCountV65').textContent=String(courseRows.length);
+    document.getElementById('expenseHistoryGeneralCountV65').textContent=String(generalRows.length);
     const exportButton=document.getElementById('expenseHistoryExportV58'),reportRange={...r,effectiveTo};
     exportButton.disabled=!historyReportAllowed(reportRange);
     exportButton.onclick=()=>openHistoryReport(historyReportModel('expense',rows,reportRange,branchLabel,specialtyLabel));
@@ -559,6 +571,20 @@ const style=document.createElement('style');style.textContent=`
   .expense-history-v13,.profitability-details-v13,.profitability-total-v13{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
   .expense-history-v13 table{min-width:760px!important}
   .profitability-details-v13 table{min-width:620px!important}
+}
+.finance-expense-split-v64 .finance-split-cell-v60 small{white-space:normal;overflow-wrap:anywhere}
+.expense-history-summary-v65{gap:5px;padding:9px 11px}
+.expense-history-parts-v65{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;direction:rtl}
+.expense-history-parts-v65>div{min-width:0;display:flex;flex-direction:column;gap:4px;padding:5px 2px}
+.expense-history-parts-v65>div+div{border-inline-start:1px solid #dfa9a9;padding-inline-start:9px}
+.expense-history-parts-v65 small{white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+.expense-history-parts-v65 b{font-size:14px;white-space:normal;overflow-wrap:anywhere}
+.expense-history-parts-v65 span{font-size:9px;color:#765d5d}
+.expense-history-aggregate-v65{padding-top:6px;border-top:1px solid #dfa9a9}
+@media(max-width:1180px){
+  .content:has(.expense-history-summary-v65) .history-heading-v58{flex-direction:column;align-items:stretch}
+  .content:has(.expense-history-summary-v65) .history-heading-v58 .finance-hero-v13{flex:none;align-self:flex-start}
+  .content:has(.expense-history-summary-v65) .history-heading-v58 .history-export-v58{align-self:flex-end}
 }
 @media(max-width:940px){
   .expense-history-toolbar-v13{grid-template-columns:minmax(0,1fr) minmax(250px,310px) minmax(0,1fr)!important;gap:8px!important}
