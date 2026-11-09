@@ -59,6 +59,7 @@ jobs:
         shell: pwsh
         env:
           EFC_QA_OUTPUT: test-artifacts/audit-v63
+          DEBUG: pw:api
         run: |
           $tests = @('test-finance-registration-date-v62', 'test-monthly-audit-v63', 'test-certificate-restore-v63', 'test-bank-fiscal-v63', 'test-independent-audit-v63', 'test-finance-history-v58', 'test-expense-filters-v65', 'test-storage-safety-v66', 'test-ui-reminders-v67')
           foreach ($test in $tests) {
