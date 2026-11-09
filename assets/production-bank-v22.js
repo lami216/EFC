@@ -15,6 +15,7 @@ const canEditBank=()=>window.EFC_AUTH_BOOTSTRAP_V13?.canEdit?.('bank')??true;
 const receiptLogo=()=>window.EFC_RECEIPT_LOGO_DATA_URI||new URL('./efc-logo.svg',location.href).href;
 const MONTH_NAMES=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 let state={entries:[],nextReceiptNo:1,tombstones:[]},editingId=null,saveChain=Promise.resolve();
+let nativeStateReady=!invoke,bootReady;
 let filterState={mode:'daily',day:today(),from:today(),to:today(),month:Number(today().slice(5,7)),year:Number(today().slice(0,4))};
 
 function normalizeEntry(item){
@@ -59,21 +60,34 @@ function mergeState(aRaw,bRaw){
 }
 function readLocal(){try{return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'));}catch{return normalizeState({});}}
 function writeLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
+async function settleNativeWrites(){
+  let pending;
+  do{pending=saveChain;await pending;await Promise.resolve();await Promise.resolve();}while(pending!==saveChain);
+}
 async function persist(){
-  writeLocal();
-  if(!invoke){window.EFC_CORE_CHANGED?.();return;}
-  const snapshot=JSON.stringify(state);
-  saveChain=saveChain.catch(()=>undefined).then(()=>invoke('save_bank_state',{state:snapshot}));
-  await saveChain;
-  window.EFC_CORE_CHANGED?.();
+  try{
+    writeLocal();
+    if(!invoke){window.EFC_CORE_CHANGED?.();return;}
+    if(!nativeStateReady||window.EFC_STORAGE_HEALTH?.canWrite?.('bank-v22')===false)throw new Error('تعذر التحقق من بيانات البنك المحفوظة. أعد التحقق قبل الحفظ.');
+    const snapshot=JSON.stringify(state),pending=saveChain.then(()=>invoke('save_bank_state',{state:snapshot}));
+    saveChain=pending.catch(()=>undefined);await pending;
+    window.EFC_CLEAR_STORAGE_ISSUE?.('bank-v22');window.EFC_CORE_CHANGED?.();
+  }catch(error){window.EFC_SET_STORAGE_ISSUE?.('bank-v22',error,{phase:nativeStateReady?'write':'read',blocked:!nativeStateReady});throw error;}
+}
+async function readAndMergeNativeState(){
+  const raw=await invoke('load_bank_state'),parsed=raw?JSON.parse(raw):null;
+  if(parsed&&(!Array.isArray(parsed.entries)||!Array.isArray(parsed.tombstones)))throw new Error('بيانات البنك المحفوظة غير صالحة؛ لم تتم الكتابة فوقها.');
+  state=mergeState(parsed?normalizeState(parsed):normalizeState({}),readLocal());
+  nativeStateReady=true;writeLocal();window.EFC_CLEAR_STORAGE_ISSUE?.('bank-v22');
 }
 async function loadState(){
   const local=readLocal();
   if(!invoke){state=local;return;}
   try{
-    const raw=await invoke('load_bank_state'),native=raw?normalizeState(JSON.parse(raw)):normalizeState({});
-    state=mergeState(native,local);await persist();
-  }catch(error){console.error('EFC bank state load failed; local state kept.',error);state=local;}
+    await readAndMergeNativeState();
+  }catch(error){nativeStateReady=false;state=local;window.EFC_SET_STORAGE_ISSUE?.('bank-v22',error,{phase:'read',blocked:true});console.error('EFC bank state load failed; local state kept and writes paused.',error);return;}
+  if(window.EFC_STORAGE_HEALTH?.canWrite?.('bank-v22')===false)return;
+  try{await persist();}catch(error){console.error('EFC bank state initial save failed; reconciled local state retained.',error);}
 }
 function nextReceiptNo(){const floor=Math.max(1,...state.entries.map(item=>Number(item.receiptNo||0)+1)),number=Math.max(floor,Number(state.nextReceiptNo||1));state.nextReceiptNo=number+1;writeLocal();return number;}
 function nowTime(){const d=new Date();return`${pad2(d.getHours())}:${pad2(d.getMinutes())}`;}
@@ -236,5 +250,11 @@ async function boot(){
   window.EFC_BANK_STATE_V22=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state))});
   window.EFC_BANK_V22=Object.freeze({ready:true,bankIndependentFromFinance:true,bankEntriesEditableAndDeletable:true,bankReceiptSourceDeletion:true,bankDeleteFiscalLockAware:true,bankDeleteRollbackSafe:true,bankSaveFiscalSourceAndTargetGuard:true,bankSaveRollbackSafe:true,bankStatementFixedHeight:true,bankStatementLengthBounded:true,bankStatementWrapsSafely:true,bankUsesIncomeAndExpenseLabels:true,bankPeriodFiltersDailyWeeklyMonthlyYearly:true,bankWeeklyBlankFromUsesOldestAvailable:true,bankPeriodReport:true,bankPeriodSummaryColors:true,bankIncomeExpenseCounts:true,bankLedgerStudentSearchTableStyle:true,bankReceiptSharedEmbeddedLogo:true,bankBackupRestore:true,bankOwnReceiptSequence:true,receiptDateReadable:true,noFinanceStreamIntegration:true});
 }
-boot().catch(error=>{console.error('EFC bank v22 failed to initialize.',error);throw error;});
+window.EFC_REGISTER_FLUSH_CONTRIBUTOR?.('bank-v22',async()=>{
+  await bootReady;if(!invoke)return;
+  await settleNativeWrites();
+  if(!nativeStateReady){try{await readAndMergeNativeState();}catch(error){window.EFC_SET_STORAGE_ISSUE?.('bank-v22',error,{phase:'read',blocked:true});throw error;}}
+  await persist();
+});
+bootReady=boot();bootReady.catch(error=>{window.EFC_SET_STORAGE_ISSUE?.('bank-v22',error,{phase:'read',blocked:true});console.error('EFC bank v22 failed to initialize.',error);});
 })();

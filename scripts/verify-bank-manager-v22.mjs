@@ -31,7 +31,8 @@ need(security,"else if(page==='bank')window.EFC_RENDER_BANK_V22?.()",'bank route
 need(security,"bank:'#bankSaveV22,.bank-edit-v22,.bank-delete-v22'",'bank permission controls');
 need(gate,"./assets/production-bank-v22.js",'bank runtime');
 need(build,"assets/production-bank-v22.js",'bank build file');
-for(const token of ['mod bank_state;','load_bank_state','save_bank_state','bank_state::merge_into_main_state'])need(main,token,'Rust bank integration');
+for(const token of ['mod bank_state;','load_bank_state','save_bank_state','storage::read_backup','storage::atomic_write_backup'])need(main,token,'Rust bank integration');
+need(read('src-tauri/src/storage.rs'),'crate::bank_state::merge_into_main_value','consistent native backup includes the independent bank stream');
 for(const token of ['validate_bank_state','bankEntries','bankTombstones','bankNextReceiptNo'])need(rust,token,'Rust bank state '+token);
 need(security,"const reminderLogo=()=>window.EFC_RECEIPT_LOGO_DATA_URI||new URL('./efc-logo.svg',location.href).href",'embedded reminder logo');
 for(const token of ['certificateManagerReceipt:true','certificateManagerReceiptDoesNotMutateFinance:true','certificateManagerReceiptAsksFundsLocation:true','certificateManagerReceiptFiltersCenterAndCertificate:true','certificateManagerReceiptDefaultsAllCentersAndCertificates:true','certificateManagerReceiptColoredSummary:true','certificateManagerAmountProminentInline:true','وسائل الدفع الإلكترونية','البنك','certManagerReceiptV22','كل المراكز','كل الشهادات','إدارة الشهادات','روسي الشهادات'])need(cert,token,'certificate manager receipt '+token);

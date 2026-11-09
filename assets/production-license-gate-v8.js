@@ -30,7 +30,7 @@ const RUNTIME=[
 ];
 const BOOTSTRAP_RUNTIME=RUNTIME.slice(0,2);
 const APP_RUNTIME=RUNTIME.slice(2);
-const RUNTIME_VERSION='20261108-expense-history-filters-v65-1';
+const RUNTIME_VERSION='20261109-storage-backup-safety-v66-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';

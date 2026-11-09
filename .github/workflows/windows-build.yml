@@ -44,6 +44,9 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Verify native storage safety
+        run: cargo test --release --manifest-path src-tauri/Cargo.toml --bin centre-efc storage::tests -- --nocapture
+
       - name: Install browser regression runtime
         shell: pwsh
         run: |
@@ -57,7 +60,7 @@ jobs:
         env:
           EFC_QA_OUTPUT: test-artifacts/audit-v63
         run: |
-          $tests = @('test-finance-registration-date-v62', 'test-monthly-audit-v63', 'test-certificate-restore-v63', 'test-bank-fiscal-v63', 'test-independent-audit-v63', 'test-finance-history-v58', 'test-expense-filters-v65')
+          $tests = @('test-finance-registration-date-v62', 'test-monthly-audit-v63', 'test-certificate-restore-v63', 'test-bank-fiscal-v63', 'test-independent-audit-v63', 'test-finance-history-v58', 'test-expense-filters-v65', 'test-storage-safety-v66')
           foreach ($test in $tests) {
             node "scripts/$test.mjs"
             if ($LASTEXITCODE -ne 0) { throw "Packaged app regression failed: $test" }

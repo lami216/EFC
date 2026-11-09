@@ -35,6 +35,7 @@ let editingReceiptId=null;
 let receiptDeleteInFlight=false;
 let certificateDeliverySaveInFlight=false;
 let saveChain=Promise.resolve();
+let nativeStateReady=!invoke,bootReady;
 
 function normalizeBranch(item){
   const name=String(item?.name||'').trim();
@@ -119,22 +120,34 @@ function mergeState(current,incoming,{onConflict}={}){
 }
 function readLocal(){try{return normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'));}catch{return normalizeState({});}}
 function writeLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
+async function settleNativeWrites(){
+  let pending;
+  do{pending=saveChain;await pending;await Promise.resolve();await Promise.resolve();}while(pending!==saveChain);
+}
 async function persist(){
-  writeLocal();
-  if(!invoke)return;
-  const snapshot=JSON.stringify(state);
-  saveChain=saveChain.catch(()=>undefined).then(()=>invoke('save_certificate_state',{state:snapshot}));
-  await saveChain;
+  try{
+    writeLocal();
+    if(!invoke)return;
+    if(!nativeStateReady||window.EFC_STORAGE_HEALTH?.canWrite?.('certificates')===false)throw new Error('تعذر التحقق من بيانات الشهادات المحفوظة. أعد التحقق قبل الحفظ.');
+    const snapshot=JSON.stringify(state),pending=saveChain.then(()=>invoke('save_certificate_state',{state:snapshot}));
+    saveChain=pending.catch(()=>undefined);await pending;
+    window.EFC_CLEAR_STORAGE_ISSUE?.('certificates');
+  }catch(error){window.EFC_SET_STORAGE_ISSUE?.('certificates',error,{phase:nativeStateReady?'write':'read',blocked:!nativeStateReady});throw error;}
+}
+async function readAndMergeNativeState(){
+  const raw=await invoke('load_certificate_state'),parsed=raw?JSON.parse(raw):null;
+  if(parsed&&(!Array.isArray(parsed.certificateBranches)||!Array.isArray(parsed.certificateReceipts)))throw new Error('بيانات الشهادات المحفوظة غير صالحة؛ لم تتم الكتابة فوقها.');
+  state=mergeState(parsed?normalizeState(parsed):normalizeState({}),readLocal());
+  nativeStateReady=true;writeLocal();window.EFC_CLEAR_STORAGE_ISSUE?.('certificates');
 }
 async function loadState(){
   const local=readLocal();
   if(!invoke){state=local;return;}
   try{
-    const raw=await invoke('load_certificate_state');
-    const native=raw?normalizeState(JSON.parse(raw)):normalizeState({});
-    state=mergeState(native,local);
-    await persist();
-  }catch(error){console.error('EFC certificate state load failed; local state kept.',error);state=local;}
+    await readAndMergeNativeState();
+  }catch(error){nativeStateReady=false;state=local;window.EFC_SET_STORAGE_ISSUE?.('certificates',error,{phase:'read',blocked:true});console.error('EFC certificate state load failed; local state kept and writes paused.',error);return;}
+  if(window.EFC_STORAGE_HEALTH?.canWrite?.('certificates')===false)return;
+  try{await persist();}catch(error){console.error('EFC certificate state initial save failed; reconciled local state retained.',error);}
 }
 function nextReceiptNo(){
   const floor=Math.max(1,...state.certificateReceipts.map(item=>Number(item.receiptNo||0)+1)),number=Math.max(floor,Number(state.nextReceiptNo||1));
@@ -815,5 +828,13 @@ async function boot(){
   window.EFC_CERTIFICATES_V13=Object.freeze({ready:true,consolidatedRenderer:true,singleStudentSelectionState:true,directSelectionControls:true,freshIssueStateAfterRender:true,asyncIssueGuard:true,branchAddPreservesDraft:true,separateCertificateFinance:true,certificateFinanceDailyMonthlyYearly:true,certificateFinanceCustomWeekRange:true,certificateFinanceByBranch:true,certificateFinanceBySpecialty:true,certificateFinanceByPaymentMethod:true,certificateFinancePeriodSummary:true,certificateFinanceSimplifiedUi:true,certificateFinanceMatchesGeneralLayout:true,certificateFinanceCurrentGeneralVisuals:true,certificateFinanceSummaryAboveFilters:true,certificateFinanceSummaryFilterClearance:true,certificateFinanceSummaryDedicatedRow:true,certificateFinanceCompactFilterGeometry:true,certificatePeriodSwitchConstrainedToGrid:true,certificateFinanceResponsiveRulesConsolidated:true,certificateFinancePositiveSummary:true,certificateFinanceFixedSpecialtyFilterWidth:true,certificateFinanceTopbarAligned:true,certificateFinanceNoChart:true,certificateFinanceDailyDateOnly:true,certificateFinanceFilterSummaryText:true,certificateFinanceResponsiveLikeLedger:true,certificateFinanceResponsive:true,certificateFinanceCompactSingleRowFilters:true,certificateFinanceResponsiveBreakdowns:true,certificateHistorySeparatePage:true,certificateHistoryCount:true,certificateHistoryFilteredTotal:true,certificateHistoryAmountUsesFinanceCard:true,certificateHistorySummaryAlignedSingleRow:true,certificateHistoryInteractiveControlsDark:true,certificateHistoryCountCenteredBelowTitle:true,certificateHistoryUsesFinanceFilters:true,certificateHistoryCustomWeekRange:true,certificateHistoryFilterByPeriod:true,certificateHistoryFilterByBranch:true,certificateHistoryFilterByDeliveryStatus:true,certificateHistoryFilterByPaymentMethod:true,certificateHistoryBlankFromUsesOldestAvailable:true,certificateFinanceBlankFromUsesOldestAvailable:true,certificateHistoryFilterSummaryText:true,certificateHistoryIdentitySearch:true,certificateHistorySearchMatchesStudentIdentityRules:true,certificateHistorySummaryMatchesFinance:true,certificateTerminologyUsesCertificateOnly:true,certificateToolbarStyledActions:true,certificateFinanceNoHistoryTable:true,certificateHistorySpreadsheetTable:true,certificateHistoryStandardGreenHeader:true,certificateManagerReceipt:true,certificateManagerReceiptDoesNotMutateFinance:true,certificateManagerReceiptAsksFundsLocation:true,certificateManagerReceiptFiltersCenterAndCertificate:true,certificateManagerReceiptMultiBranch:true,certificateManagerReceiptBranchBreakdown:true,certificateManagerReceiptBranchChips:true,certificateManagerReceiptDefaultsAllCentersAndCertificates:true,certificateManagerReceiptColoredSummary:true,certificateManagerAmountProminentInline:true,certificateFinanceSpecialtyTerminology:true,certificateReceiptPaidAmountLabel:true,certificatePdfLogoCaptureFixed:true,certificateUsesSharedEmbeddedLogo:true,certificateReceiptEditDelete:true,certificateDeliveryTracking:true,certificateDeliveryStudentOrAgent:true,certificateDeliveryNoDefaultRecipient:true,certificateDeliveryExclusiveRecipientFields:true,certificateDeliveryClearStudentHeader:true,certificateDeliveryHistoryDate:true,certificateDeliveryReadonlyAfterSave:true,certificateDeliveryReceipt:true,certificateDeliveryReceiptCongrats:true,certificateExternalReceiptFullEdit:true,certificateInternalReceiptIdentityLocked:true,certificateReceiptFiscalLockAware:true,certificateReceiptNumbersNeverReused:true,certificateReceiptHighWaterPersisted:true,certificateInternalEditStudentSelectionLocked:true,certificateRegisteredIssuanceRemoved:true,certificateManualReceiptOnly:true,certificateExternalBranchRename:true,rollingFinancialYearsFrom2025:true,certificateIncomeExcludedFromMainFinance:true,certificateIncomeExcludedFromLedger:true,externalCertificateBranches:true,externalCertificateBranchDelete:true,deletedCertificateBranchHistoryPreserved:true,certificateBranchFiltersRequireLiveReceipt:true,certificateBranchFiltersRequireLiveSource:true,certificateBranchDisplayResolvesCurrentSource:true,certificateBranchStoredNameFallback:true,externalCertificateBranchReactivation:true,internalBranchAndSpecialtyFilter:true,internalSearchWithoutRequiredFilters:true,certificateStudentResultsClickable:true,certificateReceiptInAppViewer:true,externalRegistrationNative:true,externalReceiptIssueEnabled:true,certificateIncomeInLedgerAndFinance:false,receiptHeaderUnified:true,certificateReceiptTitleLarge:true,certificateManagementTitleBelowHeader:true,paymentMethodsFromSettings:true,certificateReceiptHeaderSimplified:true,receiptDateReadable:true,certificateFeeNoteRemoved:true,permissionsEnforced:true,noObserverPatch:true,noRouterHook:true,cleanReceiptDependency:true});
 }
 
-boot().catch(error=>{console.error('EFC certificates v13 failed to initialize.',error);throw error;});
+window.EFC_REGISTER_FLUSH_CONTRIBUTOR?.('certificates',async()=>{
+  await bootReady;if(!invoke)return;
+  // Let an in-flight action finish its success/rollback continuation before
+  // taking the current retry snapshot; a rejected old snapshot is not replayed.
+  await settleNativeWrites();
+  if(!nativeStateReady){try{await readAndMergeNativeState();}catch(error){window.EFC_SET_STORAGE_ISSUE?.('certificates',error,{phase:'read',blocked:true});throw error;}}
+  await persist();
+});
+bootReady=boot();bootReady.catch(error=>{window.EFC_SET_STORAGE_ISSUE?.('certificates',error,{phase:'read',blocked:true});console.error('EFC certificates v13 failed to initialize.',error);});
 })();

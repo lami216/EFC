@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#0d3558" />
   <title>مركز EFC للغات والمعلوماتية</title>
-  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20261108-expense-history-filters-v65-1" />
-  <link rel="stylesheet" href="./assets/production-certificates-ui-v13.css?v=20261108-expense-history-filters-v65-1" />
-  <link rel="stylesheet" href="./assets/production-home-background-v36.css?v=20261108-expense-history-filters-v65-1&rev=20260914-responsive-1" />
+  <link rel="stylesheet" href="./assets/production-ui-v13.css?v=20261109-storage-backup-safety-v66-1" />
+  <link rel="stylesheet" href="./assets/production-certificates-ui-v13.css?v=20261109-storage-backup-safety-v66-1" />
+  <link rel="stylesheet" href="./assets/production-home-background-v36.css?v=20261109-storage-backup-safety-v66-1&rev=20260914-responsive-1" />
   <style>
     html.efc-booting #app{visibility:hidden}
     body{min-width:840px}
@@ -26,10 +26,23 @@
         const invoke=window.__TAURI__?.core?.invoke;
         if(!invoke)return;
         closeRequestBusy=true;
+        let phase='save';
         try{
           const wantsBackup=window.confirm('هل تريد إنشاء نسخة احتياطية قبل إغلاق البرنامج؟');
-          if(wantsBackup){
+          await window.EFC_CORE_STORAGE_READY;
+          if(!window.EFC_FOUNDATION_V13?.ready){
+            if(wantsBackup)throw new Error('سجّل الدخول وانتظر فتح البرنامج لإنشاء نسخة احتياطية تشمل أحدث البيانات.');
+            // Login has no operational edits. Do not serialize an incomplete
+            // frontend snapshot before the app's state contributors are loaded.
+            const sources=[['load_app_state',['students','specialties','paymentMethods']],['load_certificate_state',['certificateBranches','certificateReceipts']],['load_bank_state',['entries','tombstones']]];
+            for(const [command,keys] of sources){const raw=await invoke(command);if(raw){const state=JSON.parse(raw);if(!state||keys.some(key=>!Array.isArray(state[key])))throw new Error('تعذر التحقق من البيانات المحفوظة. لم يتم إغلاق البرنامج.');}}
+          }else{
+            if(!window.EFC_SECURITY_UI_V13?.ready)throw new Error('انتظر اكتمال فتح البرنامج ثم حاول الإغلاق مرة أخرى.');
+            if(typeof window.EFC_FORCE_PERSIST!=='function')throw new Error('لم تجهز خدمة حفظ البيانات بعد. حاول مرة أخرى بعد اكتمال الفتح.');
             await window.EFC_FORCE_PERSIST?.();
+          }
+          if(wantsBackup){
+            phase='backup';
             const now=new Date();
             const pad=value=>String(value).padStart(2,'0');
             const stamp=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
@@ -38,13 +51,12 @@
           }
           await invoke('exit_app');
         }catch(error){
-          closeRequestBusy=false;
-          window.alert(String(error?.message||error||'تعذر إنشاء النسخة الاحتياطية.'));
-        }
+          window.alert(`${phase==='backup'?'تعذر إنشاء النسخة الاحتياطية':'تعذر إكمال حفظ البيانات والتحقق منها'}. بقي البرنامج مفتوحًا؛ أعد المحاولة قبل الإغلاق.\n${String(error?.message||error||'تعذر الوصول إلى بيانات التطبيق.')}`);
+        }finally{closeRequestBusy=false;}
       };
     })();
   </script>
-  <script src="./assets/production-license-gate-v8.js?v=20261108-expense-history-filters-v65-1" defer></script>
-  <script src="./assets/production-accounting-integrity-v21.js?v=20261108-expense-history-filters-v65-1" defer></script>
+  <script src="./assets/production-license-gate-v8.js?v=20261109-storage-backup-safety-v66-1" defer></script>
+  <script src="./assets/production-accounting-integrity-v21.js?v=20261109-storage-backup-safety-v66-1" defer></script>
 </body>
 </html>

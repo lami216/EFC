@@ -1,35 +1,6 @@
-use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Number, Value};
-use std::{fs, path::PathBuf};
-use tauri::Manager;
 
 const CERT_KEY: &str = "certificates";
-
-fn app_data_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("تعذر تحديد مجلد بيانات التطبيق: {e}"))?;
-    fs::create_dir_all(&dir)
-        .map_err(|e| format!("تعذر إنشاء مجلد بيانات التطبيق: {e}"))?;
-    Ok(dir)
-}
-
-fn open_db(app: &tauri::AppHandle) -> Result<Connection, String> {
-    let conn = Connection::open(app_data_dir(app)?.join("efc-state-v1.sqlite"))
-        .map_err(|e| format!("تعذر فتح قاعدة البيانات: {e}"))?;
-    conn.execute_batch(
-        "PRAGMA journal_mode=WAL;
-         PRAGMA synchronous=NORMAL;
-         CREATE TABLE IF NOT EXISTS app_state (
-             key TEXT PRIMARY KEY NOT NULL,
-             value TEXT NOT NULL,
-             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-         );",
-    )
-    .map_err(|e| format!("تعذر تهيئة قاعدة البيانات: {e}"))?;
-    Ok(conn)
-}
 
 fn certificate_next_receipt_no(value: &Value) -> u64 {
     let object = value.as_object();
@@ -72,67 +43,50 @@ pub fn validate_certificate_state(raw: &str) -> Result<(), String> {
 }
 
 pub fn load_raw(app: &tauri::AppHandle) -> Result<Option<String>, String> {
-    let conn = open_db(app)?;
-    conn.query_row(
-        "SELECT value FROM app_state WHERE key=?1",
-        params![CERT_KEY],
-        |row| row.get::<_, String>(0),
-    )
-    .optional()
-    .map_err(|e| format!("تعذر قراءة بيانات الشهادات: {e}"))
+    crate::storage::load_auxiliary(&crate::storage::db_path(app)?, CERT_KEY, validate_certificate_state, state_from_main_value)
 }
 
 pub fn save_raw(app: &tauri::AppHandle, state: &str) -> Result<(), String> {
-    validate_certificate_state(state)?;
-    let conn = open_db(app)?;
-    conn.execute(
-        "INSERT INTO app_state(key,value,updated_at)
-         VALUES(?1, ?2, CURRENT_TIMESTAMP)
-         ON CONFLICT(key) DO UPDATE SET
-           value=excluded.value,
-           updated_at=CURRENT_TIMESTAMP",
-        params![CERT_KEY, state],
-    )
-    .map_err(|e| format!("تعذر حفظ بيانات الشهادات: {e}"))?;
-    Ok(())
+    crate::storage::save_raw(&crate::storage::db_path(app)?, CERT_KEY, state, validate_certificate_state)
 }
 
-pub fn merge_into_main_state(app: &tauri::AppHandle, main_raw: &str) -> Result<String, String> {
-    let mut main: Value = serde_json::from_str(main_raw)
-        .map_err(|_| "بيانات EFC الرئيسية غير صالحة.".to_string())?;
+pub fn state_from_main_value(main: &Value) -> Result<Option<String>, String> {
+    if !["certificateBranches", "certificateReceipts", "certificateNextReceiptNo"].iter().any(|key| main.get(*key).is_some()) {
+        return Ok(None);
+    }
+    let mut cert = json!({
+        "certificateBranches": main.get("certificateBranches").cloned().unwrap_or_else(|| json!([])),
+        "certificateReceipts": main.get("certificateReceipts").cloned().unwrap_or_else(|| json!([])),
+        "nextReceiptNo": main.get("certificateNextReceiptNo").cloned().unwrap_or_else(|| json!(1))
+    });
+    validate_certificate_state(&cert.to_string())?;
+    let next = certificate_next_receipt_no(&cert);
+    cert["nextReceiptNo"] = Value::Number(Number::from(next));
+    Ok(Some(cert.to_string()))
+}
+
+pub fn merge_into_main_value(main: &mut Value, certificate_raw: Option<&str>) -> Result<(), String> {
+    // Preserve sections embedded in legacy main snapshots when no dedicated key
+    // exists; malformed dedicated data is an error rather than an empty section.
+    let Some(certificate_raw) = certificate_raw else { return Ok(()); };
+    validate_certificate_state(certificate_raw)?;
+    let cert: Value = serde_json::from_str(certificate_raw)
+        .map_err(|_| "بيانات الشهادات ليست JSON صالحًا.".to_string())?;
     let Some(object) = main.as_object_mut() else {
         return Err("بيانات EFC الرئيسية غير صالحة.".to_string());
     };
 
-    let cert = load_raw(app)?
-        .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
-        .unwrap_or_else(|| json!({
-            "certificateBranches": [],
-            "certificateReceipts": [],
-            "nextReceiptNo": 1
-        }));
-
-    let cert_object = cert.as_object();
-    object.insert(
-        "certificateBranches".to_string(),
-        cert_object
-            .and_then(|item| item.get("certificateBranches"))
-            .cloned()
-            .unwrap_or_else(|| Value::Array(vec![])),
-    );
-    object.insert(
-        "certificateReceipts".to_string(),
-        cert_object
-            .and_then(|item| item.get("certificateReceipts"))
-            .cloned()
-            .unwrap_or_else(|| Value::Array(vec![])),
-    );
+    let cert_object = cert.as_object().ok_or_else(|| "بيانات الشهادات غير صالحة.".to_string())?;
+    for key in ["certificateBranches", "certificateReceipts"] {
+        let value = cert_object.get(key).ok_or_else(|| format!("بيانات الشهادات ناقصة: {key}"))?;
+        object.insert(key.to_string(), value.clone());
+    }
     object.insert(
         "certificateNextReceiptNo".to_string(),
         Value::Number(Number::from(certificate_next_receipt_no(&cert))),
     );
 
-    serde_json::to_string(&main).map_err(|e| format!("تعذر تجهيز نسخة البيانات: {e}"))
+    Ok(())
 }
 
 #[tauri::command]
