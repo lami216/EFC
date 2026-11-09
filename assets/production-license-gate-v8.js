@@ -6,6 +6,7 @@ window.__EFC_LICENSE_GATE_V13__=true;
 const RUNTIME=[
   './production-loader.js',
   './assets/production-auth-bootstrap-v13.js',
+  './assets/production-reminder-state-v67.js',
   './assets/production-foundation-v13.js',
   './assets/production-receipts-v13.js',
   './assets/production-certificates-v13.js',
@@ -30,7 +31,7 @@ const RUNTIME=[
 ];
 const BOOTSTRAP_RUNTIME=RUNTIME.slice(0,2);
 const APP_RUNTIME=RUNTIME.slice(2);
-const RUNTIME_VERSION='20261109-storage-backup-safety-v66-1';
+const RUNTIME_VERSION='20261109-reminder-visibility-layout-v67-1';
 const invoke=window.__TAURI__?.core?.invoke;
 const app=document.getElementById('app');
 let startPromise=null,started=false,watchTimer=null,overlay=null,busy=false,deviceId='';
@@ -60,6 +61,7 @@ async function startApplication(){
     await window.EFC_AUTH_BOOTSTRAP_V13.requireLogin();
     preloadRuntime(APP_RUNTIME,'efcAppPreloaded');
 
+    await loadStage('./assets/production-reminder-state-v67.js','حالة التذكيرات',()=>window.EFC_REMINDER_STATE_V67?.ready);
     await loadStage('./assets/production-foundation-v13.js','الواجهة الأساسية',()=>window.EFC_FOUNDATION_V13?.ready&&typeof shell==='function');
     await loadStage('./assets/production-receipts-v13.js','خدمة الإيصالات',()=>window.EFC_RECEIPTS_V13?.ready&&typeof receiptModelV4==='function');
     await loadStage('./assets/production-certificates-v13.js','الشهادات',()=>window.EFC_CERTIFICATES_V13?.ready);

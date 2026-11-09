@@ -11,6 +11,7 @@ const runtimeFiles = [
   'assets/efc-home-brand.webp',
   'production-loader.js',
   'assets/production-auth-bootstrap-v13.js',
+  'assets/production-reminder-state-v67.js',
   'efc-logo.svg',
   'assets/production-license-gate-v8.js',
   'assets/production-foundation-v13.js',

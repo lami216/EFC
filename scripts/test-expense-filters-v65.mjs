@@ -91,7 +91,7 @@ try{
     await page.setViewportSize({width,height:1000});
     for(const id of ['expenseHistoryCourseTotalV65','expenseHistoryGeneralTotalV65'])assert(await page.locator('#'+id).isVisible());
     const geometry=await page.locator('.expense-history-parts-v65>div').evaluateAll(elements=>elements.map(el=>{const r=el.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,fit:el.scrollWidth<=el.clientWidth+1};}));
-    assert.equal(geometry.length,2);assert(geometry[0].x>geometry[1].x&&Math.abs(geometry[0].y-geometry[1].y)<1,'history groups remain alongside each other');assert(geometry.every(cell=>cell.fit),'long selected-course labels fit the history summary');
+    assert.equal(geometry.length,3);assert(geometry[0].x>geometry[1].x&&geometry[1].x>geometry[2].x&&geometry.every(cell=>Math.abs(cell.y-geometry[0].y)<1),'course, general and aggregate remain alongside each other');assert(geometry.every(cell=>cell.fit),'long selected-course labels fit the history summary');
     assert(await page.locator('#expenseHistoryExportV58').evaluate(el=>el.getBoundingClientRect().right<=innerWidth+1));
     const exportBox=await page.locator('#expenseHistoryExportV58').boundingBox(),bellBox=await page.locator('.efc-bell-v13').boundingBox();
     assert(exportBox&&bellBox);assert(exportBox.x+exportBox.width<=bellBox.x||bellBox.x+bellBox.width<=exportBox.x||exportBox.y+exportBox.height<=bellBox.y||bellBox.y+bellBox.height<=exportBox.y,'history export and notification bell never overlap');

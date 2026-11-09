@@ -31,7 +31,7 @@ function renderStorageStatusV66(){
   const banner=existing||document.createElement('section');banner.id='efcStorageStatusV66';banner.className='efc-storage-status-v66';banner.setAttribute('role','status');banner.setAttribute('aria-live','polite');
   banner.innerHTML='<div><strong></strong><small></small></div><button id="efcStorageRetryV66" type="button"></button>';
   banner.querySelector('strong').textContent=health.blocked?'تعذر التحقق من البيانات المحفوظة. أُوقف التعديل مؤقتًا؛ اترك البرنامج مفتوحًا.':'لم يكتمل حفظ البيانات على الجهاز. اترك البرنامج مفتوحًا وأعد محاولة الحفظ.';
-  const labels={'core-read':'قراءة البيانات','core-write':'حفظ البيانات',certificates:'الشهادات','bank-v22':'البنك'};
+  const labels={'core-read':'قراءة البيانات','core-write':'حفظ البيانات',certificates:'الشهادات','bank-v22':'البنك','reminders-v67':'التذكيرات'};
   banner.querySelector('small').textContent=health.issues.map(item=>`${labels[item.source]||'البيانات'}: ${item.message}`).join(' · ');
   const retry=banner.querySelector('button');retry.textContent=storageRetryBusyV66?'جاري التحقق…':health.blocked?'إعادة التحقق':'إعادة محاولة الحفظ';retry.disabled=storageRetryBusyV66;
   retry.onclick=async()=>{
