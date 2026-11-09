@@ -61,7 +61,7 @@ jobs:
           EFC_QA_OUTPUT: test-artifacts/audit-v63
           DEBUG: pw:api
         run: |
-          $tests = @('test-finance-registration-date-v62', 'test-monthly-audit-v63', 'test-certificate-restore-v63', 'test-bank-fiscal-v63', 'test-independent-audit-v63', 'test-finance-history-v58', 'test-expense-filters-v65', 'test-storage-safety-v66', 'test-ui-reminders-v67')
+          $tests = @('test-finance-registration-date-v62', 'test-monthly-audit-v63', 'test-certificate-restore-v63', 'test-bank-fiscal-v63', 'test-independent-audit-v63', 'test-finance-history-v58', 'test-expense-filters-v65', 'test-storage-safety-v66', 'test-ui-reminders-v67', 'test-pdf-filenames-v68')
           foreach ($test in $tests) {
             node "scripts/$test.mjs"
             if ($LASTEXITCODE -ne 0) { throw "Packaged app regression failed: $test" }

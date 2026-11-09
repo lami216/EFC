@@ -106,7 +106,7 @@ function body(model){
   return`${head(model)}${meta(model)}${row("Nom de l’étudiant",model.student,'اسم الطالب')}${row('Filière',model.specialty,'دورة')}<div class="pair12">${half('Reliquat',moneyV3(model.remaining),'المبلغ المتبقي')}${half('Montant',moneyV3(model.amount),'المبلغ المدفوع')}</div><div class="pair12">${periodHalf(model)}${half('N° Registre',westernDigitsV3(model.reg),'رقم السجل',true)}</div><div class="desc12">${row('Libellé',model.desc||'','البيان')}</div>${debtNote(model)}<div class="methods12">${methodsHtml(model.method)}</div>${scheduleHtml(model)}${commonNote(model)}`;
 }
 function receiptEditable(model){return Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false;}
-function documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,'\\u003c');const editDisabled=receiptEditable(model)?'':' disabled';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>روسي ${esc(model.receipt||'EFC')}</title><style>${css()}</style></head><body><div class="paper12">${body(model)}</div>${actions?`<div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="parent.EFC_SAVE_RECEIPT_PDF(RECEIPT)">حفظ PDF</button><span class="actionsSpacer12"></span><button class="edit12" type="button"${editDisabled} onclick="parent.EFC_EDIT_RECEIPT(RECEIPT)">تعديل الروسي</button></div>`:''}<script>const RECEIPT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;}
+function documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,'\\u003c');const editDisabled=receiptEditable(model)?'':' disabled';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(receiptPdfFileName(model).replace(/\.pdf$/i,''))}</title><style>${css()}</style></head><body><div class="paper12">${body(model)}</div>${actions?`<div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="parent.EFC_SAVE_RECEIPT_PDF(RECEIPT)">حفظ PDF</button><span class="actionsSpacer12"></span><button class="edit12" type="button"${editDisabled} onclick="parent.EFC_EDIT_RECEIPT(RECEIPT)">تعديل الروسي</button></div>`:''}<script>const RECEIPT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;}
 
 window.receiptModelV4=function(student,paymentIndex=null,statement=false){
   if(!student)return null;
@@ -136,15 +136,20 @@ async function loadLocal(src,key){if(window[key])return;await new Promise((resol
 async function waitImages(root){await Promise.all([...root.querySelectorAll('img')].map(async image=>{if(!image.complete||!image.naturalWidth)await new Promise(resolve=>{const done=()=>resolve();image.addEventListener('load',done,{once:true});image.addEventListener('error',done,{once:true});setTimeout(done,1600);});try{await image.decode?.();}catch{}}));try{await root.ownerDocument.fonts?.ready;}catch{}}
 function arrayBufferToBase64(buffer){const bytes=new Uint8Array(buffer);let binary='';for(let offset=0;offset<bytes.length;offset+=0x8000)binary+=String.fromCharCode(...bytes.subarray(offset,Math.min(offset+0x8000,bytes.length)));return btoa(binary);}
 function filePart(value,fallback,maxLength){
-  const cleaned=String(value??'').trim().replace(/[<>:"/\\|?*\u0000-\u001f\u007f-\u009f]/g,'_').replace(/\s+/g,' ');
-  const part=cleaned.slice(0,maxLength).replace(/[\ud800-\udbff]$/,'').trim();
+  const cleaned=String(value??'').normalize('NFC').trim().replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'').replace(/[<>:"/\\|?*\u0000-\u001f\u007f-\u009f]/g,'_').replace(/\s+/g,' ');
+  const part=cleaned.slice(0,maxLength).replace(/[\ud800-\udbff]$/,'').replace(/[. ]+$/,'').trim();
   return part||fallback;
 }
-function receiptPdfFileName(model){
-  const name=filePart(model.student,'الطالب',160);
-  const register=filePart(westernDigitsV3(model.reg??''),'0000',32);
-  return `روسي-${name}-${register}.pdf`;
+function personPdfFileName({documentType='روسي',studentName,branchName,registrationNumber,receiptNumber}={}){
+  const type=filePart(documentType,'روسي',18),name=filePart(studentName,'الطالب',80),branch=filePart(branchName,'غير محدد',50);
+  const register=filePart(westernDigitsV3(registrationNumber??''),'غير مسجل',32),receipt=filePart(westernDigitsV3(receiptNumber??''),'',20);
+  const branchLabel=/^(?:ال)?فرع(?:\s|$)/.test(branch)?branch:`فرع ${branch}`;
+  return `${type}-${name}-${branchLabel}-تسجيل ${register}${receipt?`-وصل ${receipt}`:''}.pdf`;
 }
+function receiptPdfFileName(model){
+  return personPdfFileName({documentType:model.statement?'كشف حساب':'روسي',studentName:model.student,branchName:model.branch,registrationNumber:model.reg,receiptNumber:model.receipt});
+}
+window.EFC_PERSON_PDF_FILE_NAME_V68=personPdfFileName;
 async function savePdf(model){let stage;try{await Promise.all([loadLocal('./vendor/html2canvas.min.js','html2canvas'),loadLocal('./vendor/jspdf.umd.min.js','jspdf')]);stage=document.createElement('div');stage.style.cssText='position:fixed;left:-16000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${css()}</style><div class="paper12">${body(model)}</div>`;document.body.appendChild(stage);const paper=stage.querySelector('.paper12');await waitImages(paper);const canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight(),ratio=Math.min(pageWidth/canvas.width,pageHeight/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pageWidth-width)/2,(pageHeight-height)/2,width,height);const fileName=receiptPdfFileName(model),invoke=window.__TAURI__?.core?.invoke;if(!invoke){if(typeof window.showSaveFilePicker==='function'){const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'PDF',accept:{'application/pdf':['.pdf']}}]});const writable=await handle.createWritable();await writable.write(pdf.output('blob'));await writable.close();return fileName;}pdf.save(fileName);return fileName;}const savedPath=await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(pdf.output('arraybuffer'))});if(!savedPath)return null;alert(`تم حفظ ملف الروسي:\n${savedPath}`);return savedPath;}catch(error){if(error?.name==='AbortError')return null;console.error('EFC receipt PDF failed.',error);alert(String(error?.message||error||'تعذر حفظ PDF.'));return null;}finally{stage?.remove();}}
 window.EFC_SAVE_RECEIPT_PDF=savePdf;
 window.downloadReceiptPdfV12=savePdf;

@@ -246,7 +246,7 @@ const savePdf=vm.runInNewContext(`${receipts.slice(receipts.indexOf('function fi
   arrayBufferToBase64:bytes=>bytes.toString('base64'),westernDigitsV3,alert(){},console
 });
 const model={student:'محمد / أحمد: المختار',branch:'فرع آخر',reg:'٠٠٤٢'};
-const expectedName='روسي-محمد _ أحمد_ المختار-0042.pdf';
+const expectedName='روسي-محمد _ أحمد_ المختار-فرع آخر-تسجيل 0042.pdf';
 receiptWindow.__TAURI__={core:{invoke:async(command,{fileName,dataBase64})=>{
   assert.equal(command,'save_receipt_pdf');assert.equal(dataBase64,pdfBytes.toString('base64'));
   saves.push({transport:'windows',name:fileName});return 'chosen-location.pdf';
@@ -261,8 +261,8 @@ assert.equal(await savePdf(model),expectedName);
 delete receiptWindow.showSaveFilePicker;
 assert.equal(await savePdf(model),expectedName);
 assert.deepEqual(saves,['windows','browser-picker','download'].map(transport=>({transport,name:expectedName})));
-assert.equal(await savePdf({student:'ش'.repeat(159)+'😀'+ ' اسم طويل',reg:'0009'}),`روسي-${'ش'.repeat(159)}-0009.pdf`);
-assert.equal(await savePdf({student:'   ',reg:''}),'روسي-الطالب-0000.pdf');
+assert.equal(await savePdf({student:'ش'.repeat(79)+'😀'+ ' اسم طويل',reg:'0009'}),`روسي-${'ش'.repeat(79)}-فرع غير محدد-تسجيل 0009.pdf`);
+assert.equal(await savePdf({student:'   ',reg:''}),'روسي-الطالب-فرع غير محدد-تسجيل غير مسجل.pdf');
 
 for(const [token,label] of [
   ['adaptiveCardHeights:true','course and center cards grow for wrapped names'],

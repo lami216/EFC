@@ -163,6 +163,9 @@ function certificateBranchDisplayName(receipt){
   const current=(Array.isArray(branches)?branches:[]).find(item=>id&&String(item?.id||'')===id);
   return String(current?.name||stored||'—');
 }
+function certificatePdfFileName(receipt,delivery=false){
+  return window.EFC_PERSON_PDF_FILE_NAME_V68({documentType:delivery?'استلام شهادة':'شهادة',studentName:receipt?.studentName,branchName:certificateBranchDisplayName(receipt),registrationNumber:receipt?.reg,receiptNumber:padReceipt(receipt?.receiptNo)});
+}
 function certificatePayment(receipt){
   const specialtyValue=spec(receipt.specialtyId)?receipt.specialtyId:(receipt.specialtyName||receipt.specialtyId);
   return{
@@ -194,7 +197,7 @@ function receiptBody(receipt){
 }
 function receiptDocument(receipt,actions=true,autoPrint=false){
   const data=JSON.stringify(receipt).replace(/</g,'\\u003c'),mutationDisabled=canEditCertificates()?'':' disabled';
-  const delivered=Boolean(receipt.delivery),deliveryDisabled=!delivered&&!canEditCertificates()?' disabled':'';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>روسي شهادة ${padReceipt(receipt.receiptNo)}</title><style>${receiptCss()}</style></head><body><div class="cert-paper">${receiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)">حفظ PDF</button><button class="cert-delivery${delivered?' is-delivered':''}" type="button"${deliveryDisabled} onclick="parent.EFC_OPEN_CERTIFICATE_DELIVERY_V13(CERT)">${delivered?'معلومات الاستلام':'تسجيل الاستلام'}</button><span class="cert-action-spacer"></span><button class="cert-edit" type="button"${mutationDisabled} onclick="parent.EFC_EDIT_CERTIFICATE_RECEIPT_V13(CERT)">تعديل الروسي</button><button class="cert-delete" type="button"${mutationDisabled} onclick="parent.EFC_DELETE_CERTIFICATE_RECEIPT_V13(CERT)">حذف الروسي</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
+  const delivered=Boolean(receipt.delivery),deliveryDisabled=!delivered&&!canEditCertificates()?' disabled':'';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(certificatePdfFileName(receipt).replace(/\.pdf$/i,''))}</title><style>${receiptCss()}</style></head><body><div class="cert-paper">${receiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)">حفظ PDF</button><button class="cert-delivery${delivered?' is-delivered':''}" type="button"${deliveryDisabled} onclick="parent.EFC_OPEN_CERTIFICATE_DELIVERY_V13(CERT)">${delivered?'معلومات الاستلام':'تسجيل الاستلام'}</button><span class="cert-action-spacer"></span><button class="cert-edit" type="button"${mutationDisabled} onclick="parent.EFC_EDIT_CERTIFICATE_RECEIPT_V13(CERT)">تعديل الروسي</button><button class="cert-delete" type="button"${mutationDisabled} onclick="parent.EFC_DELETE_CERTIFICATE_RECEIPT_V13(CERT)">حذف الروسي</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
 }
 function openReceipt(receipt,autoPrint=false){
   if(!receipt)return null;
@@ -216,7 +219,7 @@ async function savePdf(receipt){
     const canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false});
     const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ratio=Math.min(pw/canvas.width,ph/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;
     pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pw-width)/2,(ph-height)/2,width,height);
-    const fileName=`روسي-شهادة-${padReceipt(receipt.receiptNo)}.pdf`,buffer=pdf.output('arraybuffer');
+    const fileName=certificatePdfFileName(receipt),buffer=pdf.output('arraybuffer');
     if(!invoke){pdf.save(fileName);return fileName;}
     return await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(buffer)});
   }catch(error){console.error('EFC certificate PDF save failed.',error);alert(String(error?.message||error||'تعذر حفظ روسي الشهادة.'));return null;}finally{stage?.remove();}
@@ -233,7 +236,7 @@ function certificateDeliveryReceiptBody(receipt){
 }
 function certificateDeliveryReceiptDocument(receipt,actions=true,autoPrint=false){
   const data=JSON.stringify(receipt).replace(/</g,'\\u003c');
-  return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>وصل استلام الشهادة ${padReceipt(receipt.receiptNo)}</title><style>${certificateDeliveryReceiptCss()}</style></head><body><div class="cert-paper">${certificateDeliveryReceiptBody(receipt)}</div>${actions?`<div class="cert-delivery-receipt-actions-v13"><button class="cert-delivery-receipt-print-v13" onclick="print()">طباعة</button><button class="cert-delivery-receipt-save-v13" onclick="parent.EFC_SAVE_CERTIFICATE_DELIVERY_PDF_V13(CERT)">حفظ PDF</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
+  return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(certificatePdfFileName(receipt,true).replace(/\.pdf$/i,''))}</title><style>${certificateDeliveryReceiptCss()}</style></head><body><div class="cert-paper">${certificateDeliveryReceiptBody(receipt)}</div>${actions?`<div class="cert-delivery-receipt-actions-v13"><button class="cert-delivery-receipt-print-v13" onclick="print()">طباعة</button><button class="cert-delivery-receipt-save-v13" onclick="parent.EFC_SAVE_CERTIFICATE_DELIVERY_PDF_V13(CERT)">حفظ PDF</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
 }
 function openCertificateDeliveryReceipt(reference,autoPrint=false){
   const receipt=resolveCertificateReceipt(reference);if(!receipt?.delivery)return alert('لا توجد معلومات استلام مسجلة لهذه الشهادة.'),null;
@@ -246,7 +249,7 @@ async function saveCertificateDeliveryPdf(reference){
     await Promise.all([loadLocalScript('./vendor/html2canvas.min.js','html2canvas'),loadLocalScript('./vendor/jspdf.umd.min.js','jspdf')]);
     stage=document.createElement('div');stage.style.cssText='position:fixed;left:-16000px;top:0;width:1120px;background:#fff;z-index:-9999;pointer-events:none';stage.innerHTML=`<style>${certificateDeliveryReceiptCss()}</style><div class="cert-paper">${certificateDeliveryReceiptBody(receipt)}</div>`;document.body.appendChild(stage);
     const paper=stage.querySelector('.cert-paper');if(!paper)throw new Error('تعذر العثور على وصل استلام الشهادة.');await waitImages(paper);const canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ratio=Math.min(pw/canvas.width,ph/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pw-width)/2,(ph-height)/2,width,height);
-    const fileName=`وصل-استلام-الشهادة-${padReceipt(receipt.receiptNo)}.pdf`,buffer=pdf.output('arraybuffer');if(!invoke){pdf.save(fileName);return fileName;}return await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(buffer)});
+    const fileName=certificatePdfFileName(receipt,true),buffer=pdf.output('arraybuffer');if(!invoke){pdf.save(fileName);return fileName;}return await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(buffer)});
   }catch(error){console.error('EFC certificate delivery PDF failed.',error);alert(String(error?.message||error||'تعذر حفظ وصل استلام الشهادة.'));return null;}finally{stage?.remove();}
 }
 
