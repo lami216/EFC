@@ -19,10 +19,14 @@ const server=http.createServer((req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const browser=await chromium.launch({headless:true,...(process.env.EFC_BROWSER_PATH?{executablePath:process.env.EFC_BROWSER_PATH}:{})});
 const errors=[];
+const bootDiagnostics=new WeakMap();let bootSequence=0;
 try{
   async function boot({failedRead='',staleCache=false,requireLogin=false}={}){
     const context=await browser.newContext({viewport:{width:1440,height:1000},timezoneId:'UTC'});
     const page=await context.newPage();
+    const diagnostic={attempt:++bootSequence,failedRead,staleCache,requireLogin,console:[],requests:[]};bootDiagnostics.set(page,diagnostic);
+    page.on('console',message=>{if(message.type()==='error'||message.type()==='warning')diagnostic.console.push({type:message.type(),text:message.text()});});
+    page.on('requestfailed',request=>diagnostic.requests.push({url:request.url(),failure:request.failure()}));
     page.on('pageerror',error=>errors.push(String(error)));
     page.on('dialog',async dialog=>{
       if(dialog.type()==='confirm'&&dialog.message().includes('نسخة احتياطية')){
@@ -74,7 +78,16 @@ try{
     if(failedRead!=='main')await ready(page);
     return{page,context};
   }
-  const ready=page=>page.waitForFunction(()=>window.EFC_SECURITY_UI_V13?.ready&&window.EFC_CERTIFICATES_V13?.ready&&window.EFC_BANK_V22?.ready);
+  const ready=async page=>{
+    try{await page.waitForFunction(()=>window.EFC_SECURITY_UI_V13?.ready&&window.EFC_CERTIFICATES_V13?.ready&&window.EFC_BANK_V22?.ready);}
+    catch(error){
+      const diagnostic=bootDiagnostics.get(page)||{};
+      try{diagnostic.runtime=await page.evaluate(()=>({url:location.href,health:window.EFC_STORAGE_HEALTH?.snapshot(),flags:Object.fromEntries(['EFC_CORE_STORAGE_V13','EFC_AUTH_BOOTSTRAP_V13','EFC_REMINDER_STATE_V67','EFC_FOUNDATION_V13','EFC_RECEIPTS_V13','EFC_CERTIFICATES_V13','EFC_DOMAIN_V13','EFC_BANK_V22','EFC_SECURITY_UI_V13'].map(key=>[key,Boolean(window[key]?.ready)])),scripts:[...document.scripts].map(script=>script.src),text:document.body.innerText,events:window.storageQA?.events,errors:[]}));}catch(captureError){diagnostic.captureError=String(captureError);}
+      diagnostic.pageErrors=[...errors];console.error('Storage boot readiness failure:',JSON.stringify(diagnostic));
+      if(output){fs.writeFileSync(path.join(output,`storage-boot-failure-${diagnostic.attempt||0}-v66.json`),JSON.stringify(diagnostic,null,2));await page.screenshot({path:path.join(output,`storage-boot-failure-${diagnostic.attempt||0}-v66.png`),fullPage:true}).catch(()=>{});}
+      throw error;
+    }
+  };
   const health=page=>page.evaluate(()=>window.EFC_STORAGE_HEALTH.snapshot());
   const resetEvents=page=>page.evaluate(()=>{window.storageQA.events=[];});
   async function checkStatusGeometry(page){
