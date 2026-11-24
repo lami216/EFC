@@ -16,6 +16,27 @@ async function harness(initial=state()){
   return{window,context,storage,saves,conflicts,api:window.loaderTest};
 }
 {
+  const initial=s('lifecycle',[p('tx-registration','2026-10-01')]);
+  const stopped={...initial,active:false,status:'inactive',updatedAt:20,stoppedAt:'2026-10-12',frozenMonths:1,end:'2026-10-12'};
+  const edited={...initial,active:true,status:'active',updatedAt:30,name:'Updated contact'};
+  const h=await harness(state([stopped]));
+  const merge=(local,incoming)=>h.api.mergeStates(state([local]),state([incoming])).state.students[0];
+  const merged=merge(stopped,edited);
+  assert.equal(merged.name,edited.name);
+  assert.equal(merged.active,false,'a newer legacy contact edit cannot undo a stop');
+  assert.equal(merged.frozenMonths,1);
+  assert.equal(merged.end,'2026-10-12');
+  const corrected={...edited,lifecycleStateUpdatedAt:40,updatedAt:40,end:'2026-11-01'};
+  for(const restored of [merge(stopped,corrected),merge(corrected,{...stopped,updatedAt:50})]){
+    assert.equal(restored.active,true,'an explicit correction survives ordinary later edits');
+    assert.equal(restored.stoppedAt,undefined);
+    assert.equal(restored.end,'2026-11-01');
+    assert.equal(restored.payments.length,1);
+  }
+  const restopped={...stopped,lifecycleStateUpdatedAt:60,updatedAt:60};
+  assert.equal(merge(corrected,restopped).active,false,'a newer explicit stop supersedes correction');
+}
+{
   const a=s('a',[p('tx-a','2026-10-01')]),b=s('b',[p('tx-b','2026-11-01')]),h=await harness(state([a]));
   h.window.students=JSON.parse(h.storage.get('efc-students-v1'));h.window.specialties=JSON.parse(h.storage.get('efc-specialties-v1'));h.window.methods=['cash'];const list=h.window.students;
   h.window.EFC_REGISTER_RESTORE_CONTRIBUTOR('tombstone-test',async()=>{

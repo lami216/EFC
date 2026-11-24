@@ -19,7 +19,8 @@ function enhanceStudentSearch(){
 const detailIcon=body=>`<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
 const ICONS={
   branch:detailIcon('<path d="M6 20V8h12v12M9 8V5h6v3M4 20h16M9 12h2M13 12h2M9 16h2M13 16h2"/>'),
-  course:detailIcon('<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>')
+  course:detailIcon('<rect x="5" y="4" width="14" height="16" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
+  status:detailIcon('<circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/>')
 };
 
 function wrapStudentSelect(control,kind){
@@ -28,7 +29,7 @@ function wrapStudentSelect(control,kind){
   wrap.className=`efc-student-control-v32 ${kind}`;
   const marker=document.createElement('span');
   marker.className='efc-student-control-icon-v32';
-  marker.innerHTML=kind==='branch'?ICONS.branch:ICONS.course;
+  marker.innerHTML=ICONS[kind];
   control.parentNode.insertBefore(wrap,control);
   wrap.appendChild(control);
   wrap.appendChild(marker);
@@ -37,6 +38,7 @@ function enhanceStudentFilters(){
   if((location.hash.replace('#','')||window.currentPage)!=='students')return;
   wrapStudentSelect(document.getElementById('studentBranchV13'),'branch');
   wrapStudentSelect(document.getElementById('studentSpecV13'),'course');
+  wrapStudentSelect(document.getElementById('studentStateV69'),'status');
 }
 
 
@@ -50,11 +52,11 @@ window.renderStudents=function(){
 const style=document.createElement('style');
 style.id='efc-student-search-redesign-style-v31';
 style.textContent=`
-/* Student search uses only visual rules shared with Period Search. No content, controls or behavior are added/removed. */
+/* Student search retains Period Search's visual language and canonical status labels. */
 html body.efc-student-search-redesign-v31{font-family:"Segoe UI Variable","Segoe UI",Tahoma,Arial,sans-serif!important;background:#f5fbf9!important;overflow:hidden!important}
 html body.efc-student-search-redesign-v31 .shell.shell-v13{background:radial-gradient(circle at 43% 24%,#fbfffe 0,#f4faf7 54%,#edf6f2 100%)!important}
 html body.efc-student-search-redesign-v31 .shell.shell-v13 main>.content{
-  width:900px!important;max-width:900px!important;min-width:900px!important;
+  width:calc(100% - 44px)!important;max-width:900px!important;min-width:0!important;
   margin:0 0 0 auto!important;margin-right:22px!important;
   padding:18px 0 12px!important;box-sizing:border-box!important;height:100vh!important;overflow:hidden!important;
 }
@@ -74,11 +76,11 @@ html body.efc-student-search-redesign-v31 .page-title h1{margin:0!important;font
 html body.efc-student-search-redesign-v31 .page-title span{margin:0!important;max-width:410px!important;font-size:9px!important;line-height:1.25!important;color:#607b73!important;text-align:center!important}
 html body.efc-student-search-redesign-v31 .page-title>.button{display:none!important}
 
-/* Existing search controls only: same field/card treatment as Period Search. */
+/* Text, branch, course and status filters share the same field/card treatment. */
 html body.efc-student-search-redesign-v31 .student-search-filters-v13.efc-student-search-filters-v31{
-  width:900px!important;max-width:900px!important;min-width:900px!important;
+  width:100%!important;max-width:900px!important;min-width:0!important;
   margin:0 0 14px!important;padding:12px 13px 14px!important;
-  display:grid!important;grid-template-columns:minmax(280px,1.65fr) repeat(2,minmax(180px,1fr))!important;
+  display:grid!important;grid-template-columns:minmax(0,1.65fr) repeat(3,minmax(0,1fr))!important;
   gap:9px!important;align-items:center!important;direction:rtl!important;
   border:1.4px solid #4aa68c!important;border-radius:13px!important;
   background:linear-gradient(135deg,rgba(239,251,247,.96),rgba(251,255,253,.99))!important;
@@ -97,10 +99,10 @@ html body.efc-student-search-redesign-v31 .student-search-filters-v13 select:foc
 
 /* Existing results table only: same table treatment as Period Search. */
 html body.efc-student-search-redesign-v31 #studentsTableV13.efc-student-search-results-v31{
-  width:900px!important;max-width:900px!important;min-width:900px!important;
+  width:100%!important;max-width:900px!important;min-width:0!important;
 }
 html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{
-  width:900px!important;max-width:900px!important;min-width:900px!important;
+  width:100%!important;max-width:900px!important;min-width:0!important;
   height:calc(100vh - 205px)!important;max-height:calc(100vh - 205px)!important;min-height:180px!important;overflow:auto!important;overscroll-behavior:contain!important;scrollbar-gutter:auto!important;border:1px solid rgba(0,0,0,.62)!important;border-radius:10px!important;
   background:#fff!important;box-shadow:none!important;
 }
@@ -122,8 +124,7 @@ html body.efc-student-search-redesign-v31 #studentsTableV13 tbody tr:nth-child(e
 html body.efc-student-search-redesign-v31 #studentsTableV13 tbody tr:hover td{background:#f0f8f5!important}
 html body.efc-student-search-redesign-v31 #studentsTableV13 .badge{font-size:9px!important;padding:5px 10px!important;border-radius:14px!important;font-weight:800!important}
 
-@media(max-width:1180px){html body.efc-student-search-redesign-v31 .shell.shell-v13 main>.content{transform:scale(.92)!important;transform-origin:top right!important}}
-@media(max-width:1040px){html body.efc-student-search-redesign-v31 .shell.shell-v13 main>.content{transform:scale(.82)!important;transform-origin:top right!important}}
+@media(max-width:1180px){html body.efc-student-search-redesign-v31 .student-search-filters-v13.efc-student-search-filters-v31{grid-template-columns:repeat(3,minmax(0,1fr))!important}html body.efc-student-search-redesign-v31 #studentSearchV13{grid-column:1/-1!important}html body.efc-student-search-redesign-v31 #studentsTableV13 .table-wrap{height:calc(100vh - 257px)!important;max-height:calc(100vh - 257px)!important}}
 
 /* Consolidated search detail polish v32. */
 
@@ -163,6 +164,6 @@ document.head.appendChild(style);
 
 window.EFC_STUDENT_SEARCH_REDESIGN_V31=Object.freeze({
   ready:true,periodVisualLanguage:true,preservedStudentSearchContent:true,preservedStudentSearchBehavior:true,
-  noNewControls:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,unifiedIdentitySearchControl:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
+  studentStatusFilter:true,canonicalCourseStatusFilter:true,stoppedStatusPriority:true,noRemovedControls:true,routerOwnsPageClass:true,canonicalStudentSearchRenderer:true,singleStudentSearchRenderOwner:true,noStudentSearchWrapperChain:true,detailPolishConsolidated:true,studentBranchCourseIcons:true,unifiedIdentitySearchControl:true,darkerTableLines:true,strongerRowHover:true,noHashEnhancer:true,mainUntouched:true
 });
 })();

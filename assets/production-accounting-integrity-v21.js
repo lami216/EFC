@@ -314,7 +314,7 @@ async function deleteStudentWithFinance(student,modal){
     if(reusable)seq?.markRegistrationReleased?.(student.branch,student.specialty,student.reg);else seq?.sealRegistrationNumber?.(student.branch,student.specialty,student.reg);
     domain.saveStudents?.();addAudit('student-delete-with-finance',{id:text(student.id),recordCode:text(student.recordCode),reg:Number(student.reg)||null,branch:text(student.branch),specialty:text(student.specialty),paymentCount,paidAmount,closedPaymentCount:closedCount});await window.EFC_FORCE_PERSIST?.();
   }catch(error){students.splice(index,0,beforeStudent);state=beforeState;writeLocal(true);try{seq?.commitRegistrationNumber?.(student.branch,student.specialty,student.reg);domain.saveStudents?.();await window.EFC_FORCE_PERSIST?.();}catch(rollbackError){console.error('EFC student delete rollback failed.',rollbackError);}throw error;}
-  modal?.remove();window.renderCurrentV13?.();return true;
+  modal?.remove();document.querySelectorAll('.modal[data-efc-student-id-v21]').forEach(view=>{if(view.dataset.efcStudentIdV21===String(student.id||''))view.remove();});window.renderCurrentV13?.();return true;
 }
 
 function refreshStudentDebtAfterPaymentDelete(student,domain){
@@ -326,16 +326,38 @@ function refreshStudentDebtAfterPaymentDelete(student,domain){
   }
   domain?.reconcileStudent?.(student);student.paid=payments.reduce((sum,payment)=>sum+Number(payment?.[1]||0),0);
 }
+function studentReceiptDeleteSource(model){
+  if(!model||model.statement||model.editableReceipt===false||model.receiptSource==='derived-month'||(model.derivedReceipt&&model.sourceEquivalent!==true))return null;
+  const cloneSource=model.receiptSource==='payment-clone';
+  if(model.receiptSource!=='payment'&&!cloneSource)return null;
+  if(cloneSource&&(!model.derivedReceipt||model.sourceEquivalent!==true))return null;
+  const student=(Array.isArray(window.students)?window.students:[]).find(item=>String(item?.id||'')===String(model.studentId||''));if(!student)return null;
+  const payments=Array.isArray(student.payments)?student.payments:[],transactionCode=text(model.transactionCode),receiptNo=Number(model.receipt||0),sameAmount=(a,b)=>Number.isFinite(Number(a))&&Number.isFinite(Number(b))&&Math.round(Number(a)*100)===Math.round(Number(b)*100);
+  // An unpaid registration has its own stable receipt identity. It must not
+  // become a shortcut to deleting a registration that has since gained payments.
+  if(!payments.length&&!transactionCode&&!cloneSource&&model.registrationReceipt&&sameAmount(model.amount,0)&&receiptNo>0&&receiptNo===Number(student.registrationReceiptNo))return{student,index:-1,payment:null,registration:true};
+  // A missing transaction must never fall back to an old array index: another
+  // payment may now occupy it. Legacy models can use a unique receipt number.
+  const matches=payments.map((payment,index)=>({payment,index})).filter(({payment})=>transactionCode?text(payment?.[6])===transactionCode:receiptNo>0&&Number(payment?.[8])===receiptNo);
+  if(matches.length!==1)return null;
+  const {payment,index}=matches[0];
+  if(!sameAmount(model.amount,payment?.[1])||text(model.date)!==text(payment?.[0])||(receiptNo>0&&receiptNo!==Number(payment?.[8]))||text(model.method)!==text(payment?.[2]))return null;
+  const anchor=text(student.registrationPaymentCode),registration=anchor?text(payment?.[6])===anchor:index===0;
+  if(Boolean(model.registrationReceipt)!==registration)return null;
+  if(cloneSource){
+    const allocations=D()?.paymentAllocations?.(student,index)||[],months=new Set(allocations.map(item=>Number(item?.monthNumber??item?.n)).filter(number=>Number.isInteger(number)&&number>0)),allocated=allocations.reduce((sum,item)=>sum+Number(item?.amount||0),0);
+    if(months.size!==1||!sameAmount(allocated,payment?.[1])||!sameAmount(model.amount,allocated))return null;
+  }
+  return{student,index,payment,registration};
+}
 async function deleteStudentPaymentSource(model){
   const domain=D();if(!model||!domain)return false;
   if(model.statement||model.editableReceipt===false||model.receiptSource==='derived-month'||(model.derivedReceipt&&model.sourceEquivalent!==true))return false;
   const canStudents=window.EFC_AUTH_V13?.canEdit?.('students')??true,canRegister=window.EFC_AUTH_V13?.canEdit?.('register')??true;if(!canStudents||!canRegister)return alert('الحساب الحالي لا يملك صلاحية حذف دفعات الطلاب.'),false;
-  const student=(Array.isArray(window.students)?window.students:[]).find(item=>String(item?.id||'')===String(model.studentId||''));if(!student)return alert('تعذر العثور على ملف الطالب المرتبط بهذا الروسي.'),false;
-  if(model?.registrationReceipt)return deleteStudentWithFinance(student,null);
-  const payments=Array.isArray(student.payments)?student.payments:[];let index=-1,transactionCode=text(model.transactionCode);
-  if(transactionCode)index=payments.findIndex(payment=>text(payment?.[6])===transactionCode);
-  if(index<0&&Number.isInteger(Number(model.paymentIndex))&&Number(model.paymentIndex)>=0)index=Number(model.paymentIndex);
-  const payment=payments[index];if(!payment)return alert('تعذر العثور على العملية الأصلية لهذا الروسي.'),false;
+  const source=studentReceiptDeleteSource(model);if(!source)return alert('تعذر مطابقة الروسي مع العملية الأصلية الحالية. ربما حُذفت أو تغيرت؛ افتح الروسي من السجل من جديد.'),false;
+  const {student,index,payment,registration}=source;
+  if(registration)return deleteStudentWithFinance(student,null);
+  let transactionCode=text(payment?.[6]);
   window.EFC_CODES?.ensurePaymentCode?.(student,payment,index);transactionCode=text(payment?.[6]);const paymentDate=text(payment?.[0]);if(fiscal()?.isDateClosed?.(paymentDate))return alert('هذه الدفعة داخل سنة مالية مقفلة ولا يمكن حذفها. راجع الأرشيف المالي.'),false;
   const amount=Math.max(0,Number(payment?.[1]||0)),receiptNo=Number(payment?.[8]||model.receipt||0)||null,name=text(student.name)||'الطالب';
   if(!window.confirm(`حذف روسي الطالب${receiptNo?` رقم ${String(receiptNo).padStart(5,'0')}`:''} للطالب ${name}؟\nسيتم حذف الدفعة الأصلية بقيمة ${domain.cash?.(amount)||amount} من ملف الطالب ومن المالية واليومية، ثم يعاد حساب الدين والأشهر. رقم الروسي المحذوف لن يعاد استخدامه.`))return false;
@@ -355,14 +377,17 @@ function injectViewerDelete(viewer,label,onDelete){
   const frame=viewer?.frame||[...document.querySelectorAll('.receipt-viewer-v13 iframe')].at(-1);if(!frame)return;
   const install=()=>{
     const doc=frame.contentDocument,host=doc?.querySelector('.actions12,.cert-delivery-receipt-actions-v13,.bank-actions-v22');if(!doc||!host||host.querySelector('.efc-source-delete-receipt-v21'))return;
-    const style=doc.createElement('style');style.textContent='.efc-source-delete-receipt-v21{border:0;border-radius:7px;background:#a63b32;color:#fff;padding:10px 17px;font:700 13px Tahoma;cursor:pointer;min-width:108px}.efc-source-delete-receipt-v21:hover{background:#8f3029}';doc.head.appendChild(style);
-    const button=doc.createElement('button');button.type='button';button.className='efc-source-delete-receipt-v21';button.textContent=label;button.addEventListener('click',()=>Promise.resolve(onDelete()).catch(error=>alert(String(error?.message||error))));host.appendChild(button);
+    const style=doc.createElement('style');style.textContent='.efc-source-delete-receipt-v21{border:0;border-radius:7px;background:#a63b32;color:#fff;padding:10px 17px;font:700 13px Tahoma;cursor:pointer;min-width:108px}.efc-source-delete-receipt-v21:hover{background:#8f3029}.efc-source-delete-receipt-v21:disabled{opacity:.6;cursor:wait}';doc.head.appendChild(style);
+    const button=doc.createElement('button');button.type='button';button.className='efc-source-delete-receipt-v21';button.textContent=label;button.addEventListener('click',async()=>{if(button.disabled)return;button.disabled=true;button.setAttribute('aria-busy','true');try{await onDelete();}catch(error){alert(String(error?.message||error));}finally{if(button.isConnected){button.disabled=false;button.removeAttribute('aria-busy');}}});host.appendChild(button);
   };
-  if(frame.contentDocument?.readyState==='complete')setTimeout(install,0);else frame.addEventListener('load',install,{once:true});
+  // The new iframe can report a complete about:blank document while srcdoc is
+  // still loading. Keep listening until its actual action bar is available.
+  const onLoad=()=>{install();if(frame.contentDocument?.querySelector('.efc-source-delete-receipt-v21'))frame.removeEventListener('load',onLoad);};
+  frame.addEventListener('load',onLoad);onLoad();
 }
 function installStudentReceiptDelete(){
   if(window.__EFC_STUDENT_RECEIPT_DELETE_V21__)return;const base=window.receiptWindowV4;if(typeof base!=='function')return;
-  window.receiptWindowV4=function(model,...args){const viewer=base.call(this,model,...args),deletable=Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false&&model?.receiptSource==='payment'&&(Boolean(model?.registrationReceipt)||Number(model?.amount||0)>0);if(deletable)injectViewerDelete(viewer,'حذف الروسي',()=>deleteStudentPaymentSource(model));return viewer;};
+  window.receiptWindowV4=function(model,...args){const viewer=base.call(this,model,...args),source=studentReceiptDeleteSource(model),canDelete=(window.EFC_AUTH_V13?.canEdit?.('students')??true)&&(window.EFC_AUTH_V13?.canEdit?.('register')??true),modal=viewer?.frame?.closest('.modal');if(modal&&model?.studentId)modal.dataset.efcStudentIdV21=String(model.studentId);if(source&&canDelete&&(source.registration||Number(source.payment?.[1]||0)>0))injectViewerDelete(viewer,source.registration?'حذف التسجيل كاملًا':'حذف الروسي',()=>deleteStudentPaymentSource(model));return viewer;};
   window.__EFC_STUDENT_RECEIPT_DELETE_V21__=true;
 }
 async function persistCertificateSnapshot(){

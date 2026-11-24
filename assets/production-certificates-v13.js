@@ -197,7 +197,7 @@ function receiptBody(receipt){
 }
 function receiptDocument(receipt,actions=true,autoPrint=false){
   const data=JSON.stringify(receipt).replace(/</g,'\\u003c'),mutationDisabled=canEditCertificates()?'':' disabled';
-  const delivered=Boolean(receipt.delivery),deliveryDisabled=!delivered&&!canEditCertificates()?' disabled':'';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(certificatePdfFileName(receipt).replace(/\.pdf$/i,''))}</title><style>${receiptCss()}</style></head><body><div class="cert-paper">${receiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)">حفظ PDF</button><button class="cert-delivery${delivered?' is-delivered':''}" type="button"${deliveryDisabled} onclick="parent.EFC_OPEN_CERTIFICATE_DELIVERY_V13(CERT)">${delivered?'معلومات الاستلام':'تسجيل الاستلام'}</button><span class="cert-action-spacer"></span><button class="cert-edit" type="button"${mutationDisabled} onclick="parent.EFC_EDIT_CERTIFICATE_RECEIPT_V13(CERT)">تعديل الروسي</button><button class="cert-delete" type="button"${mutationDisabled} onclick="parent.EFC_DELETE_CERTIFICATE_RECEIPT_V13(CERT)">حذف الروسي</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
+  const delivered=Boolean(receipt.delivery),deliveryDisabled=!delivered&&!canEditCertificates()?' disabled':'';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(certificatePdfFileName(receipt).replace(/\.pdf$/i,''))}</title><style>${receiptCss()}</style></head><body><div class="cert-paper">${receiptBody(receipt)}</div>${actions?`<div class="cert-actions"><button class="cert-print" onclick="print()">طباعة</button><button class="cert-save" onclick="parent.EFC_SAVE_CERTIFICATE_PDF_V13(CERT)">حفظ PDF</button><button class="cert-whatsapp-share" type="button" style="background:#086950;color:white" onclick="parent.EFC_SHARE_CERTIFICATE_WHATSAPP_V69(CERT)">مشاركة على واتساب</button><button class="cert-delivery${delivered?' is-delivered':''}" type="button"${deliveryDisabled} onclick="parent.EFC_OPEN_CERTIFICATE_DELIVERY_V13(CERT)">${delivered?'معلومات الاستلام':'تسجيل الاستلام'}</button><span class="cert-action-spacer"></span><button class="cert-edit" type="button"${mutationDisabled} onclick="parent.EFC_EDIT_CERTIFICATE_RECEIPT_V13(CERT)">تعديل الروسي</button><button class="cert-delete" type="button"${mutationDisabled} onclick="parent.EFC_DELETE_CERTIFICATE_RECEIPT_V13(CERT)">حذف الروسي</button></div>`:''}<script>const CERT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;
 }
 function openReceipt(receipt,autoPrint=false){
   if(!receipt)return null;
@@ -819,6 +819,11 @@ async function boot(){
   window.EFC_OPEN_CERT_MANAGER_RECEIPT_V22=openCertificateManagerReceipt;
   window.EFC_SAVE_CERT_MANAGER_RECEIPT_PDF_V22=saveCertificateManagerReceiptPdf;
   window.EFC_EDIT_CERTIFICATE_RECEIPT_V13=beginCertificateReceiptEdit;
+  window.EFC_SHARE_CERTIFICATE_WHATSAPP_V69=reference=>{
+    const receipt=resolveCertificateReceipt(reference);
+    if(!receipt)return alert('تعذر العثور على روسي الشهادة الأصلي.');
+    window.EFC_SHARE_RECEIPT_WHATSAPP_V69({phone:receipt.phone,studentName:receipt.studentName,isCertificate:true,save:()=>savePdf(receipt)});
+  };
   window.EFC_DELETE_CERTIFICATE_RECEIPT_V13=deleteCertificateReceipt;
   window.EFC_OPEN_CERTIFICATE_DELIVERY_V13=openCertificateDelivery;
   window.EFC_OPEN_CERTIFICATE_DELIVERY_RECEIPT_V13=openCertificateDeliveryReceipt;

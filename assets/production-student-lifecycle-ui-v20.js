@@ -6,6 +6,7 @@ if(!D?.studentLifecycleV20||!window.EFC_STUDENT_UI_V13?.ready||!window.EFC_REGIS
 
 const baseOpenStudent=window.openStudent;
 const canEditStudents=()=>window.EFC_AUTH_V13?.canEdit?.('students')??true;
+const canReactivateStudents=()=>canEditStudents()&&window.EFC_AUTH_V13?.currentUser?.()?.role==='admin';
 const isMonthly=student=>Boolean(D.isDynamicMonthly?.(student)||student?.snapshot?.billing==='monthly');
 const studentById=id=>students.find(item=>String(item?.id||'')===String(id||''));
 const fieldByLabel=(root,label)=>[...root.querySelectorAll('.student-profile-field-v3')].find(field=>String(field.querySelector('small')?.textContent||'').trim()===label)||null;
@@ -36,6 +37,19 @@ function addLifecycleActions(modal,student){
   const edit=document.createElement('button');edit.type='button';edit.className='button secondary student-edit-info-v20';edit.textContent='تعديل بيانات الطالب';edit.onclick=()=>beginStudentInfoEdit(student,modal);
   const del=document.createElement('button');del.type='button';del.className='button student-delete-v20';del.textContent='حذف الطالب نهائيًا';del.onclick=()=>deleteStudent(student,modal);
   const close=actions.querySelector('.close');if(close){actions.insertBefore(edit,close);actions.insertBefore(del,close);}else actions.append(edit,del);
+  if(D.isInactive?.(student)&&canReactivateStudents()){
+    const undo=document.createElement('button');undo.type='button';undo.className='button student-reactivate-v69';undo.textContent='إلغاء الإيقاف';
+    undo.onclick=async()=>{
+      let preview;try{preview=D.previewStudentReactivation(student);}catch(error){return alert(String(error?.message||error));}
+      const effect=preview.monthly?`سيعود احتساب الدورة من تاريخ بدايتها دون إعفاء فترة الإيقاف.\nالأشهر المحتسبة قبل: ${preview.beforeMonths}؛ بعد: ${preview.afterMonths}\nالرسوم قبل: ${D.cash(preview.beforeRequired)}؛ بعد: ${D.cash(preview.afterRequired)}`:`ستعود نهاية الدورة الأصلية: ${D.showDate(preview.restoredEnd)}\nتبقى رسوم الدورة ودفعاتها كما هي.`;
+      const credit=preview.beforeUnallocated||preview.afterUnallocated?`\nالرصيد غير الموزع قبل: ${D.cash(preview.beforeUnallocated)}؛ بعد: ${D.cash(preview.afterUnallocated)}`:'';
+      if(!window.confirm(`إلغاء إيقاف ${student.name} المسجل بتاريخ ${D.showDate(student.start)}؟\nهذا الإجراء لتصحيح إيقاف بالخطأ.\n${effect}\nالمتبقي قبل: ${D.cash(preview.beforeRemaining)}؛ بعد: ${D.cash(preview.afterRemaining)}${credit}\nتبقى هوية الطالب وكل الدفعات والروسيات محفوظة.\n\nهل تريد تأكيد إلغاء الإيقاف؟`))return;
+      const buttons=[...modal.querySelectorAll('button')],disabled=buttons.map(button=>button.disabled);buttons.forEach(button=>{button.disabled=true;});
+      try{await D.reactivateStudent(student);modal.remove();window.renderCurrentV13?.();window.openStudent?.(student.id,'profile');}
+      catch(error){buttons.forEach((button,index)=>{button.disabled=disabled[index];});alert(`تعذر إلغاء الإيقاف: ${String(error?.message||error)}`);}
+    };
+    if(close)actions.insertBefore(undo,close);else actions.append(undo);
+  }
 }
 window.openStudent=function(id,mode='finance'){
   const result=baseOpenStudent(id,mode),student=studentById(id),modal=[...document.querySelectorAll('.modal')].at(-1);if(!student||!modal)return result;
@@ -56,6 +70,7 @@ function installRegistrationNumberPreview(){
 function enhanceRegistrationLifecycleV20(){installRegistrationNumberPreview();}
 
 const style=document.createElement('style');style.textContent=`
+.student-reactivate-v69{background:#d7f3e4!important;color:#075a39!important;border-color:#17211e!important}.student-reactivate-v69:hover{background:#bfe8d1!important}
 .student-profile-actions-v3 .button,.student-actions-v13 .button{border:1.3px solid #17211e!important;box-shadow:0 4px 10px rgba(20,40,34,.06)!important}.student-profile-actions-v3 .close,.student-actions-v13 .close{background:#e7ecea!important;color:#263b35!important}.student-profile-actions-v3 .stop-student-v13,.student-actions-v13 .stop-student-v13{background:#ffe7af!important;color:#704d00!important}.student-profile-actions-v3 .open-finance-v13,.student-actions-v13 .pay-student-v13,.student-actions-v13 .prepay-next-v14{background:#0b705a!important;color:#fff!important}.student-delete-v20{background:#b63b3b!important;color:#fff!important;border-color:#17211e!important}.student-delete-v20:hover{background:#963030!important}.student-edit-info-v20{margin-inline-start:auto;background:#dbeeff!important;color:#174a71!important;border-color:#17211e!important}.registration-reg-fixed-v17.is-auto-target-v20{border-color:#17856b!important;background:#eefaf6!important;color:#075844!important}.registration-scope-warning-v20{margin:10px 0;padding:9px 11px;border:1px solid #e5c97a;border-radius:9px;background:#fff9e9;color:#70551f;font-size:9px;line-height:1.8}.registration-scope-warning-v20[hidden]{display:none!important}
 `;document.head.appendChild(style);
 window.EFC_STUDENT_LIFECYCLE_UI_V20=Object.freeze({ready:true,enhanceRegistration:enhanceRegistrationLifecycleV20,canonicalRegistrationEnhancer:true,monthlyEndShownInStudentFile:true,monthlyEndTracksLatestPaidCycle:true,studentInfoEditAction:true,studentPermanentDeleteAction:true,registrationNumberPreviewOnScopeChange:true,registrationNumberHintRemoved:true,scopeChangeExplainedAsCorrection:true,studentActionButtonsColored:true,studentActionButtonsDarkBorder:true});

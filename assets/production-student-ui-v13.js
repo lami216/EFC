@@ -175,7 +175,13 @@ openStudent=function(id,mode='finance'){
   modal.querySelector('.open-finance-v13')?.addEventListener('click',()=>{modal.remove();openStudent(id,'finance');});
   modal.querySelector('.pay-student-v13')?.addEventListener('click',()=>{modal.remove();openPayment(id);});
   modal.querySelectorAll('.pay-month-v13').forEach(button=>button.onclick=()=>{modal.remove();openPayment(id,Number(button.dataset.month));});
-  modal.querySelector('.registration-receipt-v13')?.addEventListener('click',()=>{const model=receiptModelV4(student,0,false);if(model)receiptWindowV4(model);});
+  modal.querySelector('.registration-receipt-v13')?.addEventListener('click',()=>{
+    const code=String(student.registrationPaymentCode||'');
+    const index=code?(student.payments||[]).findIndex(payment=>String(payment?.[6]||'')===code):0;
+    if(index<0)return alert('تعذر العثور على دفعة التسجيل الأصلية.');
+    const model=receiptModelV4(student,index,false);
+    if(model)receiptWindowV4(model);
+  });
   modal.querySelector('.all-months-receipt-v13')?.addEventListener('click',()=>{const model=receiptModelV4(student,null,true);if(model)receiptWindowV4(model);});
   modal.querySelectorAll('.payment-receipt-v13').forEach(button=>button.onclick=()=>{const model=receiptModelV4(student,Number(button.dataset.index),false);if(model)receiptWindowV4(model);});
   modal.querySelectorAll('.month-receipt-v13').forEach(button=>button.onclick=()=>{const model=monthReceiptModelV13(student,Number(button.dataset.month));if(model)receiptWindowV4(model);});
@@ -196,12 +202,18 @@ function studentIdentitySearchMatchesV13(student,query){
   const digits=searchDigitsV13(raw);if(!digits)return false;
   return searchDigitsV13(student?.phone).includes(digits)||displayRecordV13(student?.reg).includes(digits);
 }
+function studentStatusSearchMatchesV69(student,status){
+  if(!status)return true;
+  reconcileStudent(student);
+  const label=isInactive(student)?'موقوف':courseStatus(student);
+  return label===({active:'نشطة',stopped:'موقوف',ended:'انتهت','near-end':'ستنتهي قريباً'})[status];
+}
 function renderStudentsBaseV13(){
   currentPage='students';
   if(!canView('students')){shell(`${pageTitle('الملفات','البحث عن طالب','لا تملك صلاحية عرض ملفات الطلاب.')}<div class="card production-empty-config"><h2>غير مسموح</h2></div>`);return;}
-  shell(`${pageTitle('الملفات','البحث عن طالب','ابحث عن الطالب واعرض معلوماته الأساسية والدورة دون إقحام التفاصيل المالية في قائمة البحث.')}<div class="card filters student-search-filters-v13"><input class="input" id="studentSearchV13" placeholder="ابحث بالاسم أو الهاتف أو رقم السجل" autocomplete="off"><select id="studentBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select><select id="studentSpecV13">${opts(specialties,x=>x.id,x=>x.name,'كل الدورات')}</select></div><div id="studentsTableV13"></div>`);
-  const draw=()=>{const query=document.getElementById('studentSearchV13').value,branch=document.getElementById('studentBranchV13').value,specialty=document.getElementById('studentSpecV13').value,list=students.filter(student=>studentIdentitySearchMatchesV13(student,query)&&(!branch||student.branch===branch)&&(!specialty||student.specialty===specialty));document.getElementById('studentsTableV13').innerHTML=table(['السجل','الطالب','الهاتف','الفرع','الدورة','البداية','النهاية','حالة الدورة'],list.map(studentSearchRow).join(''));document.querySelectorAll('#studentsTableV13 tr[data-id]').forEach(row=>row.onclick=()=>openStudent(row.dataset.id,'profile'));};
-  document.getElementById('studentSearchV13').addEventListener('input',draw);['studentBranchV13','studentSpecV13'].forEach(id=>document.getElementById(id).addEventListener('change',draw));draw();autocompleteOff(document.getElementById('studentSearchV13')?.closest('.card'));
+  shell(`${pageTitle('الملفات','البحث عن طالب','ابحث عن الطالب واعرض معلوماته الأساسية والدورة دون إقحام التفاصيل المالية في قائمة البحث.')}<div class="card filters student-search-filters-v13"><input class="input" id="studentSearchV13" placeholder="ابحث بالاسم أو الهاتف أو رقم السجل" autocomplete="off"><select id="studentBranchV13">${opts(branches,x=>x.id,x=>x.name,'كل الفروع')}</select><select id="studentSpecV13">${opts(specialties,x=>x.id,x=>x.name,'كل الدورات')}</select><select id="studentStateV69" aria-label="حالة الطالب"><option value="">كل الحالات</option><option value="active">نشط</option><option value="stopped">موقوف</option><option value="ended">منتهٍ</option><option value="near-end">ينتهي قريبًا</option></select></div><div id="studentsTableV13"></div>`);
+  const draw=()=>{const query=document.getElementById('studentSearchV13').value,branch=document.getElementById('studentBranchV13').value,specialty=document.getElementById('studentSpecV13').value,status=document.getElementById('studentStateV69').value,list=students.filter(student=>studentIdentitySearchMatchesV13(student,query)&&(!branch||student.branch===branch)&&(!specialty||student.specialty===specialty)&&studentStatusSearchMatchesV69(student,status));document.getElementById('studentsTableV13').innerHTML=table(['السجل','الطالب','الهاتف','الفرع','الدورة','البداية','النهاية','حالة الدورة'],list.map(studentSearchRow).join(''));document.querySelectorAll('#studentsTableV13 tr[data-id]').forEach(row=>row.onclick=()=>openStudent(row.dataset.id,'profile'));};
+  document.getElementById('studentSearchV13').addEventListener('input',draw);['studentBranchV13','studentSpecV13','studentStateV69'].forEach(id=>document.getElementById(id).addEventListener('change',draw));draw();autocompleteOff(document.getElementById('studentSearchV13')?.closest('.card'));
 }
 
 function periodTable(columns,records,sortState,onSort){

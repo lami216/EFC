@@ -30,7 +30,8 @@ async function boot(native){
       const reads={load_app_state:'main',load_certificate_state:'certificates',load_bank_state:'bank'},writes={save_app_state:'main',save_certificate_state:'certificates',save_bank_state:'bank'};
       if(reads[command])return JSON.stringify(qa.native[reads[command]]);
       if(writes[command]){qa.native[writes[command]]=JSON.parse(payload.state);return null;}
-      if(command==='save_receipt_pdf'){qa.saves.push({...payload});return'C:/isolated-pdf-test/'+payload.fileName;}
+      if(command==='open_receipt_whatsapp'){(qa.whatsapp||=[]).push(payload);return null;}
+      if(command==='save_receipt_pdf'){qa.saves.push({...payload});return qa.cancelSave?null:'C:/isolated-pdf-test/'+payload.fileName;}
       throw Error('Unexpected mocked native command '+command);
     }}};
   },native);
@@ -62,6 +63,48 @@ async function stubRenderer(page){await page.evaluate(()=>{
 });}
 const financialSnapshot=page=>page.evaluate(()=>JSON.stringify({students,certificates:EFC_CERTIFICATE_STATE_V14.snapshot(),expenses:EFC_DOMAIN_V13.getExpenses(),payments:allPayments()}));
 const windowsSafe=name=>{assert(name.endsWith('.pdf'));assert(!/[<>:"/\\|?*\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/.test(name));assert(name.length<=240);};
+async function verifyWhatsAppShare(page){
+  const frame=page.frameLocator('.receipt-viewer-frame-v13');
+  await page.evaluate(()=>receiptWindowV4(pdfModels.aggregate));
+  await frame.locator('.paper12').waitFor();
+  assert.equal(await frame.locator('.whatsapp-share12').count(),0,'aggregate has no WhatsApp action');
+  await page.locator('.receipt-viewer-close-v13').click();
+  await page.evaluate(()=>receiptWindowV4({...pdfModels.registration,phone:'٤٨ ٠٢ ٨٤ ٨٤'}));
+  await frame.locator('.whatsapp-share12').click();
+  const share=page.locator('.receipt-whatsapp-dialog');
+  assert.match(await share.innerText(),/\+22248028484/);
+  assert.equal(await page.evaluate(()=>pdfQA.whatsapp?.length||0),0,'previewing the destination does not open a chat');
+  await share.locator('.receipt-whatsapp-save').click();
+  await share.locator('.receipt-whatsapp-file input').waitFor();
+  assert.match(await share.locator('.receipt-whatsapp-file input').inputValue(),/تسجيل 0042.*\.pdf$/);
+  assert.deepEqual(await page.evaluate(()=>pdfQA.whatsapp),[{phone:'22248028484',isCertificate:false}]);
+  await share.locator('.x').click();
+  await page.locator('.receipt-viewer-close-v13').click();
+
+  await page.evaluate(()=>{pdfQA.cancelSave=true;receiptWindowV4({...pdfModels.payment,phone:'+221 77 123 45 67'});});
+  await frame.locator('.whatsapp-share12').click();
+  assert.match(await share.innerText(),/\+221771234567/);
+  await share.locator('.receipt-whatsapp-save').click();
+  await share.getByText('لم يُحفظ ملف PDF.').waitFor();
+  assert.equal(await page.evaluate(()=>pdfQA.whatsapp.length),1,'cancelling Save As leaves WhatsApp closed');
+  assert.equal(await share.locator('.receipt-whatsapp-file').isVisible(),false);
+  await page.evaluate(()=>{pdfQA.cancelSave=false;});
+  await share.locator('.x').click();
+  await page.locator('.receipt-viewer-close-v13').click();
+
+  await page.evaluate(()=>{
+    const receipt=EFC_CERTIFICATE_STATE_V14.snapshot().certificateReceipts.find(row=>row.id==='external');
+    EFC_OPEN_CERTIFICATE_RECEIPT_V13(receipt);
+  });
+  await frame.locator('.cert-whatsapp-share').click();
+  assert.match(await share.innerText(),/\+22222222222/,'certificate targets its student, not the delivery agent');
+  await share.locator('.receipt-whatsapp-save').click();
+  await share.locator('.receipt-whatsapp-file input').waitFor();
+  assert.match(await share.locator('.receipt-whatsapp-file input').inputValue(),/شهادة-.*\.pdf$/);
+  assert.deepEqual(await page.evaluate(()=>pdfQA.whatsapp.at(-1)),{phone:'22222222222',isCertificate:true});
+  await share.locator('.x').click();
+  await page.locator('.receipt-viewer-close-v13').click();
+}
 try{
   for(const native of [true,false]){
     const {page,context}=await boot(native);await modelsFor(page);await stubRenderer(page);const before=await financialSnapshot(page);
@@ -85,6 +128,7 @@ try{
     assert(!names.find(item=>item.kind==='certificate-external').captured.includes('اسم فرع قديم'));
     assert(names.find(item=>item.kind==='certificate-legacy').captured.includes('غير مسجل'),'a missing historical registration number is explicit rather than fabricated');
     assert(!names.find(item=>item.kind==='certificate-delivery').captured.includes('وكيل الاستلام'),'the delivery PDF names its student rather than the receiving agent');
+    if(native)await verifyWhatsAppShare(page);
     assert.equal(await financialSnapshot(page),before,'saving PDFs leaves source receipts, balances, courses and filters unchanged');
     if(!native){
       await page.evaluate(()=>{window.showSaveFilePicker=async options=>{pdfQA.pickers.push(options.suggestedName);return{createWritable:async()=>({write:async blob=>{pdfQA.writes.push(blob.type);},close:async()=>{}})};};});
