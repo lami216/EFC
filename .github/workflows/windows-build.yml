@@ -47,7 +47,7 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Verify native storage, license and receipt integration
+      - name: Verify native storage and license
         run: cargo test --release --manifest-path src-tauri/Cargo.toml --bin centre-efc -- --nocapture
 
       - name: Install browser regression runtime

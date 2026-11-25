@@ -76,8 +76,6 @@ body{font-family:Tahoma,Arial,sans-serif;margin:0;background:#eef1f0;color:#1117
 .mt12{width:100%;border-collapse:collapse;margin-top:7px;font-size:11px;direction:rtl}.mt12 th,.mt12 td{border:1px solid #ccd2d0;padding:5px;text-align:center}.mt12 th{background:#f2f4f3}.tot12{display:flex;direction:rtl;justify-content:space-between;margin-top:7px;font-size:12px}
 .studentSchedule12{margin-top:9px;background:#fff2a8;border:1.5px solid #222;padding:7px 8px;direction:rtl}.efcScheduleTitle22{margin:0 0 5px!important;text-align:center!important;font-size:12px!important;font-weight:900!important;color:#111!important}.efcScheduleGrid22{width:100%!important;border-collapse:collapse!important;table-layout:fixed!important;direction:rtl!important;background:#fff7bf!important;border:1.4px solid #17352d!important;font-family:Arial,Tahoma,sans-serif!important}.efcScheduleGrid22 th,.efcScheduleGrid22 td{border:1px solid #17352d!important;text-align:center!important;padding:3px 2px!important;height:26px!important;color:#111!important;font-size:8px!important;vertical-align:middle!important}.efcScheduleGrid22 thead th{background:#006a58!important;color:#fff!important;font-weight:900!important}.efcScheduleGrid22 thead th b,.efcScheduleGrid22 thead th small{display:block!important;color:#fff!important;line-height:1.15!important;white-space:nowrap!important}.efcScheduleGrid22 thead th b{font-size:8px!important}.efcScheduleGrid22 thead th small{font-size:6px!important;margin-top:1px!important}.efcScheduleGrid22 thead th:first-child,.efcScheduleGrid22 tbody th{width:92px!important;min-width:92px!important}.efcScheduleGrid22 tbody th{background:#eef2ef!important;color:#111!important;font-weight:900!important;height:auto!important;min-height:26px!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.25!important;padding:4px!important}.efcScheduleTimeRow22 td{background:#fffdf0!important;font-weight:900!important;color:#111!important}.efcScheduleCourseRow22 td{background:#fffdf0!important}.efcScheduleBox22{display:inline-block!important;width:14px!important;height:14px!important;border:1.7px solid #394a44!important;border-radius:3px!important;background:#fff!important;vertical-align:middle!important}.efcScheduleBox22.is-checked{background:#111!important;border-color:#111!important}.efcScheduleDash22{color:#8b9692!important;font-weight:600!important}
 .actions12{width:1040px;max-width:96vw;margin:0 auto 18px;display:flex;direction:rtl;gap:8px;align-items:center}.actions12 button{border:0;border-radius:7px;padding:10px 17px;font:700 13px Tahoma;cursor:pointer}.actionsSpacer12{flex:1 1 auto}.print12{background:#155ea8;color:#fff}.download12{background:#159a55;color:#fff}.edit12{background:#075844;color:#fff;min-width:108px}.edit12:disabled{opacity:.45;cursor:not-allowed}
-.whatsapp-share12{background:#086950;color:#fff}
-@media(max-width:680px){.actions12{flex-wrap:wrap}.actionsSpacer12{display:none}}
 @media print{body{background:#fff}.paper12{width:100%;max-width:none;margin:0;border:1px solid #222}.note12{display:block!important;visibility:visible!important;opacity:1!important;color:#111!important}.actions12{display:none}@page{size:landscape;margin:8mm}}
 `;}
 
@@ -108,7 +106,7 @@ function body(model){
   return`${head(model)}${meta(model)}${row("Nom de l’étudiant",model.student,'اسم الطالب')}${row('Filière',model.specialty,'دورة')}<div class="pair12">${half('Reliquat',moneyV3(model.remaining),'المبلغ المتبقي')}${half('Montant',moneyV3(model.amount),'المبلغ المدفوع')}</div><div class="pair12">${periodHalf(model)}${half('N° Registre',westernDigitsV3(model.reg),'رقم السجل',true)}</div><div class="desc12">${row('Libellé',model.desc||'','البيان')}</div>${debtNote(model)}<div class="methods12">${methodsHtml(model.method)}</div>${scheduleHtml(model)}${commonNote(model)}`;
 }
 function receiptEditable(model){return Boolean(model?.studentId)&&!model?.statement&&model?.editableReceipt!==false;}
-function documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,'\\u003c');const editDisabled=receiptEditable(model)?'':' disabled';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(receiptPdfFileName(model).replace(/\.pdf$/i,''))}</title><style>${css()}</style></head><body><div class="paper12">${body(model)}</div>${actions?`<div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="parent.EFC_SAVE_RECEIPT_PDF(RECEIPT)">حفظ PDF</button>${canShareStudentReceipt(model)?'<button class="whatsapp-share12" type="button" onclick="parent.EFC_SHARE_STUDENT_RECEIPT_WHATSAPP_V69(RECEIPT)">مشاركة على واتساب</button>':''}<span class="actionsSpacer12"></span><button class="edit12" type="button"${editDisabled} onclick="parent.EFC_EDIT_RECEIPT(RECEIPT)">تعديل الروسي</button></div>`:''}<script>const RECEIPT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;}
+function documentHtml(model,actions=true,autoPrint=false){const data=JSON.stringify(model).replace(/</g,'\\u003c');const editDisabled=receiptEditable(model)?'':' disabled';return`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>${esc(receiptPdfFileName(model).replace(/\.pdf$/i,''))}</title><style>${css()}</style></head><body><div class="paper12">${body(model)}</div>${actions?`<div class="actions12"><button class="print12" onclick="print()">طباعة</button><button class="download12" onclick="parent.EFC_SAVE_RECEIPT_PDF(RECEIPT)">حفظ PDF</button><span class="actionsSpacer12"></span><button class="edit12" type="button"${editDisabled} onclick="parent.EFC_EDIT_RECEIPT(RECEIPT)">تعديل الروسي</button></div>`:''}<script>const RECEIPT=${data};${autoPrint?'setTimeout(()=>print(),250);':''}<\/script></body></html>`;}
 
 window.receiptModelV4=function(student,paymentIndex=null,statement=false){
   if(!student)return null;
@@ -122,7 +120,7 @@ window.EFC_EDIT_RECEIPT=model=>{
   const begin=window.EFC_BEGIN_REGISTRATION_EDIT_V17;if(typeof begin!=='function'){alert('واجهة تعديل التسجيل لم تجهز بعد.');return false;}
   return Boolean(begin(cloneReceiptModel(model)));
 };
-const viewerStyle=document.createElement('style');viewerStyle.textContent=`.receipt-whatsapp-dialog [hidden]{display:none!important}.receipt-whatsapp-dialog .receipt-whatsapp-file{display:grid;gap:5px}.receipt-whatsapp-dialog .receipt-whatsapp-status{min-height:1.5em}.receipt-viewer-v13{padding:18px!important}.receipt-viewer-card-v13{width:min(1180px,97vw);height:min(880px,95vh);background:#fff;border-radius:16px;box-shadow:0 26px 90px #0006;overflow:hidden;display:grid;grid-template-rows:52px minmax(0,1fr)}.receipt-viewer-head-v13{display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);background:#fff;direction:rtl}.receipt-viewer-head-v13 b{font-size:12px}.receipt-viewer-close-v13{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted);font-size:20px;cursor:pointer}.receipt-viewer-frame-v13{width:100%;height:100%;border:0;background:#eef1f0}`;document.head.appendChild(viewerStyle);
+const viewerStyle=document.createElement('style');viewerStyle.textContent=`.receipt-viewer-v13{padding:18px!important}.receipt-viewer-card-v13{width:min(1180px,97vw);height:min(880px,95vh);background:#fff;border-radius:16px;box-shadow:0 26px 90px #0006;overflow:hidden;display:grid;grid-template-rows:52px minmax(0,1fr)}.receipt-viewer-head-v13{display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--border);background:#fff;direction:rtl}.receipt-viewer-head-v13 b{font-size:12px}.receipt-viewer-close-v13{width:34px;height:34px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--muted);font-size:20px;cursor:pointer}.receipt-viewer-frame-v13{width:100%;height:100%;border:0;background:#eef1f0}`;document.head.appendChild(viewerStyle);
 window.receiptWindowV4=function(model,autoPrint=false){
   if(!model)return null;
   const modal=document.createElement('div');modal.className='modal receipt-viewer-v13';
@@ -152,75 +150,7 @@ function receiptPdfFileName(model){
   return personPdfFileName({documentType:model.statement?'كشف حساب':'روسي',studentName:model.student,branchName:model.branch,registrationNumber:model.reg,receiptNumber:model.receipt});
 }
 window.EFC_PERSON_PDF_FILE_NAME_V68=personPdfFileName;
-function whatsappPhone(value){
-  const formatted=westernDigitsV3(String(value??'')).trim().replace(/[\s().-]/g,'');
-  if(/^\d{8}$/.test(formatted))return formatted.startsWith('0')?'':`222${formatted}`;
-  if(/^222[1-9]\d{7}$/.test(formatted))return formatted;
-  if(!/^(?:\+|00)[1-9]\d{6,14}$/.test(formatted))return '';
-  const digits=formatted.replace(/^(?:\+|00)/,'');
-  return digits.startsWith('222')&&!/^222[1-9]\d{7}$/.test(digits)?'':digits;
-}
-
-function canShareStudentReceipt(model){
-  if(!model?.studentId||model.statement)return false;
-  return model.receiptSource==='payment'||(model.receiptSource==='payment-clone'&&model.sourceEquivalent===true);
-}
-
-function shareReceiptWhatsApp({phone,studentName,isCertificate=false,save}){
-  const number=whatsappPhone(phone);
-  if(!number){alert('أدخل رقمًا صالحًا للطالب في ملفه، أو رقمًا دوليًا يبدأ بمفتاح البلد.');return;}
-  if(document.querySelector('.receipt-whatsapp-dialog'))return;
-
-  const invoke=window.__TAURI__?.core?.invoke;
-  const chat=new URL(`https://wa.me/${number}`);
-  chat.searchParams.set('text',isCertificate?'السلام عليكم، نرفق لكم روسي الشهادة من مركز EFC.':'السلام عليكم، نرفق لكم الروسي من مركز EFC.');
-  const modal=document.createElement('div');
-  modal.className='modal receipt-whatsapp-dialog';
-  modal.innerHTML=`<div class="modal-card narrow" role="dialog" aria-modal="true" aria-label="مشاركة على واتساب" dir="rtl">
-    <div class="modal-head"><div><h2>مشاركة على واتساب</h2><p>${esc(studentName||'الطالب')} · <b dir="ltr">+${number}</b></p></div><button class="x" type="button" aria-label="إغلاق">×</button></div>
-    <p>احفظ الروسي، ثم أرفق ملف PDF في المحادثة كما ترفق أي مستند.</p>
-    <label class="receipt-whatsapp-file" hidden>ملف PDF<input class="input" type="text" readonly dir="auto"></label>
-    <p class="receipt-whatsapp-status" role="status"></p>
-    <div class="modal-actions"><button class="button receipt-whatsapp-save" type="button">حفظ PDF وفتح واتساب</button><button class="button receipt-whatsapp-open" type="button" hidden>فتح محادثة واتساب</button></div>
-  </div>`;
-  document.body.appendChild(modal);
-  const saveButton=modal.querySelector('.receipt-whatsapp-save');
-  const openButton=modal.querySelector('.receipt-whatsapp-open');
-  const file=modal.querySelector('.receipt-whatsapp-file');
-  const status=modal.querySelector('.receipt-whatsapp-status');
-  modal.querySelector('.x').onclick=()=>modal.remove();
-
-  async function openChat(){
-    try{
-      if(invoke)await invoke('open_receipt_whatsapp',{phone:number,isCertificate});
-      else window.open(chat.href,'_blank','noopener,noreferrer');
-    }catch(error){status.textContent=String(error?.message||error||'تعذر فتح واتساب.');}
-  }
-  openButton.onclick=openChat;
-  saveButton.onclick=async()=>{
-    saveButton.disabled=true;
-    status.textContent='جاري تجهيز الروسي…';
-    try{
-      const saved=await save();
-      if(!modal.isConnected)return;
-      if(!saved){status.textContent='لم يُحفظ ملف PDF.';return;}
-      file.querySelector('input').value=saved;
-      file.hidden=false;
-      status.textContent='أرفق الملف الظاهر أعلاه، ثم راجع المحادثة واضغط إرسال.';
-      saveButton.hidden=true;
-      openButton.hidden=false;
-      await openChat();
-    }catch(error){status.textContent=String(error?.message||error||'تعذر تجهيز الروسي.');}
-    finally{saveButton.disabled=false;}
-  };
-  saveButton.focus();
-}
-
-window.EFC_SHARE_RECEIPT_WHATSAPP_V69=shareReceiptWhatsApp;
-window.EFC_SHARE_STUDENT_RECEIPT_WHATSAPP_V69=model=>{
-  if(canShareStudentReceipt(model))shareReceiptWhatsApp({phone:model.phone,studentName:model.student,save:()=>savePdf(model,{quiet:true})});
-};
-async function savePdf(model,{quiet=false}={}){let stage;try{await Promise.all([loadLocal('./vendor/html2canvas.min.js','html2canvas'),loadLocal('./vendor/jspdf.umd.min.js','jspdf')]);stage=document.createElement('div');stage.style.cssText='position:fixed;left:-16000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${css()}</style><div class="paper12">${body(model)}</div>`;document.body.appendChild(stage);const paper=stage.querySelector('.paper12');await waitImages(paper);const canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight(),ratio=Math.min(pageWidth/canvas.width,pageHeight/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pageWidth-width)/2,(pageHeight-height)/2,width,height);const fileName=receiptPdfFileName(model),invoke=window.__TAURI__?.core?.invoke;if(!invoke){if(typeof window.showSaveFilePicker==='function'){const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'PDF',accept:{'application/pdf':['.pdf']}}]});const writable=await handle.createWritable();await writable.write(pdf.output('blob'));await writable.close();return fileName;}pdf.save(fileName);return fileName;}const savedPath=await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(pdf.output('arraybuffer'))});if(!savedPath)return null;if(!quiet)alert(`تم حفظ ملف الروسي:\n${savedPath}`);return savedPath;}catch(error){if(error?.name==='AbortError')return null;console.error('EFC receipt PDF failed.',error);alert(String(error?.message||error||'تعذر حفظ PDF.'));return null;}finally{stage?.remove();}}
+async function savePdf(model){let stage;try{await Promise.all([loadLocal('./vendor/html2canvas.min.js','html2canvas'),loadLocal('./vendor/jspdf.umd.min.js','jspdf')]);stage=document.createElement('div');stage.style.cssText='position:fixed;left:-16000px;top:0;width:1040px;background:#fff;z-index:-9999';stage.innerHTML=`<style>${css()}</style><div class="paper12">${body(model)}</div>`;document.body.appendChild(stage);const paper=stage.querySelector('.paper12');await waitImages(paper);const canvas=await window.html2canvas(paper,{scale:2,backgroundColor:'#fff',useCORS:false,allowTaint:false,logging:false}),{jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),pageWidth=pdf.internal.pageSize.getWidth(),pageHeight=pdf.internal.pageSize.getHeight(),ratio=Math.min(pageWidth/canvas.width,pageHeight/canvas.height),width=canvas.width*ratio,height=canvas.height*ratio;pdf.addImage(canvas.toDataURL('image/jpeg',.96),'JPEG',(pageWidth-width)/2,(pageHeight-height)/2,width,height);const fileName=receiptPdfFileName(model),invoke=window.__TAURI__?.core?.invoke;if(!invoke){if(typeof window.showSaveFilePicker==='function'){const handle=await window.showSaveFilePicker({suggestedName:fileName,types:[{description:'PDF',accept:{'application/pdf':['.pdf']}}]});const writable=await handle.createWritable();await writable.write(pdf.output('blob'));await writable.close();return fileName;}pdf.save(fileName);return fileName;}const savedPath=await invoke('save_receipt_pdf',{fileName,dataBase64:arrayBufferToBase64(pdf.output('arraybuffer'))});if(!savedPath)return null;alert(`تم حفظ ملف الروسي:\n${savedPath}`);return savedPath;}catch(error){if(error?.name==='AbortError')return null;console.error('EFC receipt PDF failed.',error);alert(String(error?.message||error||'تعذر حفظ PDF.'));return null;}finally{stage?.remove();}}
 window.EFC_SAVE_RECEIPT_PDF=savePdf;
 window.downloadReceiptPdfV12=savePdf;
 window.downloadReceiptPdfV4=savePdf;

@@ -9,7 +9,7 @@ mod storage;
 use bank_state::{load_bank_state, save_bank_state};
 use certificate_state::{load_certificate_state, save_certificate_state};
 use license::{get_license_device_id, get_license_status, install_license_file};
-use receipt_pdf::{open_receipt_whatsapp, save_receipt_pdf};
+use receipt_pdf::save_receipt_pdf;
 use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
@@ -117,7 +117,6 @@ fn main() {
             load_bank_state,
             save_bank_state,
             save_receipt_pdf,
-            open_receipt_whatsapp,
             exit_app
         ])
         .build(tauri::generate_context!())
