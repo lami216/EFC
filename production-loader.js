@@ -95,6 +95,10 @@ function registrationCodeAfterMerge(current,incoming){
 }
 function normalizeStudent(item,sourceId){
   const student={...(item||{})},originalId=String(student.id||legacyStudentId(student,sourceId));
+  if(Object.prototype.hasOwnProperty.call(student,'billingLifecycleV71')){
+    const billing=student.billingLifecycleV71;
+    if(!billing||typeof billing!=='object'||Array.isArray(billing)||billing.version!==1||!Number.isSafeInteger(billing.revision)||billing.revision<=0||billing.revision!==student.lifecycleStateUpdatedAt||!Array.isArray(billing.pauses)||!Array.isArray(billing.waivers))throw new Error('سجل الإيقاف وتسويات الدين غير صالح؛ لم تتم الاستعادة.');
+  }
   student.id=originalId;student.sourceCenterId=String(student.sourceCenterId||sourceId);
   student.recordCode=String(student.recordCode||(originalId.startsWith('legacy-student-')?'legacy-reg-'+encodeURIComponent(originalId):`reg-${stableHash([student.sourceCenterId,originalId,student.branch||'',student.specialty||'',student.reg||'',student.start||''].join('|'))}`));
   student.updatedAt=Math.max(0,Number(student.updatedAt||0));
@@ -109,12 +113,25 @@ function normalizeStudents(items,sourceId){
 function normalizeState(state,fallbackInstallationId=null,imported=false){const raw=state&&typeof state==='object'?state:{};let installationId=typeof raw.installationId==='string'&&raw.installationId.trim()?raw.installationId.trim():null;if(!installationId)installationId=imported?legacySourceId(raw):(fallbackInstallationId||legacySourceId(raw));const rawSpecialties=Array.isArray(raw.specialties)?raw.specialties:[],rawStudents=Array.isArray(raw.students)?raw.students:[],hasExistingCodes=[...rawSpecialties,...rawStudents].some(item=>(typeof item?.recordCode==='string'&&item.recordCode.trim())||(typeof item?.sourceCenterId==='string'&&item.sourceCenterId.trim())),dataSourceId=hasExistingCodes||(!rawSpecialties.length&&!rawStudents.length)?installationId:legacySourceId(raw),specialties=rawSpecialties.map(item=>normalizeSpecialty(item,item?.sourceCenterId||dataSourceId)),students=normalizeStudents(rawStudents,dataSourceId),paymentMethods=(Array.isArray(raw.paymentMethods)&&raw.paymentMethods.length?raw.paymentMethods:DEFAULT_METHODS).map(String).map(value=>value.trim()).filter(Boolean),sourceCenters=new Set(Array.isArray(raw.sourceCenters)?raw.sourceCenters.map(String).filter(Boolean):[]);sourceCenters.add(installationId);specialties.forEach(item=>sourceCenters.add(String(item.sourceCenterId||installationId)));students.forEach(item=>sourceCenters.add(String(item.sourceCenterId||installationId)));return{version:3,updatedAt:Math.max(0,Number(raw.updatedAt||0)),installationId,sourceCenters:[...sourceCenters],students,specialties,paymentMethods:[...new Set(paymentMethods)]};}
 function stateFromLocalStorage(){const meta=readMeta(),installationId=typeof meta.installationId==='string'&&meta.installationId.trim()?meta.installationId.trim():ensureLocalInstallationId();return normalizeState({version:3,updatedAt:Math.max(0,Number(meta.updatedAt||0)),installationId,sourceCenters:Array.isArray(meta.sourceCenters)?meta.sourceCenters:[],students:parseArray(localStorage.getItem(KEYS.students)),specialties:parseArray(localStorage.getItem(KEYS.specialties)),paymentMethods:parseArray(localStorage.getItem(KEYS.methods),DEFAULT_METHODS)},installationId);}
 function mergePayments(currentPayments,incomingPayments,studentRecordCode){const merged=[],byCode=new Map();const add=(payment,index)=>{const normalized=ensurePaymentCode(payment,studentRecordCode,index),code=normalized[6],position=byCode.get(code);if(position===undefined){byCode.set(code,merged.length);merged.push(normalized);return;}if(paymentRevision(normalized)>paymentRevision(merged[position]))merged[position]=normalized;};(currentPayments||[]).forEach(add);(incomingPayments||[]).forEach((payment,index)=>add(payment,(currentPayments||[]).length+index));return merged;}
-const STUDENT_LIFECYCLE_FIELDS=['active','status','stoppedAt','stopReason','frozenMonths','stopEndBasis','scheduledEndBeforeStop','lifecycleStateUpdatedAt','stopCorrectionHistory'];
+const STUDENT_LIFECYCLE_FIELDS=['active','status','stoppedAt','stopReason','frozenMonths','stopEndBasis','scheduledEndBeforeStop','lifecycleStateUpdatedAt','stopCorrectionHistory','billingLifecycleV71'];
+const STUDENT_BILLING_TERMS_V71=['start','end','branch','specialty','reg','snapshot','required'];
 function studentLifecycleForMerge(local,incoming){
   const stopped=student=>student.active===false||student.status==='inactive';
   const revision=student=>Number.isSafeInteger(student.lifecycleStateUpdatedAt)&&student.lifecycleStateUpdatedAt>0?student.lifecycleStateUpdatedAt:0;
   const localRevision=revision(local),incomingRevision=revision(incoming);
   const localStopped=stopped(local),incomingStopped=stopped(incoming);
+  const localBilling=local.billingLifecycleV71,incomingBilling=incoming.billingLifecycleV71;
+  if(localBilling||incomingBilling){
+    // An older client does not know the pause/waiver bundle. Neither a contact
+    // edit nor its generic lifecycle timestamp can silently erase that history.
+    const from=!localBilling?incoming:!incomingBilling?local:incomingBilling.revision>localBilling.revision?incoming:local;
+    // Pause ordinals and waived obligations are defined against these original
+    // terms. A pre-upgrade profile copy must not move that financial schedule.
+    const fields=[...STUDENT_LIFECYCLE_FIELDS,...STUDENT_BILLING_TERMS_V71],snapshot={};
+    if(localBilling&&incomingBilling&&localBilling.revision===incomingBilling.revision&&fields.some(field=>JSON.stringify(local[field]??null)!==JSON.stringify(incoming[field]??null)))reportRestoreConflict('student-lifecycle',local.recordCode||local.id,'سجلان مختلفان للإيقاف أو تسوية الدين بالمراجعة نفسها؛ احتُفظ بالمحلي للمراجعة.',local,incoming);
+    for(const field of fields)if(Object.prototype.hasOwnProperty.call(from,field))snapshot[field]=safeClone(from[field]);
+    return{fields,snapshot};
+  }
   if(localRevision===incomingRevision&&localStopped===incomingStopped&&!localStopped)return null;
 
   // Legacy edits to profile/payment records cannot undo an existing stop.

@@ -73,7 +73,7 @@ window.openStudent=function(id,mode='finance'){
   const modal=[...document.querySelectorAll('.modal')].at(-1);if(!modal)return;const plan=installmentPlan(student),rows=[...modal.querySelectorAll('.monthly-table-mm tbody tr')];
   const unallocated=D.dynamicAllocation(student).unallocated.reduce((sum,item)=>sum+Number(item.amount||0),0);
   if(unallocated>0)modal.querySelector('.monthly-table-mm')?.insertAdjacentHTML('beforebegin',`<div class="prepay-note-v14 monthly-unallocated-v63" role="status"><b>رصيد مدفوع غير موزع: ${esc(cash(unallocated))}</b><br>المبلغ محفوظ في سجل الدفعات، ويحتاج مراجعة لأنه يتجاوز الأشهر المدعومة أو الأشهر المثبتة عند إيقاف الطالب.</div>`);
-  rows.forEach((row,index)=>{const month=plan[index];if(!month)return;const status=row.children?.[5];if(status&&month.prepaid)status.innerHTML=month.remaining>0?'<span class="badge warn">دفع جزئي مقدمًا</span>':'<span class="badge good">مدفوع مقدمًا</span>';});
+  rows.forEach((row,index)=>{const month=plan[index];if(!month)return;const status=row.cells[row.cells.length-2];if(status&&month.prepaid&&!month.waived)status.innerHTML=month.remaining>0?'<span class="badge warn">دفع جزئي مقدمًا</span>':'<span class="badge good">مدفوع مقدمًا</span>';});
   modal.querySelectorAll('.payment-receipt-v13').forEach(button=>{const index=Number(button.dataset.index),row=button.closest('tr'),statement=row?.children?.[3];if(statement)statement.textContent=allocationSummary(student,index);});
   // The base student renderer owns month receipts and their source-equivalence
   // guard. Keep its handlers for derived summaries and exact source clones.

@@ -123,7 +123,9 @@ function monthlyCoverageMonth(student){
 function monthlyCoverageEnd(student){
   if(!student||!isMonthlyStudent(student)||!student.start)return'';
   if(B.isInactive?.(student)&&student.end)return String(student.end);
-  const month=Math.max(1,Number(monthlyCoverageMonth(student)||1));return B.addDays(addDuration(String(student.start),month,'month'),-1);
+  const month=Math.max(1,Number(monthlyCoverageMonth(student)||1));
+  if(student.billingLifecycleV71&&B.isDynamicMonthly?.(student))return B.billingCycleEndV71(student,month);
+  return B.addDays(addDuration(String(student.start),month,'month'),-1);
 }
 
 function isTombstoned(student){
@@ -144,6 +146,7 @@ function protectedFinancialTermsChanged(student,changes,scopeChanged){
 }
 async function deleteStudentPermanently(student){
   if(!student)throw new Error('الطالب غير موجود.');const existing=students.find(item=>String(item?.id||'')===String(student.id||''));if(!existing)throw new Error('ملف الطالب غير موجود.');
+  B.assertStudentLifecycleWriteIdleV71?.(existing);
   const lockedDate=closedStudentDate(existing);if(lockedDate)throw new Error(`لا يمكن حذف هذا الطالب لأن ملفه يحتوي حركة داخل سنة مالية مقفلة (${B.showDate(lockedDate)}).`);
   window.EFC_CODES?.ensureStudentRecord?.(existing);const reusableRegistration=registrationNumberWillBeReusable(existing),paymentCount=Array.isArray(existing.payments)?existing.payments.length:0,paidAmount=B.paymentTotal?.(existing)||0,stamp=now(),key=scopeKey(existing.branch,existing.specialty),scopeBefore=clone(state.scopes[key]||ensureScope(existing.branch,existing.specialty));
   if(reusableRegistration)markRegistrationReleased(existing.branch,existing.specialty,existing.reg);
@@ -161,6 +164,7 @@ async function deleteStudentPermanently(student){
 const baseUpdate=B.updateStudentRegistration;
 function updateStudentRegistration(student,changes={}){
   if(!student)throw new Error('الطالب غير موجود.');
+  B.assertStudentLifecycleWriteIdleV71?.(student);
   const targetBranch=String(changes.branch??student.branch??''),targetSpecialty=String(changes.specialty??student.specialty??''),scopeChanged=targetBranch!==String(student.branch||'')||targetSpecialty!==String(student.specialty||''),lockedDate=closedStudentDate(student);
   if(lockedDate&&protectedFinancialTermsChanged(student,changes,scopeChanged))throw new Error(`لا يمكن تغيير المركز أو الدورة أو تاريخ البداية أو السعر لأن ملف الطالب يحتوي حركة داخل سنة مالية مقفلة (${B.showDate(lockedDate)}). يمكن تعديل الاسم والهاتف فقط.`);
   if(!scopeChanged)return baseUpdate(student,changes);

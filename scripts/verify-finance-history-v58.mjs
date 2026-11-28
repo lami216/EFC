@@ -6,7 +6,8 @@ const source=readFileSync('assets/production-finance-ui-v13.js','utf8');
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const context={console,URL,Date,Set,Map,Intl,renderFinance:null,renderLedger:null,renderPaymentMethods:null,location:{href:'http://localhost/'},document:{createElement:()=>({}),head:{appendChild(){}}}};
 context.window=context;
-context.EFC_DOMAIN_V13={ready:true,esc,today:()=> '2026-11-15',cash:String,showDate:String,getExpenses:()=>[],getMethodRecords:()=>[],remainingAmount:s=>Math.max(0,Number(s.required||0)-(s.payments||[]).reduce((sum,p)=>sum+Number(p[1]||0),0))};
+const remainingBeforeWaiver=s=>Math.max(0,Number(s.required||0)-(s.payments||[]).reduce((sum,p)=>sum+Number(p[1]||0),0));
+context.EFC_DOMAIN_V13={ready:true,esc,today:()=> '2026-11-15',cash:String,showDate:String,getExpenses:()=>[],getMethodRecords:()=>[],remainingAmount:s=>Math.max(0,remainingBeforeWaiver(s)-Number(s.waived||0)),remainingAmountBeforeWaiver:remainingBeforeWaiver};
 vm.createContext(context);
 // Exercise the actual runtime helpers without adding test-only production exports.
 vm.runInContext(source.replace('window.EFC_FINANCE_UI_V13=Object.freeze(',`window.financeTest={studentRegistrationDate,registrationIsSettled,incomeRegistrationPartition,incomePartitionCards,historyReportModel,historyReportAllowed,expenseReceiptHeader,monthBounds,yearBounds};window.EFC_FINANCE_UI_V13=Object.freeze(`),context);
@@ -66,6 +67,10 @@ const partial=student('partial','2026-10-01',{required:200,payments:[['2026-10-0
 const scoped={from:'2026-11-01',to:'2026-11-15'},paymentRows=[row(old,80),row({...old},20),row(partial,50),row(future,20)];
 assert.equal(partition(paymentRows,[],scoped).earlierCount,1,'only distinct fully settled earlier students count; partial and future settlement do not');
 assert.equal(partition(paymentRows,[],scoped).earlierIncome,170,'partial amounts still remain in canonical income');
+const waived={...partial,waived:140};
+assert.equal(context.EFC_DOMAIN_V13.remainingAmount(waived),0);
+assert.equal(partition([row(waived,50)],[],scoped).earlierCount,0,'a debt exemption is not a full cash settlement');
+assert.equal(partition([row(waived,50)],[],scoped).earlierIncome,50,'the actual collection remains income');
 assert.equal(partition([row(old,0),row(old,-5)],[],scoped).earlierCount,0,'zero or negative rows cannot make a paying student');
 assert.equal(partition(paymentRows,[],{...scoped,to:'2026-11-16'}).earlierCount,2,'a later settlement becomes eligible only when the selected period reaches it');
 const originalFuture=JSON.stringify(future);api.registrationIsSettled(future,'2026-11-15');assert.equal(JSON.stringify(future),originalFuture,'settlement lookup is read-only');

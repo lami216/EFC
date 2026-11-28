@@ -106,10 +106,13 @@ assert.equal(saved.archives.length,1);
 assert.equal(saved.archives[0].totals.courseIncome,1000);
 assert.equal(saved.pendingClose,null);
 
-// A dated stop may leave prepaid money outside the frozen obligations. Exercise
-// the real archive cleanup and restore tombstones with the allocator's credit.
+// Stopped and resumable registrations retain every actual receipt, including
+// settled records from before the upgrade and completed pause histories.
 const datedStop=(id,paid)=>({id,recordCode:`reg-${id}`,active:false,status:'inactive',stopEndBasis:'effective-date',start:'2026-10-01',end:'2026-10-15',stoppedAt:'2026-10-15',branch:'main',specialty:'sp1',required:500,paid,payments:[['2026-10-01',paid,'نقداً']]});
 const credited=datedStop('dated-credit',1000),settled=datedStop('dated-settled',500);
+const legacyStopped={...datedStop('legacy-zero',0),required:0,payments:[]};delete legacyStopped.stopEndBasis;
+const resumed={...datedStop('resumed',500),active:true,status:'active',lifecycleStateUpdatedAt:50,billingLifecycleV71:{version:1,revision:50,pauses:[{id:'pause-resumed',stoppedAt:'2026-10-15',afterMonthNumber:1,coveredThrough:'2026-10-31',resumedAt:'2026-11-01',nextCycleStart:'2026-11-01'}],waivers:[]}};delete resumed.stoppedAt;delete resumed.stopEndBasis;
+const waived={...datedStop('waived',200),required:200,lifecycleStateUpdatedAt:60,billingLifecycleV71:{version:1,revision:60,pauses:[],waivers:[{id:'waiver-one',at:60,date:'2026-10-15',reason:'وقف وتصفير',parts:[{monthNumber:1,amount:300}]}]}};
 Object.assign(context.EFC_DOMAIN_V13,{
   isInactive:student=>student.active===false||student.status==='inactive',
   isDynamicMonthly:student=>student.stopEndBasis==='effective-date',
@@ -118,14 +121,52 @@ Object.assign(context.EFC_DOMAIN_V13,{
     return {unallocated:student.id===credited.id?[{paymentIndex:0,amount:500}]:[]};
   }
 });
-students.push(credited,settled);currentDate='2027-09-15';plan=F.nextPlan();
+const retained=[credited,settled,legacyStopped,resumed,waived],receiptsBefore=retained.map(student=>JSON.stringify(student.payments));
+students.push(...retained);currentDate='2027-09-15';plan=F.nextPlan();
 assert.equal(F.eligibleStudent(credited,plan),false,'zero debt does not make unapplied prepaid credit eligible for cleanup');
-assert.equal(F.eligibleStudent(settled,plan),true,'a settled dated-stop record without credit stays eligible');
+for(const student of retained)assert.equal(F.eligibleStudent(student,plan),false,'stopped or resumable history must never become automatic fiscal cleanup');
 const second=await F.closeCurrentYear();
 assert.equal(second.cleanup.studentRecordCodes.includes(credited.recordCode),false);
-assert.equal(second.cleanup.studentRecordCodes.includes(settled.recordCode),true);
+assert.equal(second.cleanup.studentRecordCodes.includes(settled.recordCode),false);
 assert.deepEqual(students.find(student=>student.id===credited.id)?.payments,[['2026-10-01',1000,'نقداً']],'archive preserves the original receipt with outstanding credit');
-assert.equal(students.some(student=>student.id===settled.id),false);
-await context.window.EFC_APPLY_RESTORED_STATE({students:[credited,settled],specialties:[],paymentMethods:[],fiscalState:F.getState()});
-assert.deepEqual(appliedIncoming.students.map(student=>student.id),[credited.id],'archive tombstones preserve credit and filter the settled record');
-console.log('Fiscal v14 verification passed: owner anchor/end, annual recurrence, aggregate archive, cross-year/debtor/prepaid-credit retention, detail cleanup, tombstone restore protection, closed-period lock.');
+assert.equal(second.totals.courseIncome,2500,'archive aggregates include only genuine receipt amounts, not waived debt');
+retained.forEach((student,index)=>assert.equal(JSON.stringify(students.find(item=>item.id===student.id)?.payments),receiptsBefore[index]));
+assert.equal(F.previewArchive().totals.courseIncome,0,'retained historic receipts are not recounted in the next fiscal period');
+await context.window.EFC_APPLY_RESTORED_STATE({students:retained,specialties:[],paymentMethods:[],fiscalState:F.getState()});
+assert.deepEqual(appliedIncoming.students.map(student=>student.id),retained.map(student=>student.id));
+
+async function pendingHarness(initial,records){
+  const local=new Map([['efc-fiscal-state-v14',JSON.stringify(initial)]]),live=structuredClone(records),stateContributors=new Map();let restored;
+  const h={...context,students:live,localStorage:{getItem:key=>local.get(key)??null,setItem:(key,value)=>local.set(key,String(value)),removeItem:key=>local.delete(key)},allPayments:()=>live.flatMap(student=>(student.payments||[]).map(payment=>({student,date:payment[0],amount:payment[1],method:payment[2],sourceType:'student'})))};
+  h.window=h;h.EFC_DOMAIN_V13={...context.EFC_DOMAIN_V13,today:()=> '2026-01-01',getExpenses:()=>[],saveExpenses(){},saveStudents(){}};
+  h.EFC_CERTIFICATE_STATE_V14={snapshot:()=>({certificateReceipts:[]}),purgeReceiptsByIdentity:async()=>({deleted:0})};
+  h.EFC_REGISTER_STATE_CONTRIBUTOR=(name,fn)=>stateContributors.set(name,fn);
+  h.EFC_FORCE_PERSIST=async()=>{let snapshot={students:structuredClone(live)};for(const fn of stateContributors.values())snapshot=await fn(snapshot)||snapshot;return snapshot;};
+  h.EFC_APPLY_RESTORED_STATE=async incoming=>{restored=structuredClone(incoming);return incoming;};
+  delete h.EFC_FISCAL_V14;vm.createContext(h);vm.runInContext(source,h);await new Promise(resolve=>setTimeout(resolve,0));
+  return{h,live,F:h.EFC_FISCAL_V14,restored:()=>restored};
+}
+const oldStopped={id:'pending-stopped',recordCode:'pending-stopped-r',active:false,status:'inactive',start:'2025-10-01',end:'2025-10-31',stoppedAt:'2025-10-31',required:100,payments:[['2025-10-01',100,'cash']]};
+const oldResumed={id:'pending-resumed',recordCode:'pending-resumed-r',active:true,status:'active',start:'2025-10-01',end:'2025-11-30',required:200,payments:[['2025-10-01',200,'cash']],lifecycleStateUpdatedAt:70,billingLifecycleV71:{version:1,revision:70,pauses:[{id:'pending-pause',stoppedAt:'2025-10-31',afterMonthNumber:1,coveredThrough:'2025-10-31',resumedAt:'2025-11-01',nextCycleStart:'2025-11-01'}],waivers:[]}};
+const ordinary={id:'pending-ordinary',recordCode:'pending-ordinary-r',active:true,status:'active',start:'2025-01-01',end:'2025-10-31',required:300,payments:[['2025-05-01',300,'cash']]};
+const ids=[oldStopped,oldResumed,ordinary,{id:'already-removed',recordCode:'already-removed-r'}];
+const frozenArchive={id:'fiscal-2026-01-01',number:1,first:true,periodStart:null,declaredStart:'2025-01-01',periodEnd:'2025-12-31',boundary:'2026-01-01',totals:{courseIncome:777,certificateIncome:0,totalIncome:777,expenses:0,net:777},byMonth:[{label:'2025-10',courseIncome:777}]};
+const interrupted={version:14,config:{anchorDate:'2025-01-01'},archives:[],pendingClose:{archive:frozenArchive,cleanupPlan:{studentIds:ids.map(item=>item.id),studentRecordCodes:ids.map(item=>item.recordCode)},startedAt:1,backupPath:'isolated-safety-backup.json'},updatedAt:1};
+const pending=await pendingHarness(interrupted,[oldStopped,oldResumed,ordinary]);
+await pending.h.EFC_APPLY_RESTORED_STATE({students:[oldStopped,oldResumed,ordinary],fiscalState:interrupted});
+assert.equal(pending.live.length,3,'pending candidates cannot silently purge student records during restore');assert.equal(pending.restored().students.length,3);
+const finalized=await pending.F.finalizePending();
+assert.deepEqual(pending.live.map(student=>student.id),[oldStopped.id,oldResumed.id]);
+assert.deepEqual(JSON.parse(JSON.stringify(finalized.totals)),frozenArchive.totals,'resuming old pending cleanup never rebuilds the frozen aggregate');
+assert.deepEqual(JSON.parse(JSON.stringify(finalized.byMonth)),frozenArchive.byMonth);
+assert.deepEqual(Array.from(finalized.cleanup.studentIds),[ordinary.id,'already-removed'],'retained live records are not future tombstones; absent partial-cleanup identities stay protected');
+assert.equal(pending.F.isDateClosed('2025-12-31'),true);
+await pending.h.EFC_APPLY_RESTORED_STATE({students:[oldStopped,oldResumed,ordinary,{id:'already-removed'}],fiscalState:pending.F.getState()});
+assert.deepEqual(pending.restored().students.map(student=>student.id),[oldStopped.id,oldResumed.id]);
+assert.deepEqual(pending.live.map(student=>JSON.stringify(student.payments)),[JSON.stringify(oldStopped.payments),JSON.stringify(oldResumed.payments)]);
+const oldArchiveState=pending.F.getState();oldArchiveState.archives[0].cleanup.studentIds.push(oldStopped.id,oldResumed.id);oldArchiveState.archives[0].cleanup.studentRecordCodes.push(oldStopped.recordCode,oldResumed.recordCode);
+const preserved=pending.F.filterImportedState({students:[oldStopped,{...oldResumed,billingLifecycleV71:undefined}]},oldArchiveState);
+assert.equal(preserved.students.length,2,'old archive candidates cannot erase stopped incoming records or a live resumable registration');
+const unrelated={id:oldStopped.id,recordCode:'different-source-registration',active:true,start:'2025-01-01',end:'2025-12-31'};
+assert.equal(pending.F.filterImportedState({students:[unrelated]},oldArchiveState).students.length,0,'a matching legacy id cannot borrow lifecycle protection from a different original registration code');
+console.log('Fiscal v14 verification passed: immutable aggregates, no historic double count, stopped/resumable receipt retention, interrupted cleanup, actual tombstones and closed-period locks.');

@@ -93,7 +93,7 @@ for(const [token,label] of [
   ['<small>الدين</small>','finance debt KPI label'],
   ['remainingAmount,installmentPlan,expenseSpecialtyName','finance imports the balance helpers used by finance views'],
   ['debtStudents.reduce((sum,student)=>sum+Math.max(0,Number(remainingAmount(student)||0)),0)','debt KPI sums every current unpaid student balance'],
-  ['إجمالي المبالغ غير المدفوعة حاليًا','debt KPI clearly describes the current unpaid balance'],
+  ['إجمالي المبالغ المستحقة حاليًا','debt KPI clearly describes the current amount due'],
   ['function financeOldestAvailableDate()','finance can resolve the oldest available record for blank week starts'],
   ['function studentRegistrationDate(student)','registration date resolver'],
   ['registered=students.filter','period registration filter'],

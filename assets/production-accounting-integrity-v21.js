@@ -303,6 +303,7 @@ function installStudentModalTagging(){
 }
 async function deleteStudentWithFinance(student,modal){
   const domain=D();if(!student||!domain)return false;if(!(window.EFC_AUTH_V13?.canEdit?.('students')??true))return alert('الحساب الحالي لا يملك صلاحية حذف الطلاب.'),false;
+  domain.assertStudentLifecycleWriteIdleV71?.(student);
   const payments=Array.isArray(student.payments)?student.payments:[],paymentCount=payments.length,paidAmount=domain.paymentTotal?.(student)||payments.reduce((sum,p)=>sum+Number(p?.[1]||0),0),closedCount=payments.filter(payment=>fiscal()?.isDateClosed?.(text(payment?.[0]))).length,reg=String(student.reg??'').padStart(4,'0'),reusable=domain.registrationNumberWillBeReusable?.(student)===true;
   const numberMessage=reusable?`رقم السجل ${reg} هو آخر رقم ويمكن أن يأخذه التسجيل القادم ما دام لم يصدر رقم بعده.`:`رقم السجل ${reg} سيبقى محجوزًا ولن تتأثر الأرقام التي صدرت بعده.`;
   const archiveMessage=closedCount?`\nللطالب ${closedCount} حركة داخل سنة مالية مقفلة؛ أرقام تلك السنة لن تتغير لأنها محفوظة في الأرشيف المالي فقط.`:'';
@@ -357,6 +358,7 @@ async function deleteStudentPaymentSource(model){
   const source=studentReceiptDeleteSource(model);if(!source)return alert('تعذر مطابقة الروسي مع العملية الأصلية الحالية. ربما حُذفت أو تغيرت؛ افتح الروسي من السجل من جديد.'),false;
   const {student,index,payment,registration}=source;
   if(registration)return deleteStudentWithFinance(student,null);
+  domain.assertStudentLifecycleWriteIdleV71?.(student);
   let transactionCode=text(payment?.[6]);
   window.EFC_CODES?.ensurePaymentCode?.(student,payment,index);transactionCode=text(payment?.[6]);const paymentDate=text(payment?.[0]);if(fiscal()?.isDateClosed?.(paymentDate))return alert('هذه الدفعة داخل سنة مالية مقفلة ولا يمكن حذفها. راجع الأرشيف المالي.'),false;
   const amount=Math.max(0,Number(payment?.[1]||0)),receiptNo=Number(payment?.[8]||model.receipt||0)||null,name=text(student.name)||'الطالب';

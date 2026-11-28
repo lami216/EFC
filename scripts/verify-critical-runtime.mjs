@@ -159,7 +159,7 @@ requireText(financeUi,'currentUnpaidBalanceDebtCard:true','finance debt card sum
 requireText(financeUi,'debtCardIgnoresDateFilter:true','finance debt card ignores date period filters');
 requireText(financeUi,'function financeOldestAvailableDate()','finance has an oldest-record resolver');
 requireText(financeUi,"from=document.getElementById('fromV13').value||''",'finance keeps a blank week start blank');
-requireText(financeUi,'إجمالي المبالغ غير المدفوعة حاليًا','finance debt caption explains current unpaid balance');
+requireText(financeUi,'إجمالي المبالغ المستحقة حاليًا','finance debt caption describes the current amount due');
 requireText(financeUi,'data-mode="weekly">أسبوع</button>','finance custom period mode uses the same week label as certificate finance');
 requireText(financeUi,'id="fromV13"','finance custom period has a start date');
 requireText(financeUi,'id="toV13"','finance custom period has an end date');
