@@ -42,6 +42,11 @@ function frozenAtDate(student,asOf=today()){
 function waiverAmountFor(student,monthNumber,asOf=today()){
   return waiversOf(student).filter(entry=>entry.date<=asOf&&(!entry.reversedDate||asOf<entry.reversedDate)).reduce((sum,entry)=>sum+(Array.isArray(entry.parts)?entry.parts:[]).filter(part=>monthNumber===null?part.monthNumber===null:Number(part.monthNumber)===Number(monthNumber)).reduce((amount,part)=>amount+Math.max(0,Number(part.amount||0)),0),0);
 }
+function allocationWaiverForV71(student,monthNumber,paymentIndex,asOf){
+  const payment=student.payments?.[paymentIndex],date=payment?paymentDate(payment,student):asOf,created=payment?Math.max(0,Number(payment[4]||0)):Number.MAX_SAFE_INTEGER;
+  return waiversOf(student).filter(entry=>entry.date<=asOf&&(!entry.reversedDate||asOf<entry.reversedDate)&&(date>entry.date||(date===entry.date&&created>Number(entry.at||0)))).reduce((sum,entry)=>sum+(Array.isArray(entry.parts)?entry.parts:[]).filter(part=>Number(part.monthNumber)===monthNumber).reduce((amount,part)=>amount+Math.max(0,Number(part.amount||0)),0),0);
+}
+function newPaymentStampV71(student,date){return Math.max(Date.now(),...waiversOf(student).filter(entry=>entry.date===String(date)).map(entry=>Math.max(0,Number(entry.at||0))+1));}
 
 function visibleMonthCount(student,asOf=today()){
   if(!isDynamicMonthly(student))return 0;
@@ -74,7 +79,7 @@ function dynamicAllocation(student,asOf=today(),paidOverride=null,minCount=0){
   const place=(paymentIndex,monthIndex,amount)=>{
     if(monthIndex<0||monthIndex>=limit||amount<=0||fee<=0)return 0;
     while(monthPaid.length<=monthIndex)monthPaid.push(0);
-    const before=Math.max(0,Number(monthPaid[monthIndex]||0)),room=Math.max(0,fee-Math.min(fee,waiverAmountFor(student,monthIndex+1,asOf))-before),used=Math.min(room,amount);
+    const before=Math.max(0,Number(monthPaid[monthIndex]||0)),room=Math.max(0,fee-Math.min(fee,allocationWaiverForV71(student,monthIndex+1,paymentIndex,asOf))-before),used=Math.min(room,amount);
     if(used>0){const after=before+used;monthPaid[monthIndex]=after;allocations.push({paymentIndex,monthNumber:monthIndex+1,amount:used,before,after,fee});}
     return used;
   };
@@ -163,7 +168,7 @@ function previewMonthlyPaymentAllocation(student,{amount,date=today(),targetMont
   const value=Number(amount||0),fee=feeOf(student),asOf=String(date||today());
   if(!Number.isFinite(value)||!Number.isFinite(fee)||value<=0||fee<=0)throw new Error('المبلغ غير صالح.');
   const plan=installmentPlan(student,asOf),firstOpen=plan.find(month=>month.remaining>0),fallback=(plan.at(-1)?.number||0)+1,monthNumber=clampMonth(Number(targetMonth)||firstOpen?.number||fallback||1);
-  const payments=[...(student.payments||[]),[asOf,value,'','',0,'','',monthNumber]],index=payments.length-1,draft={...student,payments};
+  const payments=[...(student.payments||[]),[asOf,value,'','',newPaymentStampV71(student,asOf),'','',monthNumber]],index=payments.length-1,draft={...student,payments};
   const allocations=paymentAllocations(draft,index,asOf),allocated=allocations.reduce((sum,item)=>sum+item.amount,0);
   if(!allocations.length||Math.round(allocated*100)!==Math.round(value*100))throw new Error('قيمة الدفعة تتجاوز الحد المدعوم للأشهر المقدمة.');
   // A backdated addition must also fit when later receipts become visible.
@@ -193,7 +198,7 @@ function appendPayment(student,{amount,method,date=today(),time=nowTime(),descri
   const value=Number(amount||0),selected=String(method||'').trim();if(!selected)throw new Error('اختر وسيلة الدفع.');
   const preview=previewMonthlyPaymentAllocation(student,{amount:value,date,targetMonth}),monthNumber=preview.monthNumber;
   try{
-  const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=Date.now(),original=String(description||'').trim();
+   const index=student.payments.length,transactionCode=window.EFC_CODES?.newTransactionCode?.(student)||uid('tx'),stamp=newPaymentStampV71(student,date),original=String(description||'').trim();
   student.payments.push([String(date),value,selected,String(time||nowTime()),stamp,defaultDescription(original)?preview.summary:`${preview.summary} — ${original}`,transactionCode,monthNumber,null,debtDueDate?String(debtDueDate):null,preview.allocations.map(item=>({monthNumber:item.monthNumber,amount:item.amount})),stamp]);
   markRegistration(index);
   student.updatedAt=Math.max(stamp,Number(student.updatedAt||0)+1);
@@ -245,8 +250,10 @@ function updateStudentRegistration(student,changes={}){
   let effectiveIndex=index;
   if(effectiveIndex===null&&changes.createRegistrationPayment===true&&Math.max(0,Number(changes.paymentAmount||0))>0){
     const amount=Math.max(0,Number(changes.paymentAmount||0)),method=String(changes.paymentMethod||'').trim();if(!method)throw new Error('اختر وسيلة الدفع.');
-    const stamp=Date.now(),transactionCode=window.EFC_CODES?.newTransactionCode?.(draft)||uid('tx'),description=String(changes.paymentDescription||'').trim(),receipt=String(changes.registrationReceiptNo??draft.registrationReceiptNo??'').trim();
-    draft.payments.push([String(changes.paymentDate||start),amount,method,String(changes.paymentTime||nowTime()),stamp,description,transactionCode,monthly?1:null,receipt||null,changes.debtDueDate?String(changes.debtDueDate):null,null,stamp]);
+    const date=String(changes.paymentDate||start),allocation=monthly?previewMonthlyPaymentAllocation(draft,{amount,date,targetMonth:1}):null;
+    if(!monthly&&waiversOf(draft).length&&amount>remainingAmount(draft,date))throw new Error('المبلغ أكبر من المتبقي بعد الإعفاء. يجب إلغاء الإعفاء قبل تحصيل المبلغ المعفى.');
+    const stamp=monthly?newPaymentStampV71(draft,date):Date.now(),transactionCode=window.EFC_CODES?.newTransactionCode?.(draft)||uid('tx'),description=String(changes.paymentDescription||'').trim(),receipt=String(changes.registrationReceiptNo??draft.registrationReceiptNo??'').trim(),paymentDescription=allocation?(defaultDescription(description)?allocation.summary:`${allocation.summary} — ${description}`):description;
+    draft.payments.push([date,amount,method,String(changes.paymentTime||nowTime()),stamp,paymentDescription,transactionCode,monthly?1:null,receipt||null,changes.debtDueDate?String(changes.debtDueDate):null,allocation?allocation.allocations.map(part=>({monthNumber:part.monthNumber,amount:part.amount})):null,stamp]);
     effectiveIndex=draft.payments.length-1;notes.push(description);
     if(!(student.payments||[]).some(payment=>Number(payment?.[1]||0)>0)){draft.registrationPaymentCode=transactionCode;draft.registrationPaymentInferred=false;}
   }
@@ -453,7 +460,7 @@ function lifecyclePreviewV71(student,draft,{date=today(),waivedNow=0,restoredDeb
 }
 function addWaiverV71(draft,{date=today(),reason=''}={}){
   const parts=isDynamicMonthly(draft)?installmentPlan(draft).filter(month=>month.remaining>0).map(month=>({monthNumber:month.number,amount:month.remaining})):[{monthNumber:null,amount:remainingAmount(draft)}].filter(part=>part.amount>0),amount=parts.reduce((sum,part)=>sum+part.amount,0);
-  if(amount>0){const at=Math.max(Date.now(),Number(draft.lifecycleStateUpdatedAt||0)+1,Number(draft.updatedAt||0)+1);draft.billingLifecycleV71.waivers.push({id:`${uid('waiver')}-${at}`,at,date:String(date),reason:String(reason||'').trim(),by:String(window.EFC_AUTH_V13?.currentUser?.()?.username||''),parts});}
+  if(amount>0){const at=Date.now();draft.billingLifecycleV71.waivers.push({id:`${uid('waiver')}-${at}`,at,date:String(date),reason:String(reason||'').trim(),by:String(window.EFC_AUTH_V13?.currentUser?.()?.username||''),parts});}
   return amount;
 }
 function prepareStopV71(student,{date=today(),reason='',waiveDebt=false}={}){
